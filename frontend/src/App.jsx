@@ -1,0 +1,93 @@
+import { useEffect, lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useAuthStore } from "./store/auth";
+import ProtectedRoute from "./components/layout/ProtectedRoute";
+import AppLayout from "./components/layout/AppLayout";
+
+const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const TenantsPage = lazy(() => import("./pages/super-admin/TenantsPage"));
+const TenantDetailPage = lazy(() => import("./pages/super-admin/TenantDetailPage"));
+const UsersPage = lazy(() => import("./pages/school-admin/UsersPage"));
+const ClassesPage = lazy(() => import("./pages/school-admin/ClassesPage"));
+const SubjectsPage = lazy(() => import("./pages/school-admin/SubjectsPage"));
+const TeachersPage = lazy(() => import("./pages/school-admin/TeachersPage"));
+const AttendancePage = lazy(() => import("./pages/AttendancePage"));
+const ExamsPage = lazy(() => import("./pages/ExamsPage"));
+const TimetablePage = lazy(() => import("./pages/TimetablePage"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const FeeStructuresPage = lazy(() => import("./pages/FeeStructuresPage"));
+const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
+const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
+const PayrollPage = lazy(() => import("./pages/PayrollPage"));
+const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage"));
+const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const ImportPage = lazy(() => import("./pages/ImportPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const StudentsPage = lazy(() => import("./pages/StudentsPage"));
+const ParentsPage = lazy(() => import("./pages/ParentsPage"));
+const AnnouncementsPage = lazy(() => import("./pages/AnnouncementsPage"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function AppContent() {
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    fetchMe();
+  }, []);
+
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><p>Loading...</p></div>}>
+    <Routes>
+      <Route path="/auth/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/admin/tenants" element={<TenantsPage />} />
+          <Route path="/admin/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/classes" element={<ClassesPage />} />
+          <Route path="/subjects" element={<SubjectsPage />} />
+          <Route path="/teachers" element={<TeachersPage />} />
+          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/exams" element={<ExamsPage />} />
+          <Route path="/timetable" element={<TimetablePage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/fees" element={<FeeStructuresPage />} />
+          <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/payroll" element={<PayrollPage />} />
+          <Route path="/audit-logs" element={<AuditLogsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/import" element={<ImportPage />} />
+          <Route path="/students" element={<StudentsPage />} />
+          <Route path="/parents" element={<ParentsPage />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Route>
+    </Routes>
+    </Suspense>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}

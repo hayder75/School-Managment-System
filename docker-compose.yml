@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sms-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: sms_dev
+      POSTGRES_USER: sms_user
+      POSTGRES_PASSWORD: sms_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: sms-redis
+    ports:
+      - '6379:6379'
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: sms-mailpit
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+volumes:
+  pgdata:

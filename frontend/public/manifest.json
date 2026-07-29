@@ -1,0 +1,15 @@
+{
+  "name": "School Management System",
+  "short_name": "SMS",
+  "theme_color": "#1e293b",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
