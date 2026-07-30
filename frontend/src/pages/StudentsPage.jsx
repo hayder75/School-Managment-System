@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, usePromoteStudents, useEnrollmentStats } from "../hooks/useStudents";
@@ -11,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { TableSkeleton, CardSkeleton } from "../components/ui/skeleton";
-import { Plus, Search, GraduationCap, Users, BookOpen } from "lucide-react";
+import { Plus, Search, GraduationCap, Users, BookOpen, ExternalLink } from "lucide-react";
 
 export default function StudentsPage() {
   const [page, setPage] = useState(1);
@@ -33,8 +34,8 @@ export default function StudentsPage() {
   const updateStudent = useUpdateStudent();
   const deleteStudent = useDeleteStudent();
   const promoteStudents = usePromoteStudents();
-
   const students = data?.data || [];
+  const navigate = useNavigate();
   const meta = data?.meta || {};
   const classes = classesData?.data || [];
   const users = usersData?.data || [];
@@ -219,11 +220,16 @@ export default function StudentsPage() {
                 {students.map((s) => (
                   <tr key={s.id} className="border-b last:border-0">
                     <td className="p-3">{s.student_number || "—"}</td>
-                    <td className="p-3 font-medium">{s.first_name} {s.last_name}</td>
+                    <td className="p-3 font-medium">
+                      <button className="hover:text-primary hover:underline text-left" onClick={() => navigate(`/students/${s.id}`)}>
+                        {s.first_name} {s.last_name}
+                      </button>
+                    </td>
                     <td className="p-3">{s.email}</td>
                     <td className="p-3">{s.class_name || "—"}</td>
                     <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs ${s.status === "active" ? "bg-green-100 text-green-800" : s.status === "graduated" ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"}`}>{s.status}</span></td>
                     <td className="p-3 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/students/${s.id}`)}><ExternalLink className="h-3 w-3 mr-1" />View</Button>
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>
                       <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm("Delete this student?")) deleteStudent.mutate(s.id); }}>Delete</Button>
                     </td>

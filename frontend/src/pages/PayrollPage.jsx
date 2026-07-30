@@ -12,7 +12,7 @@ import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Plus, Trash2, Wallet } from "lucide-react";
+import { Plus, Trash2, Wallet, Download } from "lucide-react";
 
 function SalaryGradesTab() {
   const { data: gradesData, isLoading } = useSalaryGrades();
@@ -263,6 +263,7 @@ function PayrollEntriesTab() {
                     <TableHead>Deductions</TableHead>
                     <TableHead>Net Pay</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="w-20">Payslip</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -274,10 +275,15 @@ function PayrollEntriesTab() {
                       <TableCell>{parseFloat(e.deductions_total || 0).toLocaleString()}</TableCell>
                       <TableCell className="font-semibold">{parseFloat(e.net_pay).toLocaleString()}</TableCell>
                       <TableCell><Badge variant={e.status === "paid" ? "success" : e.status === "cancelled" ? "destructive" : "secondary"}>{e.status}</Badge></TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => window.open(`/api/pdf/payslip/${e.id}`, "_blank")}>
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {entries.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No entries for this period</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No entries for this period</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

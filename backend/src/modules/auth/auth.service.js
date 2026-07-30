@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const db = require('../../config/database');
 const config = require('../../config');
 const logger = require('../../config/logger');
@@ -108,4 +109,21 @@ async function getDevUsers() {
   return { users: rows, grouped };
 }
 
-module.exports = { login, getMe, setPassword, getDevUsers };
+async function forgotPassword(email) {
+  const user = await db('users').where({ email }).first();
+  if (!user) return;
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  await db('password_reset_tokens').insert({ user_id: user.id, token, expires_at: expiresAt });
+  logger.info(`Password reset token for ${email}: ${token}`);
+}
+
+async function resetPassword(token, password) {
+  const record = await db('password_reset_tokens').where({ token, used: false }).first();
+  if (!record || new Date(record.expires_at) < new Date()) throw new Error('INVALID_TOKEN');
+  const hash = await bcrypt.hash(password, 10);
+  await db('users').where({ id: record.user_id }).update({ password_hash: hash });
+  await db('password_reset_tokens').where({ id: record.id }).update({ used: true });
+}
+
+module.exports = { login, getMe, setPassword, getDevUsers, forgotPassword, resetPassword };

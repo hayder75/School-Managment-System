@@ -60,6 +60,8 @@ app.use('/api/parents', parentRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/academics', academicsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/operations', require('./modules/operations/operations.routes'));
+app.use('/api/pdf', require('./modules/pdf/pdf.routes'));
 
 app.get('/', (req, res) => {
   res.redirect(config.frontendUrl);

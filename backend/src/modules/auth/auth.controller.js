@@ -56,6 +56,29 @@ async function devUsers(req, res) {
   res.json({ success: true, data: users });
 }
 
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.validated.body;
+    await authService.forgotPassword(email);
+    res.json({ success: true, data: { message: 'If the email exists, a reset link has been sent.' } });
+  } catch (err) {
+    res.json({ success: true, data: { message: 'If the email exists, a reset link has been sent.' } });
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { token, password } = req.validated.body;
+    await authService.resetPassword(token, password);
+    res.json({ success: true, data: { message: 'Password reset successfully' } });
+  } catch (err) {
+    if (err.message === 'INVALID_TOKEN') {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Invalid or expired reset token' } });
+    }
+    throw err;
+  }
+}
+
 async function setPassword(req, res) {
   try {
     const { token, password } = req.validated.body;
@@ -72,4 +95,4 @@ async function setPassword(req, res) {
   }
 }
 
-module.exports = { login, logout, me, devUsers, setPassword };
+module.exports = { login, logout, me, devUsers, setPassword, forgotPassword, resetPassword };

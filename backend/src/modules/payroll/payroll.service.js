@@ -54,7 +54,61 @@ async function getPayrollSummary(tenantId, month, year) {
   };
 }
 
+// === TAX BRACKETS ===
+async function listTaxBrackets(tenantId) {
+  return db('tax_brackets').where({ tenant_id: tenantId, is_active: true }).orderBy('min_salary');
+}
+async function upsertTaxBracket(tenantId, id, data) {
+  if (id) {
+    const [b] = await db('tax_brackets').where({ tenant_id: tenantId, id }).update(data).returning('*');
+    return b;
+  }
+  const [b] = await db('tax_brackets').insert({ ...data, tenant_id: tenantId }).returning('*');
+  return b;
+}
+async function removeTaxBracket(tenantId, id) {
+  return db('tax_brackets').where({ tenant_id: tenantId, id }).del();
+}
+
+// === LEAVES ===
+async function listLeaves(tenantId, { staff_id, status } = {}) {
+  let q = db('leaves').where({ 'leaves.tenant_id': tenantId })
+    .leftJoin('users', 'leaves.staff_id', 'users.id')
+    .select('leaves.*', db.raw("concat(users.first_name, ' ', users.last_name) as staff_name"))
+    .orderBy('created_at', 'desc');
+  if (staff_id) q = q.where('leaves.staff_id', staff_id);
+  if (status) q = q.where('leaves.status', status);
+  return q;
+}
+async function createLeave(tenantId, userId, data) {
+  const [leave] = await db('leaves').insert({ ...data, tenant_id: tenantId, staff_id: userId }).returning('*');
+  return leave;
+}
+async function approveLeave(tenantId, id, userId) {
+  const [leave] = await db('leaves').where({ tenant_id: tenantId, id }).update({ status: 'approved', approved_by: userId }).returning('*');
+  return leave;
+}
+async function rejectLeave(tenantId, id, reason) {
+  const [leave] = await db('leaves').where({ tenant_id: tenantId, id }).update({ status: 'rejected', reject_reason: reason }).returning('*');
+  return leave;
+}
+
+// === PAYROLL AUDIT ===
+async function listPayrollAudits(tenantId) {
+  return db('payroll_audits').where({ tenant_id: tenantId })
+    .leftJoin('users', 'payroll_audits.performed_by', 'users.id')
+    .select('payroll_audits.*', db.raw("concat(users.first_name, ' ', users.last_name) as performed_by_name"))
+    .orderBy('created_at', 'desc');
+}
+async function createPayrollAudit(tenantId, data) {
+  const [audit] = await db('payroll_audits').insert({ ...data, tenant_id: tenantId }).returning('*');
+  return audit;
+}
+
 module.exports = {
   createSalaryGrade, findAllSalaryGrades, updateSalaryGrade, removeSalaryGrade,
   createPayroll, findAllPayroll, updatePayroll, getPayrollSummary,
+  listTaxBrackets, upsertTaxBracket, removeTaxBracket,
+  listLeaves, createLeave, approveLeave, rejectLeave,
+  listPayrollAudits, createPayrollAudit,
 };

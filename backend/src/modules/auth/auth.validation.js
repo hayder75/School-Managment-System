@@ -14,4 +14,7 @@ const setPasswordSchema = z.object({
   }),
 });
 
-module.exports = { loginSchema, setPasswordSchema };
+const forgotPasswordSchema = z.object({ body: z.object({ email: z.string().email() }) });
+const resetPasswordSchema = z.object({ body: z.object({ token: z.string().min(1), password: z.string().min(6) }) });
+
+module.exports = { loginSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema };

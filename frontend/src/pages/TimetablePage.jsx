@@ -3,6 +3,7 @@ import { useClasses } from "../hooks/useClasses";
 import { useClassTimetable, useCreateTimetableEntry, useDeleteTimetableEntry } from "../hooks/useTimetable";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers } from "../hooks/useTeachers";
+import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Wand2 } from "lucide-react";
 
 const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const dayLabels = { monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu", friday: "Fri", saturday: "Sat" };
@@ -25,10 +26,21 @@ export default function TimetablePage() {
   const deleteEntry = useDeleteTimetableEntry();
 
   const [open, setOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [form, setForm] = useState({
     class_id: "", subject_id: "", teacher_id: "",
     day_of_week: "monday", start_time: "08:00", end_time: "09:00", room: "",
   });
+
+  async function handleGenerate() {
+    setGenerating(true);
+    try {
+      await api.post("/operations/timetable/generate");
+      window.location.reload();
+    } catch {} finally {
+      setGenerating(false);
+    }
+  }
 
   const classes = classesData?.data || [];
   const entries = timetableData?.data || [];
@@ -62,7 +74,11 @@ export default function TimetablePage() {
             </SelectContent>
           </Select>
           {classId && (
-            <Dialog open={open} onOpenChange={setOpen}>
+            <>
+              <Button variant="outline" onClick={handleGenerate} disabled={generating}>
+                <Wand2 className="h-4 w-4 mr-2" /> {generating ? "Generating..." : "Auto Generate"}
+              </Button>
+              <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button><Plus className="h-4 w-4 mr-2" /> Add Entry</Button>
               </DialogTrigger>
@@ -114,6 +130,7 @@ export default function TimetablePage() {
                 </form>
               </DialogContent>
             </Dialog>
+            </>
           )}
         </div>
       </div>

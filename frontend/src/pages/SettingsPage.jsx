@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
+import { useI18n } from "../i18n/I18nContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Save } from "lucide-react";
+import { Save, Languages } from "lucide-react";
 
 export default function SettingsPage() {
   const { data, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
+  const { lang, switchLang } = useI18n();
   const [form, setForm] = useState({});
 
   const settings = data?.data || {};
@@ -47,6 +49,7 @@ export default function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="academic">Academic</TabsTrigger>
           <TabsTrigger value="finance">Finance</TabsTrigger>
+          <TabsTrigger value="language">Language</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
@@ -120,6 +123,36 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label>Enable Partial Payments</Label>
                 <Input value={form.enable_partial_payments || "true"} onChange={(e) => handleChange("enable_partial_payments", e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="language" className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle><Languages className="h-5 w-5 inline mr-2" />Language Settings</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Interface Language</Label>
+                <div className="flex gap-4">
+                  <Button
+                    variant={lang === "en" ? "default" : "outline"}
+                    onClick={() => switchLang("en")}
+                    className="w-32"
+                  >
+                    English
+                  </Button>
+                  <Button
+                    variant={lang === "am" ? "default" : "outline"}
+                    onClick={() => switchLang("am")}
+                    className="w-32"
+                  >
+                    አማርኛ
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Current language: <strong>{lang === "en" ? "English" : "አማርኛ"}</strong>
+                </p>
               </div>
             </CardContent>
           </Card>

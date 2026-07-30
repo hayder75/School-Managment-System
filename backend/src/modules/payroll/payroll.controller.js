@@ -44,7 +44,51 @@ async function getSummary(req, res) {
   res.json({ success: true, data: summary });
 }
 
+// === TAX BRACKETS ===
+async function listTaxBrackets(req, res) {
+  const data = await payrollService.listTaxBrackets(req.tenant.id);
+  res.json({ success: true, data });
+}
+async function upsertTaxBracket(req, res) {
+  const data = await payrollService.upsertTaxBracket(req.tenant.id, req.params.id, req.validated.body);
+  res.status(req.params.id ? 200 : 201).json({ success: true, data });
+}
+async function removeTaxBracket(req, res) {
+  await payrollService.removeTaxBracket(req.tenant.id, req.params.id);
+  res.json({ success: true, data: null });
+}
+
+// === LEAVES ===
+async function listLeaves(req, res) {
+  const { staff_id, status } = req.query;
+  const data = await payrollService.listLeaves(req.tenant.id, { staff_id, status });
+  res.json({ success: true, data });
+}
+async function createLeave(req, res) {
+  const data = await payrollService.createLeave(req.tenant.id, req.user.userId, req.validated.body);
+  res.status(201).json({ success: true, data });
+}
+async function approveLeave(req, res) {
+  const data = await payrollService.approveLeave(req.tenant.id, req.params.id, req.user.userId);
+  if (!data) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Leave not found' } });
+  res.json({ success: true, data });
+}
+async function rejectLeave(req, res) {
+  const data = await payrollService.rejectLeave(req.tenant.id, req.params.id, req.body.reason);
+  if (!data) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Leave not found' } });
+  res.json({ success: true, data });
+}
+
+// === PAYROLL AUDIT ===
+async function listAudits(req, res) {
+  const data = await payrollService.listPayrollAudits(req.tenant.id);
+  res.json({ success: true, data });
+}
+
 module.exports = {
   createSalaryGrade, listSalaryGrades, updateSalaryGrade, removeSalaryGrade,
   createPayroll, listPayroll, updatePayroll, getSummary,
+  listTaxBrackets, upsertTaxBracket, removeTaxBracket,
+  listLeaves, createLeave, approveLeave, rejectLeave,
+  listAudits,
 };

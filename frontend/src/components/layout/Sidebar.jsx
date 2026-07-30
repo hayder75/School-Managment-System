@@ -5,6 +5,7 @@ import {
   Building2, Settings, LogOut, MessageSquare, Notebook,
   DollarSign, Wallet, TrendingDown,
   ShieldAlert, BarChart3, Upload, Megaphone, UserPlus,
+  Bus, BedDouble, BookOpen as BookIcon, FileText, CalendarClock, ClipboardList,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -30,6 +31,11 @@ const navItems = {
     { to: "/payments", label: "Payments", icon: Wallet },
     { to: "/expenses", label: "Expenses", icon: TrendingDown },
     { to: "/payroll", label: "Payroll", icon: Users },
+    { to: "/operations", label: "Operations", icon: Bus },
+    { to: "/tax-settings", label: "Tax Brackets", icon: FileText },
+    { to: "/leave-management", label: "Leave Mgmt", icon: CalendarClock },
+    { to: "/payroll-audit", label: "Payroll Audit", icon: ClipboardList },
+    { to: "/backup", label: "Backup", icon: FileText },
     { to: "/announcements", label: "Announcements", icon: Megaphone },
     { to: "/chat", label: "Chat", icon: MessageSquare },
     { to: "/reports", label: "Reports", icon: BarChart3 },
@@ -52,6 +58,10 @@ const navItems = {
     { to: "/payments", label: "Payments", icon: Wallet },
     { to: "/expenses", label: "Expenses", icon: TrendingDown },
     { to: "/payroll", label: "Payroll", icon: Users },
+    { to: "/operations", label: "Operations", icon: Bus },
+    { to: "/tax-settings", label: "Tax Brackets", icon: FileText },
+    { to: "/leave-management", label: "Leave Mgmt", icon: CalendarClock },
+    { to: "/payroll-audit", label: "Payroll Audit", icon: ClipboardList },
     { to: "/announcements", label: "Announcements", icon: Megaphone },
     { to: "/reports", label: "Reports", icon: BarChart3 },
     { to: "/audit-logs", label: "Audit Logs", icon: ShieldAlert },
@@ -82,6 +92,9 @@ const navItems = {
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/reports", label: "Reports", icon: BarChart3 },
     { to: "/payroll", label: "Payroll", icon: Users },
+    { to: "/tax-settings", label: "Tax Brackets", icon: FileText },
+    { to: "/leave-management", label: "Leave Mgmt", icon: CalendarClock },
+    { to: "/payroll-audit", label: "Payroll Audit", icon: ClipboardList },
     { to: "/users", label: "Staff", icon: Users },
   ],
   parent: [

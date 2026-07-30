@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, DollarSign } from "lucide-react";
+import { Plus, DollarSign, Download } from "lucide-react";
 
 export default function PaymentsPage() {
   const [page, setPage] = useState(1);
@@ -148,6 +148,7 @@ export default function PaymentsPage() {
                     <TableHead>Method</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead className="w-20">Invoice</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -158,10 +159,15 @@ export default function PaymentsPage() {
                       <TableCell className="capitalize">{p.payment_method}</TableCell>
                       <TableCell><Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge></TableCell>
                       <TableCell>{p.paid_date ? new Date(p.paid_date).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}>
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {payments.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No payments yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No payments yet</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

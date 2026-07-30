@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "./store/auth";
+import { I18nProvider } from "./i18n/I18nContext";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import AppLayout from "./components/layout/AppLayout";
 
@@ -26,8 +27,16 @@ const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const ImportPage = lazy(() => import("./pages/ImportPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const StudentsPage = lazy(() => import("./pages/StudentsPage"));
+const StudentDetailPage = lazy(() => import("./pages/StudentDetailPage"));
 const ParentsPage = lazy(() => import("./pages/ParentsPage"));
 const AnnouncementsPage = lazy(() => import("./pages/AnnouncementsPage"));
+const OperationsPage = lazy(() => import("./pages/OperationsPage"));
+const BackupPage = lazy(() => import("./pages/BackupPage"));
+const TaxSettingsPage = lazy(() => import("./pages/TaxSettingsPage"));
+const LeaveManagementPage = lazy(() => import("./pages/LeaveManagementPage"));
+const PayrollAuditPage = lazy(() => import("./pages/PayrollAuditPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +59,8 @@ function AppContent() {
     <Suspense fallback={<div className="flex items-center justify-center h-screen"><p>Loading...</p></div>}>
     <Routes>
       <Route path="/auth/login" element={<LoginPage />} />
+      <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -71,8 +82,14 @@ function AppContent() {
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/students" element={<StudentsPage />} />
+          <Route path="/students/:id" element={<StudentDetailPage />} />
           <Route path="/parents" element={<ParentsPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
+          <Route path="/operations" element={<OperationsPage />} />
+          <Route path="/backup" element={<BackupPage />} />
+          <Route path="/tax-settings" element={<TaxSettingsPage />} />
+          <Route path="/leave-management" element={<LeaveManagementPage />} />
+          <Route path="/payroll-audit" element={<PayrollAuditPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
@@ -86,7 +103,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppContent />
+        <I18nProvider>
+          <AppContent />
+        </I18nProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
