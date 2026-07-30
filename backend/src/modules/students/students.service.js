@@ -32,7 +32,7 @@ async function enroll(tenantId, userId, data) {
   return student;
 }
 
-async function findAll(tenantId, { page = 1, limit = 20, class_id, status, search } = {}) {
+async function findAll(tenantId, { page = 1, limit = 20, class_id, status, search, user_id } = {}) {
   let query = db('students')
     .where({ 'students.tenant_id': tenantId })
     .leftJoin('users', 'students.user_id', 'users.id')
@@ -44,6 +44,7 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, status, searc
     )
     .orderBy('users.last_name', 'asc');
   if (class_id) query = query.where('students.class_id', class_id);
+  if (user_id) query = query.where('students.user_id', user_id);
   if (status) query = query.where('students.status', status);
   if (search) {
     query = query.where(function () {

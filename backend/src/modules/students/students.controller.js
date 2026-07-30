@@ -11,8 +11,8 @@ async function enroll(req, res) {
 }
 
 async function list(req, res) {
-  const { page, limit, class_id, status, search } = req.query;
-  const result = await studentsService.findAll(req.tenant.id, { page, limit, class_id, status, search });
+  const { page, limit, class_id, status, search, user_id } = req.query;
+  const result = await studentsService.findAll(req.tenant.id, { page, limit, class_id, status, search, user_id });
   res.json({ success: true, ...result });
 }
 

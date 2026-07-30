@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
 import { useClassTimetable, useCreateTimetableEntry, useDeleteTimetableEntry } from "../hooks/useTimetable";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers } from "../hooks/useTeachers";
+import { useStudents } from "../hooks/useStudents";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -17,13 +18,25 @@ const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
 const dayLabels = { monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu", friday: "Fri", saturday: "Sat" };
 
 export default function TimetablePage() {
+  const user = useAuthStore((s) => s.user);
+  const isStudent = user?.role === "student";
   const [classId, setClassId] = useState("");
   const { data: classesData } = useClasses({ limit: 200 });
   const { data: timetableData, isLoading } = useClassTimetable(classId);
   const { data: subjectsData } = useSubjects({ limit: 200 });
   const { data: teachersData } = useTeachers({ limit: 200 });
+  const { data: myStudentData } = useStudents(
+    { user_id: user?.id, limit: 1 },
+    { enabled: isStudent && !!user?.id }
+  );
   const createEntry = useCreateTimetableEntry();
   const deleteEntry = useDeleteTimetableEntry();
+
+  useEffect(() => {
+    if (isStudent && myStudentData?.data?.length > 0) {
+      setClassId(myStudentData.data[0].class_id);
+    }
+  }, [isStudent, myStudentData]);
 
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -59,21 +72,30 @@ export default function TimetablePage() {
     setForm({ class_id: "", subject_id: "", teacher_id: "", day_of_week: "monday", start_time: "08:00", end_time: "09:00", room: "" });
   }
 
+  const myClass = classes.find((c) => c.id === classId);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Timetable</h1>
-          <p className="text-muted-foreground">Manage class schedules</p>
+          <p className="text-muted-foreground">
+            {isStudent && myClass
+              ? `Your class schedule — ${myClass.name}`
+              : "Manage class schedules"
+            }
+          </p>
         </div>
         <div className="flex gap-4 items-center">
-          <Select value={classId} onValueChange={(v) => { setClassId(v); setForm((f) => ({ ...f, class_id: v })); }}>
-            <SelectTrigger className="w-64"><SelectValue placeholder="Select class" /></SelectTrigger>
-            <SelectContent>
-              {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {classId && (
+          {!isStudent && (
+            <Select value={classId} onValueChange={(v) => { setClassId(v); setForm((f) => ({ ...f, class_id: v })); }}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="Select class" /></SelectTrigger>
+              <SelectContent>
+                {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          {classId && !isStudent && (
             <>
               <Button variant="outline" onClick={handleGenerate} disabled={generating}>
                 <Wand2 className="h-4 w-4 mr-2" /> {generating ? "Generating..." : "Auto Generate"}
@@ -137,7 +159,7 @@ export default function TimetablePage() {
 
       {classId && (
         <Card>
-          <CardHeader><CardTitle>Weekly Schedule — {classes.find((c) => c.id === classId)?.name}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Weekly Schedule — {myClass?.name}</CardTitle></CardHeader>
           <CardContent>
             {isLoading ? (
               <p className="text-muted-foreground">Loading...</p>
@@ -162,14 +184,16 @@ export default function TimetablePage() {
                             <p className="text-muted-foreground">{entry.teacher_first_name} {entry.teacher_last_name}</p>
                           )}
                           {entry.room && <p className="text-muted-foreground">Room {entry.room}</p>}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100"
-                            onClick={() => deleteEntry.mutate(entry.id)}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                          {!isStudent && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100"
+                              onClick={() => deleteEntry.mutate(entry.id)}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </div>
