@@ -36,6 +36,7 @@ const BackupPage = lazy(() => import("./pages/BackupPage"));
 const TaxSettingsPage = lazy(() => import("./pages/TaxSettingsPage"));
 const LeaveManagementPage = lazy(() => import("./pages/LeaveManagementPage"));
 const PayrollAuditPage = lazy(() => import("./pages/PayrollAuditPage"));
+const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
 
@@ -65,6 +66,7 @@ function AppContent() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
 
           <Route element={<RoleRoute roles={["super_admin"]} />}>
             <Route path="/admin/tenants" element={<TenantsPage />} />

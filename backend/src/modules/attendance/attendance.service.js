@@ -2,21 +2,54 @@ const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
 
 async function mark(tenantId, classId, teacherId, date, records) {
-  const rows = records.map((r) => ({
-    tenant_id: tenantId,
-    student_id: r.student_id,
-    class_id: classId,
-    date,
-    status: r.status,
-    marked_by: teacherId,
-    remark: r.remark || null,
-  }));
-
-  await db('attendance').where({ tenant_id: tenantId, class_id: classId, date }).del();
-
-  if (rows.length > 0) {
-    await db('attendance').insert(rows);
+  const unique = [];
+  const seen = new Set();
+  for (const r of records) {
+    if (!seen.has(r.student_id)) {
+      seen.add(r.student_id);
+      unique.push(r);
+    }
   }
+
+  const studentIds = unique.map((r) => r.student_id);
+  const classStudents = await db('students')
+    .where({ tenant_id: tenantId, class_id: classId })
+    .whereIn('user_id', studentIds)
+    .select('user_id');
+  const validIds = new Set(classStudents.map((s) => s.user_id));
+
+  const rows = unique
+    .filter((r) => validIds.has(r.student_id))
+    .map((r) => ({
+      tenant_id: tenantId,
+      student_id: r.student_id,
+      class_id: classId,
+      date,
+      status: r.status,
+      marked_by: teacherId,
+      remark: r.remark || null,
+    }));
+
+  await db.transaction(async (trx) => {
+    const existing = await trx('attendance')
+      .where({ tenant_id: tenantId, class_id: classId, date })
+      .whereIn('student_id', studentIds)
+      .select('student_id');
+
+    for (const row of rows) {
+      if (existing.some((e) => e.student_id === row.student_id)) {
+        await trx('attendance')
+          .where({ tenant_id: tenantId, class_id: classId, date, student_id: row.student_id })
+          .update({
+            status: row.status,
+            marked_by: row.marked_by,
+            remark: row.remark,
+          });
+      } else {
+        await trx('attendance').insert(row);
+      }
+    }
+  });
 
   return rows;
 }

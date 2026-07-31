@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { Link, Outlet } from "react-router-dom";
+import { Menu, KeyRound } from "lucide-react";
 import Sidebar from "./Sidebar";
 import NotificationBell from "./NotificationBell";
 import { Sheet, SheetContent } from "../ui/sheet";
@@ -32,6 +32,9 @@ export default function AppLayout() {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex-1 lg:hidden" />
+          <Link to="/change-password" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mr-2">
+            <KeyRound className="h-4 w-4" /> Change Password
+          </Link>
           <NotificationBell />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8">

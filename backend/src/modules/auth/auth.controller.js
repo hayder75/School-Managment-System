@@ -79,6 +79,21 @@ async function resetPassword(req, res) {
   }
 }
 
+async function changePassword(req, res) {
+  try {
+    await authService.changePassword(req.user.userId, req.validated.body.current_password, req.validated.body.new_password);
+    res.json({ success: true, data: { message: 'Password changed successfully' } });
+  } catch (err) {
+    if (err.message === 'USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found' } });
+    }
+    if (err.message === 'INVALID_CREDENTIALS') {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Current password is incorrect' } });
+    }
+    throw err;
+  }
+}
+
 async function setPassword(req, res) {
   try {
     const { token, password } = req.validated.body;
@@ -95,4 +110,4 @@ async function setPassword(req, res) {
   }
 }
 
-module.exports = { login, logout, me, devUsers, setPassword, forgotPassword, resetPassword };
+module.exports = { login, logout, me, devUsers, changePassword, setPassword, forgotPassword, resetPassword };

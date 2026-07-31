@@ -15,10 +15,23 @@ async function enterGrades(req, res) {
     }
   }
 
-  const result = await gradeService.upsertGrades(
-    req.tenant.id, req.params.examId, req.validated.body.grades, req.user.userId
-  );
-  res.json({ success: true, data: { updated: result.length } });
+  try {
+    const result = await gradeService.upsertGrades(
+      req.tenant.id, req.params.examId, req.validated.body.grades, req.user.userId
+    );
+    res.json({ success: true, data: { updated: result.length } });
+  } catch (err) {
+    if (err.code === 'EXAM_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Exam not found' } });
+    }
+    if (err.code === 'EXAM_LOCKED') {
+      return res.status(409).json({ success: false, error: { code: 'EXAM_LOCKED', message: 'Grades are locked for this exam' } });
+    }
+    if (err.code === 'MARKS_EXCEED_TOTAL') {
+      return res.status(400).json({ success: false, error: { code: 'MARKS_EXCEED_TOTAL', message: `Marks cannot exceed the exam total (${err.total})` } });
+    }
+    throw err;
+  }
 }
 
 async function getByExam(req, res) {

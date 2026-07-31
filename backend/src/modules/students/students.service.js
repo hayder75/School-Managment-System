@@ -8,28 +8,41 @@ async function create(tenantId, data) {
 
 async function enroll(tenantId, userId, data) {
   const { guardians, ...studentData } = data;
-  const [student] = await db('students').insert({ ...studentData, tenant_id: tenantId }).returning('*');
 
-  if (guardians && guardians.length > 0) {
-    const links = guardians.map((g) => ({
+  return db.transaction(async (trx) => {
+    const [student] = await trx('students').insert({ ...studentData, tenant_id: tenantId }).returning('*');
+
+    if (guardians && guardians.length > 0) {
+      const uniqueGuardians = [];
+      const seen = new Set();
+      for (const g of guardians) {
+        if (g.parent_id && !seen.has(g.parent_id)) {
+          seen.add(g.parent_id);
+          uniqueGuardians.push(g);
+        }
+      }
+      const links = uniqueGuardians.map((g) => ({
+        tenant_id: tenantId,
+        student_id: student.id,
+        parent_id: g.parent_id,
+        relationship: g.relationship || null,
+        is_primary: g.is_primary || false,
+      }));
+      if (links.length > 0) {
+        await trx('student_parents').insert(links);
+      }
+    }
+
+    await trx('student_status_history').insert({
       tenant_id: tenantId,
       student_id: student.id,
-      parent_id: g.parent_id,
-      relationship: g.relationship || null,
-      is_primary: g.is_primary || false,
-    }));
-    await db('student_parents').insert(links);
-  }
+      from_status: null,
+      to_status: studentData.status || 'active',
+      changed_by: userId,
+    });
 
-  await db('student_status_history').insert({
-    tenant_id: tenantId,
-    student_id: student.id,
-    from_status: null,
-    to_status: studentData.status || 'active',
-    changed_by: userId,
+    return student;
   });
-
-  return student;
 }
 
 async function findAll(tenantId, { page = 1, limit = 20, class_id, status, search, user_id } = {}) {
@@ -146,66 +159,119 @@ async function findByClass(tenantId, classId) {
 
 async function promote(tenantId, userId, data) {
   const { student_ids, from_class_id, to_class_id, academic_year } = data;
-  const updated = await db('students')
-    .whereIn('id', student_ids)
-    .where({ tenant_id: tenantId, class_id: from_class_id, status: 'active' })
-    .update({ class_id: to_class_id });
 
-  if (updated > 0) {
-    const records = student_ids.map((sid) => ({
-      tenant_id: tenantId,
-      student_id: sid,
-      from_class_id,
-      to_class_id,
-      academic_year: academic_year || null,
-      promoted_by: userId,
-    }));
-    await db('student_promotions').insert(records);
-  }
+  return db.transaction(async (trx) => {
+    const updated = await trx('students')
+      .whereIn('id', student_ids)
+      .where({ tenant_id: tenantId, class_id: from_class_id, status: 'active' })
+      .update({ class_id: to_class_id });
 
-  return { promoted: updated };
+    if (updated > 0) {
+      const records = student_ids.map((sid) => ({
+        tenant_id: tenantId,
+        student_id: sid,
+        from_class_id,
+        to_class_id,
+        academic_year: academic_year || null,
+        promoted_by: userId,
+      }));
+      await trx('student_promotions').insert(records);
+
+      await reconcileAttendance(trx, tenantId, student_ids, from_class_id, to_class_id);
+    }
+
+    return { promoted: updated };
+  });
 }
 
 async function graduate(tenantId, userId, data) {
   const { student_ids, certificate_number, academic_year } = data;
-  const updated = await db('students')
-    .whereIn('id', student_ids)
-    .where({ tenant_id: tenantId, status: 'active' })
-    .update({ status: 'graduated' });
 
-  if (updated > 0) {
-    const records = student_ids.map((sid) => ({
-      tenant_id: tenantId,
-      student_id: sid,
-      certificate_number: certificate_number || null,
-      academic_year: academic_year || null,
-      graduated_by: userId,
-    }));
-    await db('student_graduations').insert(records);
-  }
+  return db.transaction(async (trx) => {
+    const updated = await trx('students')
+      .whereIn('id', student_ids)
+      .where({ tenant_id: tenantId, status: 'active' })
+      .update({ status: 'graduated' });
 
-  return { graduated: updated };
+    if (updated > 0) {
+      const records = student_ids.map((sid) => ({
+        tenant_id: tenantId,
+        student_id: sid,
+        certificate_number: certificate_number || null,
+        academic_year: academic_year || null,
+        graduated_by: userId,
+      }));
+      await trx('student_graduations').insert(records);
+    }
+
+    return { graduated: updated };
+  });
 }
 
 async function transfer(tenantId, userId, data) {
-  const { student_id, transfer_type, to_class_id, reason } = data;
-  const student = await db('students').where({ tenant_id: tenantId, id: student_id }).first();
-  if (!student) throw new Error('Student not found');
+  const { student_id, transfer_type, to_class_id, reason, previous_school, transfer_date } = data;
 
-  const from_class_id = student.class_id;
+  return db.transaction(async (trx) => {
+    const student = await trx('students').where({ tenant_id: tenantId, id: student_id }).first();
+    if (!student) throw new Error('Student not found');
 
-  await db('students').where({ id: student_id }).update({ class_id: to_class_id });
-  await db('student_transfers').insert({
-    tenant_id: tenantId,
-    student_id,
-    transfer_type: transfer_type || 'internal',
-    from_class_id,
-    to_class_id,
-    reason: reason || null,
-    transferred_by: userId,
+    const from_class_id = student.class_id;
+
+    const updateData = { class_id: to_class_id };
+    if (transfer_type === 'external_in') {
+      updateData.admission_type = 'transfer_in';
+      if (previous_school) updateData.previous_school = previous_school;
+      if (transfer_date) updateData.transfer_date = transfer_date;
+    }
+    await trx('students').where({ id: student_id }).update(updateData);
+    await trx('student_transfers').insert({
+      tenant_id: tenantId,
+      student_id,
+      transfer_type: transfer_type || 'internal',
+      from_class_id,
+      to_class_id,
+      reason: reason || null,
+      previous_school: previous_school || null,
+      transfer_date: transfer_date || null,
+      transferred_by: userId,
+    });
+
+    if (from_class_id && from_class_id !== to_class_id) {
+      await reconcileAttendance(trx, tenantId, [student_id], from_class_id, to_class_id);
+    }
+
+    return { student_id, from_class_id, to_class_id };
   });
+}
 
-  return { student_id, from_class_id, to_class_id };
+async function reconcileAttendance(trx, tenantId, studentIds, fromClassId, toClassId) {
+  const studentUserIds = await trx('students')
+    .where({ tenant_id: tenantId })
+    .whereIn('id', studentIds)
+    .select('user_id');
+  const userIds = studentUserIds.map((s) => s.user_id);
+
+  if (userIds.length === 0) return;
+
+  const newClassRows = await trx('attendance')
+    .where({ tenant_id: tenantId, class_id: toClassId })
+    .whereIn('student_id', userIds)
+    .select('student_id', 'date');
+  const occupied = new Set(newClassRows.map((r) => `${r.student_id}|${r.date}`));
+
+  const oldRows = await trx('attendance')
+    .where({ tenant_id: tenantId, class_id: fromClassId })
+    .whereIn('student_id', userIds)
+    .select('id', 'student_id', 'date');
+
+  for (const row of oldRows) {
+    const key = `${row.student_id}|${row.date}`;
+    if (occupied.has(key)) {
+      await trx('attendance').where({ id: row.id }).del();
+    } else {
+      await trx('attendance').where({ id: row.id }).update({ class_id: toClassId });
+    }
+  }
 }
 
 async function getDocuments(tenantId, studentId) {

@@ -1,4 +1,6 @@
 const db = require('../../config/database');
+const jwt = require('jsonwebtoken');
+const config = require('../../config');
 const { paginatedResult } = require('../../shared/pagination');
 
 const userFields = [
@@ -18,6 +20,15 @@ async function create(tenantId, data) {
       status: 'invited',
     })
     .returning(userFields);
+
+  if (data.send_invite !== false) {
+    const token = jwt.sign(
+      { userId: user.id, type: 'invitation', email: user.email },
+      config.jwt.secret,
+      { expiresIn: '7d' }
+    );
+    user.invitation_token = token;
+  }
 
   return user;
 }

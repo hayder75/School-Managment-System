@@ -38,6 +38,17 @@ export function useUnlinkParent() {
   });
 }
 
+export function useUpdateLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/parents/link/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["parents"] });
+      qc.invalidateQueries({ queryKey: ["my-children"] });
+    },
+  });
+}
+
 export function useMyChildren(options = {}) {
   return useQuery({
     queryKey: ["my-children"],

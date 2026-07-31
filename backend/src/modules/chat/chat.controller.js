@@ -15,12 +15,12 @@ async function listConversations(req, res) {
 
 async function getMessages(req, res) {
   const { page, limit } = req.query;
-  const result = await chatService.getConversationMessages(req.tenant.id, req.params.conversationId, { page, limit });
+  const result = await chatService.getConversationMessages(req.tenant.id, req.params.conversationId, req.user.userId, { page, limit });
   res.json({ success: true, ...result });
 }
 
 async function markRead(req, res) {
-  await chatService.markAsRead(req.params.conversationId, req.user.userId);
+  await chatService.markAsRead(req.tenant.id, req.params.conversationId, req.user.userId);
   res.json({ success: true, data: null });
 }
 

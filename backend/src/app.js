@@ -73,9 +73,21 @@ app.get('/api/health', (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({
+  if (err.code === 'FORBIDDEN') {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'FORBIDDEN', message: err.message || 'Forbidden' },
+    });
+  }
+  if (err.code === 'NOT_FOUND') {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: err.message || 'Not found' },
+    });
+  }
+  res.status(err.status || 500).json({
     success: false,
-    error: { code: 'SERVER_ERROR', message: 'Internal server error' },
+    error: { code: err.code || 'SERVER_ERROR', message: err.message || 'Internal server error' },
   });
 });
 

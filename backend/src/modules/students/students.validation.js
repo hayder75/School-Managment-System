@@ -8,6 +8,12 @@ const createStudentSchema = z.object({
     enrollment_date: z.string().optional(),
     emergency_contact: z.string().optional(),
     medical_info: z.record(z.any()).optional(),
+    previous_school: z.string().max(255).optional(),
+    admission_type: z.enum(['new', 'transfer_in']).optional(),
+    date_of_birth: z.string().optional(),
+    gender: z.enum(['male', 'female', 'other']).optional(),
+    home_address: z.string().optional(),
+    transfer_date: z.string().optional(),
   }),
 });
 
@@ -18,6 +24,12 @@ const updateStudentSchema = z.object({
     status: z.enum(['active', 'transferred', 'dropped', 'graduated']).optional(),
     emergency_contact: z.string().optional(),
     medical_info: z.record(z.any()).optional(),
+    previous_school: z.string().max(255).optional(),
+    admission_type: z.enum(['new', 'transfer_in']).optional(),
+    date_of_birth: z.string().optional(),
+    gender: z.enum(['male', 'female', 'other']).optional(),
+    home_address: z.string().optional(),
+    transfer_date: z.string().optional(),
   }),
 });
 
@@ -29,6 +41,12 @@ const enrollSchema = z.object({
     enrollment_date: z.string().optional(),
     emergency_contact: z.string().optional(),
     status: z.string().optional(),
+    previous_school: z.string().max(255).optional(),
+    admission_type: z.enum(['new', 'transfer_in']).optional(),
+    date_of_birth: z.string().optional(),
+    gender: z.enum(['male', 'female', 'other']).optional(),
+    home_address: z.string().optional(),
+    transfer_date: z.string().optional(),
     guardians: z.array(z.object({
       parent_id: z.string().uuid(),
       relationship: z.string().optional(),
@@ -60,6 +78,8 @@ const transferSchema = z.object({
     transfer_type: z.enum(['internal', 'external_in', 'external_out']).optional(),
     to_class_id: z.string().uuid(),
     reason: z.string().optional(),
+    previous_school: z.string().max(255).optional(),
+    transfer_date: z.string().optional(),
   }),
 });
 

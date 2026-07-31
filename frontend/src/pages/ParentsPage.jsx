@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
-import { useParents, useParent, useLinkParent, useUnlinkParent } from "../hooks/useParents";
+import { useParents, useParent, useLinkParent, useUnlinkParent, useUpdateLink } from "../hooks/useParents";
 import { useStudents } from "../hooks/useStudents";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -24,6 +24,7 @@ export default function ParentsPage() {
   const { data: studentsData } = useStudents({ limit: 200 });
   const linkParent = useLinkParent();
   const unlinkParent = useUnlinkParent();
+  const updateLink = useUpdateLink();
 
   const parents = data?.data || [];
   const meta = data?.meta || {};
@@ -140,18 +141,32 @@ export default function ParentsPage() {
                     <h3 className="font-medium text-sm mb-2">Linked Children</h3>
                     <div className="rounded-md border">
                       <table className="w-full text-sm">
-                        <thead><tr className="border-b bg-muted/50"><th className="text-left p-2 font-medium">Name</th><th className="text-left p-2 font-medium">Student #</th><th className="text-left p-2 font-medium">Relationship</th><th className="text-right p-2 font-medium">Actions</th></tr></thead>
+                        <thead><tr className="border-b bg-muted/50"><th className="text-left p-2 font-medium">Name</th><th className="text-left p-2 font-medium">Student #</th><th className="text-left p-2 font-medium">Relationship</th><th className="text-left p-2 font-medium">Primary</th><th className="text-right p-2 font-medium">Actions</th></tr></thead>
                         <tbody>
                           {(!parentDetail?.children || parentDetail.children.length === 0) && (
-                            <tr><td colSpan={4} className="text-center p-4 text-muted-foreground">No children linked</td></tr>
+                            <tr><td colSpan={5} className="text-center p-4 text-muted-foreground">No children linked</td></tr>
                           )}
                           {(parentDetail?.children || []).map((child) => (
                             <tr key={child.student_id} className="border-b last:border-0">
                               <td className="p-2">{child.first_name} {child.last_name}</td>
                               <td className="p-2">{child.student_number || "—"}</td>
                               <td className="p-2 capitalize">{child.relationship}</td>
+                              <td className="p-2">
+                                <Button
+                                  variant={child.is_primary ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => {
+                                    if (child.is_primary) return;
+                                    if (confirm("Set this parent as primary guardian for this child?")) {
+                                      updateLink.mutate({ id: child.link_id, is_primary: true });
+                                    }
+                                  }}
+                                >
+                                  {child.is_primary ? "Primary" : "Set primary"}
+                                </Button>
+                              </td>
                               <td className="p-2 text-right">
-                                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm("Unlink this child?")) unlinkParent.mutate(child.student_id); }}>
+                                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm("Unlink this child?")) unlinkParent.mutate(child.link_id); }}>
                                   <Unlink className="h-3 w-3" />
                                 </Button>
                               </td>

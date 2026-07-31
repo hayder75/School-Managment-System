@@ -13,8 +13,21 @@ async function getById(req, res) {
 }
 
 async function link(req, res) {
-  const link = await parentsService.linkParent(req.tenant.id, req.validated.body);
-  res.status(201).json({ success: true, data: link });
+  try {
+    const link = await parentsService.linkParent(req.tenant.id, req.validated.body);
+    res.status(201).json({ success: true, data: link });
+  } catch (err) {
+    if (err.code === 'STUDENT_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'STUDENT_NOT_FOUND', message: 'Student not found in this school' } });
+    }
+    if (err.code === 'PARENT_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'PARENT_NOT_FOUND', message: 'Parent not found in this school' } });
+    }
+    if (err.code === 'ALREADY_LINKED') {
+      return res.status(409).json({ success: false, error: { code: 'ALREADY_LINKED', message: 'This parent is already linked to the student' } });
+    }
+    throw err;
+  }
 }
 
 async function unlink(req, res) {

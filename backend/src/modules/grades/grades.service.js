@@ -1,14 +1,58 @@
 const db = require('../../config/database');
 
+function computeGradeLetter(marks, total) {
+  if (marks == null || total == null || Number(total) <= 0) return null;
+  const ratio = Number(marks) / Number(total);
+  if (ratio >= 0.9) return 'A';
+  if (ratio >= 0.8) return 'B';
+  if (ratio >= 0.7) return 'C';
+  if (ratio >= 0.6) return 'D';
+  return 'F';
+}
+
 async function upsertGrades(tenantId, examId, grades, userId) {
-  const rows = await Promise.all(
-    grades.map(async (g) => {
-      const existing = await db('grades')
+  const exam = await db('exams').where({ tenant_id: tenantId, id: examId }).first();
+  if (!exam) {
+    const err = new Error('EXAM_NOT_FOUND');
+    err.code = 'EXAM_NOT_FOUND';
+    throw err;
+  }
+
+  if (exam.locked_by) {
+    const err = new Error('EXAM_LOCKED');
+    err.code = 'EXAM_LOCKED';
+    throw err;
+  }
+
+  const totalMarks = exam.total_marks ? Number(exam.total_marks) : null;
+  for (const g of grades) {
+    if (g.marks_obtained != null && totalMarks != null && Number(g.marks_obtained) > totalMarks) {
+      const err = new Error('MARKS_EXCEED_TOTAL');
+      err.code = 'MARKS_EXCEED_TOTAL';
+      err.studentId = g.student_id;
+      err.marks = g.marks_obtained;
+      err.total = totalMarks;
+      throw err;
+    }
+  }
+
+  const classStudents = await db('students')
+    .where({ tenant_id: tenantId, class_id: exam.class_id })
+    .whereIn('user_id', grades.map((g) => g.student_id))
+    .select('user_id');
+  const validStudents = new Set(classStudents.map((s) => s.user_id));
+
+  const rows = await db.transaction(async (trx) => {
+    const results = [];
+    for (const g of grades) {
+      if (!validStudents.has(g.student_id)) continue;
+
+      const existing = await trx('grades')
         .where({ tenant_id: tenantId, exam_id: examId, student_id: g.student_id })
         .first();
 
       if (existing && existing.locked_by) {
-        return null;
+        continue;
       }
 
       const data = {
@@ -16,22 +60,23 @@ async function upsertGrades(tenantId, examId, grades, userId) {
         exam_id: examId,
         student_id: g.student_id,
         marks_obtained: g.marks_obtained ?? null,
-        grade_letter: g.grade_letter || null,
+        grade_letter: computeGradeLetter(g.marks_obtained, totalMarks) || g.grade_letter || null,
         remarks: g.remarks || null,
         updated_at: db.fn.now(),
       };
 
       if (existing) {
-        await db('grades').where({ id: existing.id }).update(data);
-        return { ...existing, ...data };
+        const [row] = await trx('grades').where({ id: existing.id }).update(data).returning('*');
+        results.push(row);
       } else {
-        const [row] = await db('grades').insert(data).returning('*');
-        return row;
+        const [row] = await trx('grades').insert(data).returning('*');
+        results.push(row);
       }
-    })
-  );
+    }
+    return results;
+  });
 
-  return rows.filter(Boolean);
+  return rows;
 }
 
 async function getByExam(tenantId, examId) {
@@ -64,12 +109,23 @@ async function getByStudent(tenantId, studentId) {
 }
 
 async function lockGrades(tenantId, examId, lock, userId) {
-  const data = lock
-    ? { locked_by: userId, locked_at: db.fn.now() }
-    : { locked_by: null, locked_at: null };
-
-  await db('grades').where({ tenant_id: tenantId, exam_id: examId }).update(data);
+  await db.transaction(async (trx) => {
+    if (lock) {
+      const data = { locked_by: userId, locked_at: db.fn.now() };
+      await trx('grades').where({ tenant_id: tenantId, exam_id: examId }).update(data);
+      const existingLock = await trx('exams').where({ tenant_id: tenantId, id: examId }).first();
+      if (existingLock) {
+        await trx('exams').where({ id: existingLock.id }).update({ locked_by: userId, locked_at: db.fn.now() });
+      }
+    } else {
+      await trx('grades').where({ tenant_id: tenantId, exam_id: examId }).update({ locked_by: null, locked_at: null });
+      const existingLock = await trx('exams').where({ tenant_id: tenantId, id: examId }).first();
+      if (existingLock) {
+        await trx('exams').where({ id: existingLock.id }).update({ locked_by: null, locked_at: null });
+      }
+    }
+  });
   return { locked: lock };
 }
 
-module.exports = { upsertGrades, getByExam, getByStudent, lockGrades };
+module.exports = { upsertGrades, getByExam, getByStudent, lockGrades, computeGradeLetter };

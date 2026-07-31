@@ -5,6 +5,16 @@ const db = require('../../config/database');
 async function mark(req, res) {
   const { date, records } = req.validated.body;
 
+  const dateObj = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(dateObj.getTime())) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid date' } });
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (dateObj > today) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Cannot mark attendance for a future date' } });
+  }
+
   if (req.user.role === 'teacher') {
     if (!(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, req.params.classId))) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only mark attendance for classes you teach' } });

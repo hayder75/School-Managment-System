@@ -87,7 +87,6 @@ async function setPassword(token, password) {
 
 async function getDevUsers() {
   const demoIds = [
-    '00000000-0000-0000-0000-000000000001',
     '00000000-0000-0000-0000-000000000010',
     '00000000-0000-0000-0000-000000000011',
     '00000000-0000-0000-0000-000000000012',
@@ -99,6 +98,7 @@ async function getDevUsers() {
   const rows = await db('users')
     .whereIn('id', demoIds)
     .where('status', 'active')
+    .whereNot('role', 'super_admin')
     .select('id', 'email', 'first_name', 'last_name', 'role')
     .orderBy('role');
   const grouped = {};
@@ -107,6 +107,22 @@ async function getDevUsers() {
     grouped[r.role].push(r);
   }
   return { users: rows, grouped };
+}
+
+async function changePassword(userId, currentPassword, newPassword) {
+  const user = await db('users').where({ id: userId }).first();
+  if (!user) throw new Error('USER_NOT_FOUND');
+
+  if (!user.password_hash) {
+    throw new Error('INVALID_CREDENTIALS');
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!valid) throw new Error('INVALID_CREDENTIALS');
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  await db('users').where({ id: userId }).update({ password_hash: hash });
+  return { userId };
 }
 
 async function forgotPassword(email) {
@@ -126,4 +142,4 @@ async function resetPassword(token, password) {
   await db('password_reset_tokens').where({ id: record.id }).update({ used: true });
 }
 
-module.exports = { login, getMe, setPassword, getDevUsers, forgotPassword, resetPassword };
+module.exports = { login, getMe, setPassword, getDevUsers, changePassword, forgotPassword, resetPassword };

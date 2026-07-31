@@ -10,11 +10,16 @@ async function generateReportCard(tenantId, studentId, academicYear) {
     .first();
   if (!student) throw new Error('NOT_FOUND');
 
-  const grades = await db('grades')
+  let gradesQuery = db('grades')
     .where({ 'grades.tenant_id': tenantId, 'grades.student_id': studentId })
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
-    .select('subjects.name as subject', 'grades.marks_obtained', 'exams.total_marks', 'exams.name as exam_name');
+    .select('subjects.name as subject', 'grades.marks_obtained', 'exams.total_marks', 'exams.name as exam_name', 'exams.date as exam_date');
+
+  if (academicYear) {
+    gradesQuery = gradesQuery.whereRaw("EXTRACT(YEAR FROM exams.date) = ?", [parseInt(academicYear, 10)]);
+  }
+  const grades = await gradesQuery.orderBy('exams.date', 'asc');
 
   const doc = new PDFDocument({ margin: 50 });
   const buffers = [];
@@ -34,11 +39,14 @@ async function generateReportCard(tenantId, studentId, academicYear) {
   doc.moveDown(0.5);
 
   for (const g of grades) {
-    const score = parseFloat(g.marks_obtained) || 0;
-    const max = parseFloat(g.total_marks) || 0;
-    const letter = max && score ? (score / max >= 0.9 ? 'A' : score / max >= 0.8 ? 'B' : score / max >= 0.7 ? 'C' : score / max >= 0.6 ? 'D' : 'F') : '-';
+    const hasScore = g.marks_obtained != null && g.marks_obtained !== '';
+    const score = hasScore ? parseFloat(g.marks_obtained) : null;
+    const max = g.total_marks != null ? parseFloat(g.total_marks) : null;
+    const letter = score != null && max && max > 0
+      ? (score / max >= 0.9 ? 'A' : score / max >= 0.8 ? 'B' : score / max >= 0.7 ? 'C' : score / max >= 0.6 ? 'D' : 'F')
+      : '-';
     doc.text(g.subject || 'Unknown', 50, doc.y, { width: 200, continued: true });
-    doc.text(score ? score.toString() : '-', 300, doc.y, { width: 80, continued: true });
+    doc.text(score != null ? score.toString() : '-', 300, doc.y, { width: 80, continued: true });
     doc.text(letter, 400, doc.y);
     doc.moveDown(0.3);
   }
@@ -53,10 +61,30 @@ async function generateInvoice(tenantId, studentId) {
   const student = await db('students')
     .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
     .leftJoin('users', 'students.user_id', 'users.id')
-    .select('users.first_name', 'users.last_name')
+    .leftJoin('classes', 'students.class_id', 'classes.id')
+    .select('users.first_name', 'users.last_name', 'classes.name as class_name', 'students.class_id')
     .first();
-  const fees = await db('payments').where({ tenant_id: tenantId, student_id: studentId });
-  const structures = await db('fee_structures').where({ tenant_id: tenantId });
+  if (!student) throw new Error('NOT_FOUND');
+
+  const payments = await db('payments').where({ tenant_id: tenantId, student_id: studentId });
+  const paymentMap = {};
+  let totalPaid = 0;
+  for (const p of payments) {
+    totalPaid += Number(p.amount_paid || 0);
+    if (p.fee_structure_id) {
+      paymentMap[p.fee_structure_id] = (paymentMap[p.fee_structure_id] || 0) + Number(p.amount_paid || 0);
+    }
+  }
+
+  let query = db('fee_structures').where({ tenant_id: tenantId, is_active: true });
+  if (student.class_id) {
+    query = query.where(function () {
+      this.whereNull('class_id').orWhere('class_id', student.class_id);
+    });
+  } else {
+    query = query.whereNull('class_id');
+  }
+  const structures = await query.orderBy('name');
 
   const doc = new PDFDocument({ margin: 50 });
   const buffers = [];
@@ -64,23 +92,36 @@ async function generateInvoice(tenantId, studentId) {
 
   doc.fontSize(20).text('INVOICE', { align: 'center' });
   doc.moveDown();
-  doc.fontSize(12).text(`Student: ${student?.first_name || ''} ${student?.last_name || ''}`);
+  doc.fontSize(12).text(`Student: ${student.first_name} ${student.last_name}`);
+  doc.text(`Class: ${student.class_name || 'N/A'}`);
   doc.text(`Date: ${new Date().toLocaleDateString()}`);
   doc.moveDown();
 
-  doc.fontSize(10).text('Item', 50, doc.y, { width: 250, continued: true });
-  doc.text('Amount', 350, doc.y);
+  doc.fontSize(10).text('Item', 50, doc.y, { width: 200, continued: true });
+  doc.text('Amount', 250, doc.y, { width: 80, continued: true });
+  doc.text('Paid', 330, doc.y, { width: 80, continued: true });
+  doc.text('Balance', 410, doc.y);
   doc.moveDown(0.5);
 
   let total = 0;
   for (const f of structures) {
-    doc.text(f.name, 50, doc.y, { width: 250, continued: true });
-    doc.text(`${f.amount} ETB`, 350, doc.y);
-    total += Number(f.amount || 0);
+    const paid = paymentMap[f.id] || 0;
+    const balance = Math.max(0, Number(f.amount || 0) - paid);
+    total += balance;
+    doc.text(f.name, 50, doc.y, { width: 200, continued: true });
+    doc.text(`${f.amount} ETB`, 250, doc.y, { width: 80, continued: true });
+    doc.text(paid ? `${paid} ETB` : '-', 330, doc.y, { width: 80, continued: true });
+    doc.text(balance ? `${balance} ETB` : '-', 410, doc.y);
     doc.moveDown(0.3);
   }
+
+  if (structures.length === 0) {
+    doc.fontSize(10).text('No active fee structures for this student.', 50, doc.y);
+  }
+
   doc.moveDown();
-  doc.fontSize(12).text(`Total: ${total} ETB`, { align: 'right' });
+  doc.fontSize(12).text(`Total Paid: ${totalPaid} ETB`, { align: 'right' });
+  doc.text(`Outstanding Balance: ${total} ETB`, { align: 'right' });
 
   doc.end();
   return new Promise((resolve) => {

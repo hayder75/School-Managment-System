@@ -32,8 +32,20 @@ function setupSocket(httpServer) {
 
     socket.join(`user:${userId}`);
 
-    socket.on('join:conversation', (conversationId) => {
-      socket.join(`conv:${conversationId}`);
+    socket.on('join:conversation', async (conversationId, callback) => {
+      try {
+        const participant = await db('chat_participants')
+          .where({ conversation_id: conversationId, user_id: userId })
+          .first();
+        if (!participant) {
+          return callback?.({ error: 'Not a participant' });
+        }
+        socket.join(`conv:${conversationId}`);
+        callback?.({ success: true });
+      } catch (err) {
+        logger.error('Socket join error', { error: err.message });
+        callback?.({ error: err.message });
+      }
     });
 
     socket.on('leave:conversation', (conversationId) => {
@@ -45,6 +57,13 @@ function setupSocket(httpServer) {
         const { conversationId, content } = data;
         if (!conversationId || !content) {
           return callback?.({ error: 'conversationId and content required' });
+        }
+
+        const participant = await db('chat_participants')
+          .where({ conversation_id: conversationId, user_id: userId })
+          .first();
+        if (!participant) {
+          return callback?.({ error: 'Not a participant of this conversation' });
         }
 
         const [message] = await db('chat_messages')

@@ -103,6 +103,42 @@ export default function StudentDetailPage() {
         </Button>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Guardians</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {(!student.guardians || student.guardians.length === 0) && (
+              <p className="text-sm text-muted-foreground">No guardians linked</p>
+            )}
+            {(student.guardians || []).map((g) => (
+              <div key={g.id} className="flex items-center justify-between text-sm">
+                <div>
+                  <p className="font-medium">
+                    {g.first_name} {g.last_name}
+                    {g.is_primary && <Badge variant="success" className="ml-2">Primary</Badge>}
+                  </p>
+                  <p className="text-xs text-muted-foreground capitalize">{g.relationship}{g.email ? ` · ${g.email}` : ""}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Enrollment</CardTitle></CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <p><span className="text-muted-foreground">Enrolled:</span> {student.enrollment_date ? new Date(student.enrollment_date).toLocaleDateString() : "—"}</p>
+            <p><span className="text-muted-foreground">Student #:</span> {student.student_number || "—"}</p>
+            <p><span className="text-muted-foreground">Phone:</span> {student.phone || student.emergency_contact || "—"}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Emergency Contact</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-sm">{student.emergency_contact || "—"}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex gap-1 border-b">
         {TABS.map((t) => (
           <button

@@ -93,8 +93,18 @@ async function update(req, res) {
 }
 
 async function remove(req, res) {
-  await examService.remove(req.tenant.id, req.params.id);
-  res.json({ success: true, data: null });
+  try {
+    await examService.remove(req.tenant.id, req.params.id);
+    res.json({ success: true, data: null });
+  } catch (err) {
+    if (err.code === 'EXAM_HAS_GRADES') {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'EXAM_HAS_GRADES', message: 'Cannot delete an exam that already has grades recorded' },
+      });
+    }
+    throw err;
+  }
 }
 
 module.exports = { create, list, getById, update, remove };

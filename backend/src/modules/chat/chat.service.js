@@ -1,12 +1,30 @@
 const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
 
+async function isParticipant(tenantId, conversationId, userId) {
+  const row = await db('chat_participants')
+    .where({ conversation_id: conversationId, user_id: userId })
+    .join('chat_conversations', 'chat_participants.conversation_id', 'chat_conversations.id')
+    .where('chat_conversations.tenant_id', tenantId)
+    .select('chat_participants.id')
+    .first();
+  return !!row;
+}
+
 async function createConversation(tenantId, createdBy, subject, participantIds) {
+  const uniqueIds = [...new Set([createdBy, ...participantIds])];
+  const verified = await db('users')
+    .whereIn('id', uniqueIds)
+    .where({ tenant_id: tenantId, status: 'active' })
+    .select('id');
+  const verifiedIds = new Set(verified.map((u) => u.id));
+  const validParticipants = uniqueIds.filter((id) => verifiedIds.has(id));
+
   const [conv] = await db('chat_conversations')
     .insert({ tenant_id: tenantId, subject, created_by: createdBy })
     .returning('*');
 
-  const participants = [createdBy, ...participantIds].map((userId) => ({
+  const participants = validParticipants.map((userId) => ({
     conversation_id: conv.id,
     user_id: userId,
   }));
@@ -37,7 +55,13 @@ async function getUserConversations(tenantId, userId) {
     .orderBy('last_msg.last_message_at', 'desc');
 }
 
-async function getConversationMessages(tenantId, conversationId, { page = 1, limit = 50 } = {}) {
+async function getConversationMessages(tenantId, conversationId, userId, { page = 1, limit = 50 } = {}) {
+  const participant = await isParticipant(tenantId, conversationId, userId);
+  if (!participant) {
+    const err = new Error('FORBIDDEN');
+    err.code = 'FORBIDDEN';
+    throw err;
+  }
   const query = db('chat_messages')
     .where({ 'chat_messages.tenant_id': tenantId, 'chat_messages.conversation_id': conversationId })
     .leftJoin('users', 'chat_messages.sender_id', 'users.id')
@@ -51,7 +75,13 @@ async function getConversationMessages(tenantId, conversationId, { page = 1, lim
   return paginatedResult(query, page, limit);
 }
 
-async function markAsRead(conversationId, userId) {
+async function markAsRead(tenantId, conversationId, userId) {
+  const participant = await isParticipant(tenantId, conversationId, userId);
+  if (!participant) {
+    const err = new Error('FORBIDDEN');
+    err.code = 'FORBIDDEN';
+    throw err;
+  }
   await db('chat_participants')
     .where({ conversation_id: conversationId, user_id: userId })
     .update({ last_read_at: db.fn.now() });
@@ -69,4 +99,4 @@ async function getUnreadCount(tenantId, userId) {
   return parseInt(result?.count || 0, 10);
 }
 
-module.exports = { createConversation, getUserConversations, getConversationMessages, markAsRead, getUnreadCount };
+module.exports = { createConversation, getUserConversations, getConversationMessages, markAsRead, getUnreadCount, isParticipant };

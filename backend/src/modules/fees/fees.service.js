@@ -27,7 +27,35 @@ async function removeFeeStructure(tenantId, id) {
 }
 
 async function createPayment(tenantId, data) {
+  const { student_id } = data;
+  const student = await db('users').where({ id: student_id, tenant_id: tenantId }).select('id').first();
+  if (!student) {
+    const err = new Error('STUDENT_NOT_FOUND');
+    err.code = 'STUDENT_NOT_FOUND';
+    throw err;
+  }
+  if (data.fee_structure_id) {
+    const fee = await db('fee_structures').where({ id: data.fee_structure_id, tenant_id: tenantId }).select('id').first();
+    if (!fee) {
+      const err = new Error('FEE_NOT_FOUND');
+      err.code = 'FEE_NOT_FOUND';
+      throw err;
+    }
+  }
   const [payment] = await db('payments').insert({ ...data, tenant_id: tenantId }).returning('*');
+  return payment;
+}
+
+async function updatePayment(tenantId, id, data) {
+  if (data.fee_structure_id) {
+    const fee = await db('fee_structures').where({ id: data.fee_structure_id, tenant_id: tenantId }).select('id').first();
+    if (!fee) {
+      const err = new Error('FEE_NOT_FOUND');
+      err.code = 'FEE_NOT_FOUND';
+      throw err;
+    }
+  }
+  const [payment] = await db('payments').where({ tenant_id: tenantId, id }).update(data).returning('*');
   return payment;
 }
 
@@ -57,7 +85,7 @@ async function removePayment(tenantId, id) {
 
 async function getPaymentSummary(tenantId) {
   const totalCollected = await db('payments').where({ tenant_id: tenantId }).sum('amount_paid as total').first();
-  const outstanding = await db('payments').where({ tenant_id: tenantId, status: 'pending' }).sum('balance as total').first();
+  const outstanding = await db('payments').where({ tenant_id: tenantId }).whereIn('status', ['pending', 'partial', 'overdue']).sum('balance as total').first();
   return {
     total_collected: parseFloat(totalCollected?.total || 0),
     outstanding: parseFloat(outstanding?.total || 0),
@@ -66,5 +94,5 @@ async function getPaymentSummary(tenantId) {
 
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
-  createPayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
+  createPayment, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
 };

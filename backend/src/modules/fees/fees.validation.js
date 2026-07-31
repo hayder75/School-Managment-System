@@ -37,4 +37,16 @@ const createPaymentSchema = z.object({
   }),
 });
 
-module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema };
+const updatePaymentSchema = z.object({
+  body: z.object({
+    amount_paid: z.number().positive().optional(),
+    balance: z.number().min(0).optional(),
+    due_date: z.string().optional(),
+    paid_date: z.string().optional(),
+    status: z.enum(['pending', 'partial', 'paid', 'overdue', 'refunded']).optional(),
+    payment_method: z.enum(['cash', 'bank', 'card', 'mobile']).optional(),
+    remarks: z.string().optional(),
+  }),
+});
+
+module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema };

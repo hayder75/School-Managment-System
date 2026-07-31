@@ -204,7 +204,8 @@ async function getFeeCollectionReport(tenantId, { from_date, to_date, class_id }
 
 async function getOutstandingBalanceReport(tenantId, { class_id } = {}) {
   let query = db('payments')
-    .where({ 'payments.tenant_id': tenantId, 'payments.status': 'pending' })
+    .where({ 'payments.tenant_id': tenantId })
+    .whereIn('payments.status', ['pending', 'partial', 'overdue'])
     .leftJoin('users', 'payments.student_id', 'users.id')
     .leftJoin('students', 'users.id', 'students.user_id')
     .leftJoin('classes', 'students.class_id', 'classes.id')
@@ -367,7 +368,13 @@ async function getStudentAttendanceSummary(tenantId, studentId, { term_id } = {}
 // ── Legacy / generic ──
 
 async function getStudentReport(tenantId, studentId) {
-  const student = await db('users').where({ 'users.id': studentId, 'users.tenant_id': tenantId }).first();
+  const student = await db('users')
+    .where({ 'users.id': studentId, 'users.tenant_id': tenantId })
+    .select(
+      'users.id', 'users.email', 'users.first_name', 'users.last_name',
+      'users.phone', 'users.avatar', 'users.role', 'users.status'
+    )
+    .first();
   if (!student) return null;
 
   const [attendance, grades, payments] = await Promise.all([

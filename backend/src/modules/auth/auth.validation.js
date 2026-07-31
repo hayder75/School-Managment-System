@@ -17,4 +17,11 @@ const setPasswordSchema = z.object({
 const forgotPasswordSchema = z.object({ body: z.object({ email: z.string().email() }) });
 const resetPasswordSchema = z.object({ body: z.object({ token: z.string().min(1), password: z.string().min(6) }) });
 
-module.exports = { loginSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema };
+const changePasswordSchema = z.object({
+  body: z.object({
+    current_password: z.string().min(1, 'Current password is required'),
+    new_password: z.string().min(6, 'New password must be at least 6 characters'),
+  }),
+});
+
+module.exports = { loginSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema };
