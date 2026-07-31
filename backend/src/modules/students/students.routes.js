@@ -43,8 +43,8 @@ router.delete('/:studentId/achievements/:achievementId', rbac('admin', 'owner'),
 
 router.get('/:studentId/status-history', rbac('admin', 'owner', 'teacher', 'parent'), controller.statusHistory);
 
-router.get('/', rbac('admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'), controller.list);
-router.get('/:id', rbac('admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'), controller.getById);
+router.get('/', rbac('admin', 'owner', 'teacher', 'student', 'parent'), controller.list);
+router.get('/:id', rbac('admin', 'owner', 'teacher', 'student', 'parent'), controller.getById);
 router.post('/', rbac('admin', 'owner'), validate(createStudentSchema), controller.create);
 router.put('/:id', rbac('admin', 'owner'), validate(updateStudentSchema), controller.update);
 router.delete('/:id', rbac('admin', 'owner'), controller.remove);

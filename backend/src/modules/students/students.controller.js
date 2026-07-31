@@ -1,4 +1,5 @@
 const studentsService = require('./students.service');
+const access = require('../../shared/access');
 
 async function create(req, res) {
   const student = await studentsService.create(req.tenant.id, req.validated.body);
@@ -12,11 +13,39 @@ async function enroll(req, res) {
 
 async function list(req, res) {
   const { page, limit, class_id, status, search, user_id } = req.query;
-  const result = await studentsService.findAll(req.tenant.id, { page, limit, class_id, status, search, user_id });
+  const { userId, role } = req.user;
+  let scopedUserId = user_id;
+  let scopedClassId = class_id;
+
+  if (role === 'student') {
+    scopedUserId = userId;
+    const student = await access.getStudentForUser(req.tenant.id, userId);
+    if (student) scopedClassId = student.class_id;
+  } else if (role === 'parent') {
+    const childrenIds = await access.getChildrenUserIdsForParent(req.tenant.id, userId);
+    if (childrenIds.length === 0) {
+      return res.json({ success: true, data: [], meta: { total: 0, page: 1, limit: parseInt(limit, 10) || 20, totalPages: 0 } });
+    }
+    const result = await studentsService.findAllByUserIds(req.tenant.id, { page, limit, class_id: scopedClassId, status, search, userIds: childrenIds });
+    return res.json({ success: true, ...result });
+  } else if (role === 'teacher') {
+    const classes = await access.teacherClassIds(req.tenant.id, userId);
+    if (class_id && !classes.includes(class_id)) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view students in classes you teach' } });
+    }
+    if (!class_id) {
+      const result = await studentsService.findAllByClassIds(req.tenant.id, { page, limit, status, search, classIds: classes });
+      return res.json({ success: true, ...result });
+    }
+  }
+
+  const result = await studentsService.findAll(req.tenant.id, { page, limit, class_id: scopedClassId, status, search, user_id: scopedUserId });
   res.json({ success: true, ...result });
 }
 
 async function getById(req, res) {
+  const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.id);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const student = await studentsService.findById(req.tenant.id, req.params.id);
   if (!student) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
   res.json({ success: true, data: student });
@@ -34,6 +63,11 @@ async function remove(req, res) {
 }
 
 async function listByClass(req, res) {
+  if (req.user.role === 'teacher') {
+    if (!(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, req.params.classId))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view students in classes you teach' } });
+    }
+  }
   const students = await studentsService.findByClass(req.tenant.id, req.params.classId);
   res.json({ success: true, data: students });
 }
@@ -54,6 +88,8 @@ async function transfer(req, res) {
 }
 
 async function listDocuments(req, res) {
+  const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const docs = await studentsService.getDocuments(req.tenant.id, req.params.studentId);
   res.json({ success: true, data: docs });
 }
@@ -69,6 +105,8 @@ async function removeDocument(req, res) {
 }
 
 async function getMedical(req, res) {
+  const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const medical = await studentsService.getMedical(req.tenant.id, req.params.studentId);
   res.json({ success: true, data: medical });
 }
@@ -79,6 +117,8 @@ async function upsertMedical(req, res) {
 }
 
 async function listDiscipline(req, res) {
+  const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const records = await studentsService.getDiscipline(req.tenant.id, req.params.studentId);
   res.json({ success: true, data: records });
 }
@@ -102,6 +142,8 @@ async function removeDiscipline(req, res) {
 }
 
 async function listAchievements(req, res) {
+  const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const achievements = await studentsService.getAchievements(req.tenant.id, req.params.studentId);
   res.json({ success: true, data: achievements });
 }
@@ -117,6 +159,8 @@ async function removeAchievement(req, res) {
 }
 
 async function statusHistory(req, res) {
+  const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const history = await studentsService.getStatusHistory(req.tenant.id, req.params.studentId);
   res.json({ success: true, data: history });
 }

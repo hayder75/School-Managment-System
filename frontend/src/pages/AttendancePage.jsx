@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
 import { useAttendance, useMarkAttendance } from "../hooks/useAttendance";
-import { useUsers } from "../hooks/useUsers";
+import { useStudentsByClass } from "../hooks/useStudents";
+import { useTeacherAssignments } from "../hooks/useTeachers";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -9,17 +11,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 
 export default function AttendancePage() {
+  const user = useAuthStore((s) => s.user);
+  const isTeacher = user?.role === "teacher";
   const today = new Date().toISOString().split("T")[0];
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState(today);
   const { data: classesData } = useClasses({ limit: 200 });
+  const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
   const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(classId, date);
-  const { data: studentsData } = useUsers({ limit: 500, role: "student" });
+  const { data: classStudentsData } = useStudentsByClass(classId);
   const markAttendance = useMarkAttendance();
 
-  const classes = classesData?.data || [];
+  const allClasses = classesData?.data || [];
+  const assignments = assignmentsData?.data || [];
+  const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
+  const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.includes(c.id)) : allClasses;
   const attendanceRecords = attendanceData?.data || [];
-  const students = studentsData?.data || [];
+  const classStudents = classStudentsData?.data || [];
 
   const [statusMap, setStatusMap] = useState({});
 
@@ -34,11 +42,11 @@ export default function AttendancePage() {
         number: r.student_number,
         status: r.status,
       }))
-    : students.map((s) => ({
-        id: s.id,
+    : classStudents.map((s) => ({
+        id: s.user_id,
         name: `${s.first_name} ${s.last_name}`,
-        number: "",
-        status: statusMap[s.id] || "present",
+        number: s.student_number,
+        status: statusMap[s.user_id] || "present",
       }));
 
   function handleStatusChange(studentId, status) {

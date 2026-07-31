@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "./store/auth";
 import { I18nProvider } from "./i18n/I18nContext";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import RoleRoute from "./components/layout/RoleRoute";
 import AppLayout from "./components/layout/AppLayout";
 
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
@@ -64,33 +65,64 @@ function AppContent() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/admin/tenants" element={<TenantsPage />} />
-          <Route path="/admin/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/classes" element={<ClassesPage />} />
-          <Route path="/subjects" element={<SubjectsPage />} />
-          <Route path="/teachers" element={<TeachersPage />} />
-          <Route path="/attendance" element={<AttendancePage />} />
-          <Route path="/exams" element={<ExamsPage />} />
-          <Route path="/timetable" element={<TimetablePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/fees" element={<FeeStructuresPage />} />
-          <Route path="/payments" element={<PaymentsPage />} />
-          <Route path="/expenses" element={<ExpensesPage />} />
-          <Route path="/payroll" element={<PayrollPage />} />
-          <Route path="/audit-logs" element={<AuditLogsPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/import" element={<ImportPage />} />
-          <Route path="/students" element={<StudentsPage />} />
-          <Route path="/students/:id" element={<StudentDetailPage />} />
-          <Route path="/parents" element={<ParentsPage />} />
-          <Route path="/announcements" element={<AnnouncementsPage />} />
-          <Route path="/operations" element={<OperationsPage />} />
-          <Route path="/backup" element={<BackupPage />} />
-          <Route path="/tax-settings" element={<TaxSettingsPage />} />
-          <Route path="/leave-management" element={<LeaveManagementPage />} />
-          <Route path="/payroll-audit" element={<PayrollAuditPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+
+          <Route element={<RoleRoute roles={["super_admin"]} />}>
+            <Route path="/admin/tenants" element={<TenantsPage />} />
+            <Route path="/admin/tenants/:id" element={<TenantDetailPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "hr"]} />}>
+            <Route path="/users" element={<UsersPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner"]} />}>
+            <Route path="/classes" element={<ClassesPage />} />
+            <Route path="/subjects" element={<SubjectsPage />} />
+            <Route path="/teachers" element={<TeachersPage />} />
+            <Route path="/parents" element={<ParentsPage />} />
+            <Route path="/import" element={<ImportPage />} />
+            <Route path="/backup" element={<BackupPage />} />
+            <Route path="/tax-settings" element={<TaxSettingsPage />} />
+            <Route path="/operations" element={<OperationsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher"]} />}>
+            <Route path="/students" element={<StudentsPage />} />
+            <Route path="/students/:id" element={<StudentDetailPage />} />
+            <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/exams" element={<ExamsPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "student", "parent"]} />}>
+            <Route path="/timetable" element={<TimetablePage />} />
+            <Route path="/announcements" element={<AnnouncementsPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "parent"]} />}>
+            <Route path="/chat" element={<ChatPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "finance"]} />}>
+            <Route path="/fees" element={<FeeStructuresPage />} />
+            <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/expenses" element={<ExpensesPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr"]} />}>
+            <Route path="/payroll" element={<PayrollPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "hr"]} />}>
+            <Route path="/leave-management" element={<LeaveManagementPage />} />
+            <Route path="/payroll-audit" element={<PayrollAuditPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "super_admin"]} />}>
+            <Route path="/audit-logs" element={<AuditLogsPage />} />
+          </Route>
+
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Route>

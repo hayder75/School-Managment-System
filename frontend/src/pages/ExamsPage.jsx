@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useAuthStore } from "../store/auth";
 import { useExams, useCreateExam, useDeleteExam } from "../hooks/useExams";
 import { useClasses } from "../hooks/useClasses";
 import { useSubjects } from "../hooks/useSubjects";
+import { useTeacherAssignments } from "../hooks/useTeachers";
 import { useExamGrades, useEnterGrades } from "../hooks/useGrades";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -78,11 +80,14 @@ function GradeEntry({ exam }) {
 }
 
 export default function ExamsPage() {
+  const user = useAuthStore((s) => s.user);
+  const isTeacher = user?.role === "teacher";
   const [page, setPage] = useState(1);
   const [selectedExam, setSelectedExam] = useState(null);
   const { data, isLoading } = useExams({ page, limit: 20 });
   const { data: classesData } = useClasses({ limit: 200 });
   const { data: subjectsData } = useSubjects({ limit: 200 });
+  const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
   const createExam = useCreateExam();
   const deleteExam = useDeleteExam();
 
@@ -91,8 +96,14 @@ export default function ExamsPage() {
 
   const exams = data?.data || [];
   const meta = data?.meta || {};
-  const classes = classesData?.data || [];
-  const subjects = subjectsData?.data || [];
+  const allClasses = classesData?.data || [];
+  const allSubjects = subjectsData?.data || [];
+  const assignments = assignmentsData?.data || [];
+
+  const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
+  const assignedSubjectIds = isTeacher ? assignments.map((a) => a.subject_id) : [];
+  const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.includes(c.id)) : allClasses;
+  const subjects = isTeacher ? allSubjects.filter((s) => assignedSubjectIds.includes(s.id)) : allSubjects;
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -211,9 +222,11 @@ export default function ExamsPage() {
                           <Button variant="ghost" size="icon" onClick={() => setSelectedExam(selectedExam?.id === exam.id ? null : exam)}>
                             <Edit3 className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteExam.mutate(exam.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {!isTeacher && (
+                            <Button variant="ghost" size="icon" onClick={() => deleteExam.mutate(exam.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

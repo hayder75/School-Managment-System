@@ -56,6 +56,55 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, status, searc
   return paginatedResult(query, page, limit);
 }
 
+async function findAllByUserIds(tenantId, { page = 1, limit = 20, class_id, status, search, userIds } = {}) {
+  if (!userIds || userIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+  let query = db('students')
+    .where({ 'students.tenant_id': tenantId })
+    .whereIn('students.user_id', userIds)
+    .leftJoin('users', 'students.user_id', 'users.id')
+    .leftJoin('classes', 'students.class_id', 'classes.id')
+    .select(
+      'students.*',
+      'users.first_name', 'users.last_name', 'users.email', 'users.phone',
+      'classes.name as class_name'
+    )
+    .orderBy('users.last_name', 'asc');
+  if (class_id) query = query.where('students.class_id', class_id);
+  if (status) query = query.where('students.status', status);
+  if (search) {
+    query = query.where(function () {
+      this.where('users.first_name', 'ilike', `%${search}%`)
+        .orWhere('users.last_name', 'ilike', `%${search}%`)
+        .orWhere('students.student_number', 'ilike', `%${search}%`);
+    });
+  }
+  return paginatedResult(query, page, limit);
+}
+
+async function findAllByClassIds(tenantId, { page = 1, limit = 20, status, search, classIds } = {}) {
+  if (!classIds || classIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+  let query = db('students')
+    .where({ 'students.tenant_id': tenantId })
+    .whereIn('students.class_id', classIds)
+    .leftJoin('users', 'students.user_id', 'users.id')
+    .leftJoin('classes', 'students.class_id', 'classes.id')
+    .select(
+      'students.*',
+      'users.first_name', 'users.last_name', 'users.email', 'users.phone',
+      'classes.name as class_name'
+    )
+    .orderBy('users.last_name', 'asc');
+  if (status) query = query.where('students.status', status);
+  if (search) {
+    query = query.where(function () {
+      this.where('users.first_name', 'ilike', `%${search}%`)
+        .orWhere('users.last_name', 'ilike', `%${search}%`)
+        .orWhere('students.student_number', 'ilike', `%${search}%`);
+    });
+  }
+  return paginatedResult(query, page, limit);
+}
+
 async function findById(tenantId, id) {
   const student = await db('students')
     .where({ 'students.tenant_id': tenantId, 'students.id': id })
@@ -279,7 +328,7 @@ async function getEnrollmentStats(tenantId) {
 }
 
 module.exports = {
-  create, enroll, findAll, findById, update, remove,
+  create, enroll, findAll, findAllByUserIds, findAllByClassIds, findById, update, remove,
   findByClass, promote, graduate, transfer,
   getDocuments, addDocument, removeDocument,
   getMedical, upsertMedical,

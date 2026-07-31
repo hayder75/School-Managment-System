@@ -4,7 +4,7 @@ const rolesHierarchy = {
   admin: ['admin'],
   teacher: ['teacher'],
   student: ['student'],
-  parent: ['parent', 'teacher'],
+  parent: ['parent'],
   hr: ['hr'],
   finance: ['finance'],
 };

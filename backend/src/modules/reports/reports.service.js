@@ -27,7 +27,10 @@ async function getGradeDistributionReport(tenantId, { class_id, exam_id } = {}) 
     .groupBy('grades.grade_letter')
     .orderBy('grades.grade_letter');
 
-  if (class_id) query = query.where('exams.class_id', class_id);
+  if (class_id) {
+    if (Array.isArray(class_id)) query = query.whereIn('exams.class_id', class_id);
+    else query = query.where('exams.class_id', class_id);
+  }
   if (exam_id) query = query.where('grades.exam_id', exam_id);
 
   const distribution = await query;
@@ -111,14 +114,21 @@ async function getTeacherWorkloadReport(tenantId) {
 // ── Teacher Reports ──
 
 async function getTeacherClassStudents(tenantId, teacherId, classId) {
-  const students = await db('users')
+  let query = db('users')
     .where({ 'users.tenant_id': tenantId })
     .join('students', 'users.id', 'students.user_id')
-    .where('students.class_id', classId)
     .select('users.id', 'users.first_name', 'users.last_name', 'users.email', 'students.student_number')
     .orderBy('users.last_name');
 
-  return { students };
+  if (classId) {
+    query = query.where('students.class_id', classId);
+  } else {
+    query = query.whereIn('students.class_id', db('teacher_subjects')
+      .where({ tenant_id: tenantId, teacher_id: teacherId })
+      .select('class_id'));
+  }
+
+  return { students: await query };
 }
 
 async function getTeacherAttendanceReport(tenantId, teacherId, { from_date, to_date } = {}) {
@@ -147,6 +157,12 @@ async function getTeacherGradeReport(tenantId, teacherId, { exam_id } = {}) {
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
     .leftJoin('users', 'grades.student_id', 'users.id')
+    .whereIn('exams.class_id', db('teacher_subjects')
+      .where({ tenant_id: tenantId, teacher_id: teacherId })
+      .select('class_id'))
+    .whereIn('exams.subject_id', db('teacher_subjects')
+      .where({ tenant_id: tenantId, teacher_id: teacherId })
+      .select('subject_id'))
     .select(
       'exams.name as exam_name',
       'subjects.name as subject_name',

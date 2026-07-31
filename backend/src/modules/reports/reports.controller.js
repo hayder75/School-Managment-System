@@ -1,12 +1,18 @@
 const reportService = require('./reports.service');
+const access = require('../../shared/access');
 
 async function getStudentReport(req, res) {
+  const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const report = await reportService.getStudentReport(req.tenant.id, req.params.studentId);
   if (!report) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
   res.json({ success: true, data: report });
 }
 
 async function getClassReport(req, res) {
+  if (req.user.role === 'teacher' && !(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, req.params.classId))) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view reports for classes you teach' } });
+  }
   const report = await reportService.getClassReport(req.tenant.id, req.params.classId);
   if (!report) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Class not found' } });
   res.json({ success: true, data: report });
@@ -20,7 +26,15 @@ async function getEnrollmentReport(req, res) {
 
 async function getGradeDistribution(req, res) {
   const { class_id, exam_id } = req.query;
-  const report = await reportService.getGradeDistributionReport(req.tenant.id, { class_id, exam_id });
+  let scopedClassId = class_id;
+  if (req.user.role === 'teacher') {
+    const classes = await access.teacherClassIds(req.tenant.id, req.user.userId);
+    if (class_id && !classes.includes(class_id)) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view grade distribution for classes you teach' } });
+    }
+    if (!class_id) scopedClassId = classes;
+  }
+  const report = await reportService.getGradeDistributionReport(req.tenant.id, { class_id: scopedClassId, exam_id });
   res.json({ success: true, data: report });
 }
 
@@ -43,7 +57,9 @@ async function getTeacherWorkload(req, res) {
 
 async function getTeacherClassStudents(req, res) {
   const { class_id } = req.query;
-  if (!class_id) return res.status(400).json({ success: false, error: { code: 'MISSING_PARAM', message: 'class_id required' } });
+  if (class_id && req.user.role === 'teacher' && !(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, class_id))) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view students in classes you teach' } });
+  }
   const report = await reportService.getTeacherClassStudents(req.tenant.id, req.user.userId, class_id);
   res.json({ success: true, data: report });
 }
@@ -96,11 +112,15 @@ async function getHeadcount(req, res) {
 }
 
 async function getStudentGradeSummary(req, res) {
+  const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const report = await reportService.getStudentGradeSummary(req.tenant.id, req.params.studentId);
   res.json({ success: true, data: report });
 }
 
 async function getStudentAttendanceSummary(req, res) {
+  const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const { term_id } = req.query;
   const report = await reportService.getStudentAttendanceSummary(req.tenant.id, req.params.studentId, { term_id });
   res.json({ success: true, data: report });

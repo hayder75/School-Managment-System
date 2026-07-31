@@ -3,6 +3,7 @@ const pdf = require('../../services/pdf.service');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const rbac = require('../../middleware/rbac');
+const access = require('../../shared/access');
 
 const router = Router();
 router.use(auth);
@@ -10,6 +11,10 @@ router.use(tenant);
 
 router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student', 'parent'), async (req, res) => {
   try {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
+      const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+      if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
+    }
     const buf = await pdf.generateReportCard(req.tenant.id, req.params.studentId, req.query.year);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=report-card.pdf');
@@ -22,6 +27,10 @@ router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student
 
 router.get('/invoice/:studentId', rbac('admin', 'owner', 'finance', 'student', 'parent'), async (req, res) => {
   try {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.role !== 'finance') {
+      const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+      if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
+    }
     const buf = await pdf.generateInvoice(req.tenant.id, req.params.studentId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=invoice.pdf');

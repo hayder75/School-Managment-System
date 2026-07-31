@@ -20,6 +20,49 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, subject_id } 
   return paginatedResult(query, page, limit);
 }
 
+async function findAllForTeacher(tenantId, { page = 1, limit = 20, class_id, subject_id, teacherId } = {}) {
+  let query = db('exams')
+    .where({ 'exams.tenant_id': tenantId })
+    .whereIn('exams.class_id', db('teacher_subjects')
+      .where({ tenant_id: tenantId, teacher_id: teacherId })
+      .select('class_id'))
+    .leftJoin('classes', 'exams.class_id', 'classes.id')
+    .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
+    .select('exams.*', 'classes.name as class_name', 'subjects.name as subject_name')
+    .orderBy('exams.date', 'desc');
+
+  if (class_id) query = query.where('exams.class_id', class_id);
+  if (subject_id) query = query.where('exams.subject_id', subject_id);
+
+  return paginatedResult(query, page, limit);
+}
+
+async function findAllForStudentUserIds(tenantId, { page = 1, limit = 20, subject_id, studentUserIds, requestedClassId } = {}) {
+  let query = db('exams')
+    .where({ 'exams.tenant_id': tenantId })
+    .whereIn('exams.class_id', db('students')
+      .where({ tenant_id: tenantId })
+      .whereIn('user_id', studentUserIds)
+      .select('class_id'))
+    .leftJoin('classes', 'exams.class_id', 'classes.id')
+    .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
+    .select('exams.*', 'classes.name as class_name', 'subjects.name as subject_name')
+    .orderBy('exams.date', 'desc');
+
+  if (requestedClassId) query = query.where('exams.class_id', requestedClassId);
+  if (subject_id) query = query.where('exams.subject_id', subject_id);
+
+  return paginatedResult(query, page, limit);
+}
+
+async function studentInClass(tenantId, studentUserIds, classId) {
+  const row = await db('students')
+    .where({ tenant_id: tenantId, class_id: classId })
+    .whereIn('user_id', studentUserIds)
+    .first();
+  return !!row;
+}
+
 async function findById(tenantId, id) {
   return db('exams')
     .where({ 'exams.tenant_id': tenantId, 'exams.id': id })
@@ -39,4 +82,4 @@ async function remove(tenantId, id) {
   return db('exams').where({ tenant_id: tenantId, id }).del();
 }
 
-module.exports = { create, findAll, findById, update, remove };
+module.exports = { create, findAll, findAllForTeacher, findAllForStudentUserIds, studentInClass, findById, update, remove };

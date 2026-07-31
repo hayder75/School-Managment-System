@@ -4,6 +4,7 @@ import { useClasses } from "../hooks/useClasses";
 import { useClassTimetable, useCreateTimetableEntry, useDeleteTimetableEntry } from "../hooks/useTimetable";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers } from "../hooks/useTeachers";
+import { useTeacherAssignments } from "../hooks/useTeachers";
 import { useStudents } from "../hooks/useStudents";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
@@ -20,8 +21,11 @@ const dayLabels = { monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "
 export default function TimetablePage() {
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === "student";
+  const isTeacher = user?.role === "teacher";
+  const isAdmin = !isStudent && !isTeacher;
   const [classId, setClassId] = useState("");
   const { data: classesData } = useClasses({ limit: 200 });
+  const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
   const { data: timetableData, isLoading } = useClassTimetable(classId);
   const { data: subjectsData } = useSubjects({ limit: 200 });
   const { data: teachersData } = useTeachers({ limit: 200 });
@@ -37,6 +41,11 @@ export default function TimetablePage() {
       setClassId(myStudentData.data[0].class_id);
     }
   }, [isStudent, myStudentData]);
+
+  const allClasses = classesData?.data || [];
+  const assignments = assignmentsData?.data || [];
+  const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
+  const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.includes(c.id)) : allClasses;
 
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -55,7 +64,6 @@ export default function TimetablePage() {
     }
   }
 
-  const classes = classesData?.data || [];
   const entries = timetableData?.data || [];
   const subjects = subjectsData?.data || [];
   const teachers = teachersData?.data || [];
@@ -82,7 +90,9 @@ export default function TimetablePage() {
           <p className="text-muted-foreground">
             {isStudent && myClass
               ? `Your class schedule — ${myClass.name}`
-              : "Manage class schedules"
+              : isTeacher && myClass
+                ? `Classes you teach — ${myClass.name}`
+                : "Manage class schedules"
             }
           </p>
         </div>
@@ -95,7 +105,7 @@ export default function TimetablePage() {
               </SelectContent>
             </Select>
           )}
-          {classId && !isStudent && (
+          {classId && isAdmin && (
             <>
               <Button variant="outline" onClick={handleGenerate} disabled={generating}>
                 <Wand2 className="h-4 w-4 mr-2" /> {generating ? "Generating..." : "Auto Generate"}
@@ -184,7 +194,7 @@ export default function TimetablePage() {
                             <p className="text-muted-foreground">{entry.teacher_first_name} {entry.teacher_last_name}</p>
                           )}
                           {entry.room && <p className="text-muted-foreground">Room {entry.room}</p>}
-                          {!isStudent && (
+                          {isAdmin && (
                             <Button
                               variant="ghost"
                               size="icon"

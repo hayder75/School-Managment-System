@@ -11,8 +11,8 @@ const router = Router();
 router.use(auth);
 router.use(tenant);
 router.post('/', rbac('admin', 'owner', 'hr'), validate(createUserSchema), controller.create);
-router.get('/', rbac('admin', 'owner', 'hr', 'teacher', 'finance'), controller.list);
-router.get('/:id', rbac('admin', 'owner', 'hr', 'teacher', 'finance'), controller.getById);
+router.get('/', rbac('admin', 'owner', 'hr', 'finance'), controller.list);
+router.get('/:id', rbac('admin', 'owner', 'hr', 'finance'), controller.getById);
 router.put('/:id', rbac('admin', 'owner', 'hr'), validate(updateUserSchema), controller.update);
 router.delete('/:id', rbac('admin', 'owner', 'hr'), controller.remove);
 

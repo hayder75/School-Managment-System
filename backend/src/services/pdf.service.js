@@ -3,7 +3,7 @@ const db = require('../config/database');
 
 async function generateReportCard(tenantId, studentId, academicYear) {
   const student = await db('students')
-    .where({ 'students.tenant_id': tenantId, 'students.id': studentId })
+    .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
     .leftJoin('users', 'students.user_id', 'users.id')
     .leftJoin('classes', 'students.class_id', 'classes.id')
     .select('students.*', 'users.first_name', 'users.last_name', 'classes.name as class_name')
@@ -11,10 +11,10 @@ async function generateReportCard(tenantId, studentId, academicYear) {
   if (!student) throw new Error('NOT_FOUND');
 
   const grades = await db('grades')
-    .where({ 'grades.student_id': studentId })
+    .where({ 'grades.tenant_id': tenantId, 'grades.student_id': studentId })
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
-    .select('subjects.name as subject', 'grades.score', 'exams.max_score', 'exams.name as exam_name');
+    .select('subjects.name as subject', 'grades.marks_obtained', 'exams.total_marks', 'exams.name as exam_name');
 
   const doc = new PDFDocument({ margin: 50 });
   const buffers = [];
@@ -34,9 +34,11 @@ async function generateReportCard(tenantId, studentId, academicYear) {
   doc.moveDown(0.5);
 
   for (const g of grades) {
-    const letter = g.max_score && g.score ? (g.score / g.max_score >= 0.9 ? 'A' : g.score / g.max_score >= 0.8 ? 'B' : g.score / g.max_score >= 0.7 ? 'C' : g.score / g.max_score >= 0.6 ? 'D' : 'F') : '-';
+    const score = parseFloat(g.marks_obtained) || 0;
+    const max = parseFloat(g.total_marks) || 0;
+    const letter = max && score ? (score / max >= 0.9 ? 'A' : score / max >= 0.8 ? 'B' : score / max >= 0.7 ? 'C' : score / max >= 0.6 ? 'D' : 'F') : '-';
     doc.text(g.subject || 'Unknown', 50, doc.y, { width: 200, continued: true });
-    doc.text(g.score?.toString() || '-', 300, doc.y, { width: 80, continued: true });
+    doc.text(score ? score.toString() : '-', 300, doc.y, { width: 80, continued: true });
     doc.text(letter, 400, doc.y);
     doc.moveDown(0.3);
   }
@@ -49,11 +51,11 @@ async function generateReportCard(tenantId, studentId, academicYear) {
 
 async function generateInvoice(tenantId, studentId) {
   const student = await db('students')
-    .where({ 'students.id': studentId })
+    .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
     .leftJoin('users', 'students.user_id', 'users.id')
     .select('users.first_name', 'users.last_name')
     .first();
-  const fees = await db('payments').where({ student_id: studentId }).whereNull('deleted_at');
+  const fees = await db('payments').where({ tenant_id: tenantId, student_id: studentId });
   const structures = await db('fee_structures').where({ tenant_id: tenantId });
 
   const doc = new PDFDocument({ margin: 50 });
