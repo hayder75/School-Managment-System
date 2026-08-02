@@ -65,6 +65,15 @@ async function canViewStudentRecord(tenantId, userId, role, studentRecordId) {
   return canViewStudentByUserId(tenantId, userId, role, student.user_id);
 }
 
+async function teacherSubjectIdsForStudent(tenantId, teacherId, studentUserId) {
+  const student = await db('students').where({ tenant_id: tenantId, user_id: studentUserId }).select('class_id').first();
+  if (!student?.class_id) return [];
+  const rows = await db('teacher_subjects')
+    .where({ tenant_id: tenantId, teacher_id: teacherId, class_id: student.class_id })
+    .select('subject_id');
+  return rows.map((r) => r.subject_id);
+}
+
 module.exports = {
   getStudentForUser,
   getChildrenUserIdsForParent,
@@ -74,4 +83,5 @@ module.exports = {
   teacherClassUserIds,
   canViewStudentByUserId,
   canViewStudentRecord,
+  teacherSubjectIdsForStudent,
 };

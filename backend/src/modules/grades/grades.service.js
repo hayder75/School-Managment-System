@@ -141,8 +141,8 @@ async function getByExam(tenantId, examId) {
     .orderBy('users.first_name');
 }
 
-async function getByStudent(tenantId, studentId) {
-  return db('grades')
+async function getByStudent(tenantId, studentId, subjectIds) {
+  let query = db('grades')
     .where({ 'grades.tenant_id': tenantId, 'grades.student_id': studentId })
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
@@ -155,6 +155,12 @@ async function getByStudent(tenantId, studentId) {
       'subjects.name as subject_name'
     )
     .orderBy('exams.date', 'desc');
+
+  if (Array.isArray(subjectIds)) {
+    query = query.whereIn('exams.subject_id', subjectIds);
+  }
+
+  return query;
 }
 
 async function lockGrades(tenantId, examId, lock, userId) {

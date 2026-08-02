@@ -4,7 +4,10 @@ const access = require('../../shared/access');
 async function getStudentReport(req, res) {
   const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
   if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
-  const report = await reportService.getStudentReport(req.tenant.id, req.params.studentId);
+  const subjectIds = req.user.role === 'teacher'
+    ? await access.teacherSubjectIdsForStudent(req.tenant.id, req.user.userId, req.params.studentId)
+    : undefined;
+  const report = await reportService.getStudentReport(req.tenant.id, req.params.studentId, subjectIds);
   if (!report) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
   res.json({ success: true, data: report });
 }
@@ -114,7 +117,10 @@ async function getHeadcount(req, res) {
 async function getStudentGradeSummary(req, res) {
   const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
   if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
-  const report = await reportService.getStudentGradeSummary(req.tenant.id, req.params.studentId);
+  const subjectIds = req.user.role === 'teacher'
+    ? await access.teacherSubjectIdsForStudent(req.tenant.id, req.user.userId, req.params.studentId)
+    : undefined;
+  const report = await reportService.getStudentGradeSummary(req.tenant.id, req.params.studentId, subjectIds);
   res.json({ success: true, data: report });
 }
 

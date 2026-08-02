@@ -61,7 +61,11 @@ async function getByExam(req, res) {
 async function getByStudent(req, res) {
   const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
   if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
-  const grades = await gradeService.getByStudent(req.tenant.id, req.params.studentId);
+  let subjectIds;
+  if (req.user.role === 'teacher') {
+    subjectIds = await access.teacherSubjectIdsForStudent(req.tenant.id, req.user.userId, req.params.studentId);
+  }
+  const grades = await gradeService.getByStudent(req.tenant.id, req.params.studentId, subjectIds);
   res.json({ success: true, data: grades });
 }
 

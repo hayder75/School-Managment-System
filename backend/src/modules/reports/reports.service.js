@@ -321,8 +321,8 @@ async function getHeadcountReport(tenantId) {
 
 // ── Student Reports ──
 
-async function getStudentGradeSummary(tenantId, studentId) {
-  const grades = await db('grades')
+async function getStudentGradeSummary(tenantId, studentId, subjectIds) {
+  let query = db('grades')
     .where({ 'grades.tenant_id': tenantId, 'grades.student_id': studentId })
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
@@ -333,6 +333,12 @@ async function getStudentGradeSummary(tenantId, studentId) {
     )
     .groupBy('subjects.name')
     .orderBy('subjects.name');
+
+  if (Array.isArray(subjectIds)) {
+    query = query.whereIn('exams.subject_id', subjectIds);
+  }
+
+  const grades = await query;
 
   const overall = grades.reduce((s, g) => ({ total: s.total + parseFloat(g.average), count: s.count + 1 }), { total: 0, count: 0 });
 
@@ -367,7 +373,7 @@ async function getStudentAttendanceSummary(tenantId, studentId, { term_id } = {}
 
 // ── Legacy / generic ──
 
-async function getStudentReport(tenantId, studentId) {
+async function getStudentReport(tenantId, studentId, subjectIds) {
   const student = await db('users')
     .where({ 'users.id': studentId, 'users.tenant_id': tenantId })
     .select(
@@ -379,7 +385,7 @@ async function getStudentReport(tenantId, studentId) {
 
   const [attendance, grades, payments] = await Promise.all([
     getStudentAttendanceSummary(tenantId, studentId),
-    getStudentGradeSummary(tenantId, studentId),
+    getStudentGradeSummary(tenantId, studentId, subjectIds),
     db('payments').where({ tenant_id: tenantId, student_id: studentId }).sum('amount_paid as total_paid').first(),
   ]);
 
