@@ -4,7 +4,7 @@ const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
-const { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, taxBracketSchema, leaveSchema } = require('./payroll.validation');
+const { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, calculatePayrollSchema, taxBracketSchema, leaveSchema } = require('./payroll.validation');
 
 const router = Router();
 
@@ -31,6 +31,7 @@ router.patch('/leaves/:id/reject', requireAccess(['admin', 'owner', 'hr'], ['lea
 router.get('/audits', controller.listAudits);
 
 router.post('/', validate(createPayrollSchema), controller.createPayroll);
+router.post('/calculate', validate(calculatePayrollSchema), controller.calculatePayroll);
 router.get('/', controller.listPayroll);
 router.put('/:id', validate(updatePayrollSchema), controller.updatePayroll);
 

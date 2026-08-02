@@ -39,6 +39,12 @@ export function useCreatePayroll() {
   });
 }
 
+export function useCalculatePayroll() {
+  return useMutation({
+    mutationFn: (data) => api.post("/payroll/calculate", data),
+  });
+}
+
 export function usePayrollSummary(month, year) {
   return useQuery({
     queryKey: ["payroll-summary", month, year],

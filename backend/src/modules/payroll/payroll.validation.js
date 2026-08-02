@@ -70,7 +70,14 @@ const updatePayrollSchema = z.object({
   }),
 });
 
+const calculatePayrollSchema = z.object({
+  body: z.object({
+    basic_pay: z.number().positive(),
+    overtime: z.number().min(0).default(0),
+  }),
+});
+
 const taxBracketSchema = z.object({ body: z.object({ min_salary: z.number().min(0), max_salary: z.number().optional(), rate: z.number().min(0).max(100), deduction: z.number().default(0), is_active: z.boolean().optional() }) });
 const leaveSchema = z.object({ body: z.object({ leave_type: z.enum(['annual','sick','maternity','paternity','emergency','unpaid']), start_date: z.string(), end_date: z.string(), reason: z.string().optional() }) });
 
-module.exports = { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, taxBracketSchema, leaveSchema };
+module.exports = { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, calculatePayrollSchema, taxBracketSchema, leaveSchema };

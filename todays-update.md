@@ -293,3 +293,22 @@ Added the HR/finance person-centric pages that show each modeled person with the
 4. **Routing**: both pages wired in `App.jsx` inside the existing payroll-role group (`admin`/`owner`/`finance`/`hr`, `payroll.view`/`reports.view`); `Sidebar.jsx` gained a "Salary Register" link (after Payroll) in the owner, admin, finance, and hr nav blocks.
 
 **Verified:** `/api/payroll?user_id=...` returns the row with `grade_name` (and `job_title`/`email`), ordered newest-first so `entries[0]` is the latest period; `/api/users/:id` returns the staff fields; both endpoints reachable by hr and finance cookies. Backend roles regression 49/49, frontend `npm run build` + `oxlint` clean (one pre-existing `setSearch` warning).
+
+### Round 3 follow-up 4 — auto income tax + pension calculation (2026-08-02)
+
+Reverse-engineered the exact tax/pension rules from `JUNE SALARY 2018.xlsx` and wired them into the payroll engine. The workbook formulas (from the spreadsheet):
+
+- **Taxable income** = `basic + overtime` (the `O = H + J` column; DH/transport/back-pay are not taxed).
+- **Income tax** (Ethiopian PAYE-style, per bracket `taxable*rate − deduction`):
+  `≤2000 → 0`, `≤4000 → 15% − 300`, `≤7000 → 20% − 500`, `≤10000 → 25% − 850`, `≤14000 → 30% − 1350`, `>14000 → 35% − 2050`.
+- **Pension** = basic × 7% (employee, deducted) and basic × 11% (employer, reported not deducted).
+
+Changes:
+
+1. **`tax_brackets` seeded** with the six brackets above for the demo tenant (`002_dev_users.js`). The `min_salary/max_salary/rate/deduction` schema already matched the formula exactly.
+2. **`payroll.service.js`**: `getActiveTaxBrackets()`, `computeIncomeTax(taxable, brackets)` (walks brackets, `tax = taxable*rate − deduction`, floored at 0), and `applyAutoCalculations()` which fills `income_tax` + `pension_employee`/`pension_employer` from basic/OT **only when the client didn't supply them** (manual override wins). `createPayroll`/`updatePayroll` run it before `computeTotals()`; `updatePayroll` recomputes derived fields whenever `basic_pay`/`overtime` change unless explicitly overridden. New `calculatePayroll()` returns a preview without saving.
+3. **New endpoint** `POST /payroll/calculate` (`{ basic_pay, overtime }`) → returns computed `income_tax`, `pension_employee`, `pension_employer`, `taxable_income`, and recomputed totals. Gated by the payroll route group (`payroll.view`/`manage`).
+4. **`PayrollPage.jsx`**: "Calculate Tax & Pension" button in the Add Entry dialog calls the endpoint and fills the three derived fields (still editable), then live-recomputes totals. `useCalculatePayroll` hook added.
+5. **Seed payroll rows** updated to store `income_tax`/`pension_employee`/`pension_employer` consistent with the brackets (basic 3500 → tax 225/pen 245/385, net 3330; basic 5000 → tax 500/pen 350/550, net 4450).
+
+**Verified:** `POST /payroll/calculate` reproduces workbook values exactly for Amanuel (basic 12910.65 + OT 2100 → tax 3203.73, pen 903.75/1420.17, taxable 15010.65) and across 5 other real rows (e.g. 17210+2200 → 4743.50; 15274.86+2200 → 4066.20; 9880.3 → 1620.07). Create/update auto-fill and manual override both smoke-tested via API (test rows cleaned up). Backend roles regression 49/49, frontend `npm run build` + `oxlint` clean (pre-existing warnings only).

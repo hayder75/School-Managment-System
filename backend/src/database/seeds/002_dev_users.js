@@ -32,6 +32,7 @@ exports.seed = async function (knex) {
   await knex('fee_structures').del();
   await knex('payroll').del();
   await knex('salary_grades').del();
+  await knex('tax_brackets').del();
   await knex('expenses').del();
   await knex('announcements').del();
   await knex('audit_logs').del();
@@ -327,6 +328,13 @@ exports.seed = async function (knex) {
     { uid: adminId, sg: salaryGradeIds[3], basic: 5000 },
   ];
   for (const pu of payrollUsers) {
+    const overtime = 0;
+    const taxable = pu.basic + overtime;
+    const incomeTax = taxable <= 2000 ? 0 : taxable <= 4000 ? taxable * 0.15 - 300 : taxable <= 7000 ? taxable * 0.2 - 500 : taxable <= 10000 ? taxable * 0.25 - 850 : taxable <= 14000 ? taxable * 0.3 - 1350 : taxable * 0.35 - 2050;
+    const pensionEmployee = pu.basic * 0.07;
+    const pensionEmployer = pu.basic * 0.11;
+    const deductionsTotal = incomeTax + pensionEmployee;
+    const netPay = pu.basic + 300 - deductionsTotal;
     for (let m = 1; m <= 6; m++) {
       await knex('payroll').insert({
         id: uid(`payroll-${pu.uid}-${m}`), tenant_id: TID,
@@ -334,12 +342,38 @@ exports.seed = async function (knex) {
         month: m, year: 2026,
         basic_pay: pu.basic,
         allowances_total: 300,
-        deductions_total: 150,
-        net_pay: pu.basic + 150,
+        deductions_total: Math.round(deductionsTotal * 100) / 100,
+        net_pay: Math.round(netPay * 100) / 100,
+        income_tax: Math.round(incomeTax * 100) / 100,
+        pension_employee: Math.round(pensionEmployee * 100) / 100,
+        pension_employer: Math.round(pensionEmployer * 100) / 100,
         status: m < 6 ? 'paid' : 'pending',
         paid_date: m < 6 ? new Date(2026, m, 5).toISOString().split('T')[0] : null,
       });
     }
+  }
+
+  // ════════════════════════════════════════════
+  // 12b. TAX BRACKETS (Ethiopian PAYE, matches JUNE SALARY 2018.xlsx)
+  // ════════════════════════════════════════════
+  const taxBrackets = [
+    { min_salary: 0, max_salary: 2000, rate: 0, deduction: 0 },
+    { min_salary: 2000, max_salary: 4000, rate: 15, deduction: 300 },
+    { min_salary: 4000, max_salary: 7000, rate: 20, deduction: 500 },
+    { min_salary: 7000, max_salary: 10000, rate: 25, deduction: 850 },
+    { min_salary: 10000, max_salary: 14000, rate: 30, deduction: 1350 },
+    { min_salary: 14000, max_salary: null, rate: 35, deduction: 2050 },
+  ];
+  for (const b of taxBrackets) {
+    await knex('tax_brackets').insert({
+      id: uid(`tax-${b.min_salary}`),
+      tenant_id: TID,
+      min_salary: b.min_salary,
+      max_salary: b.max_salary,
+      rate: b.rate,
+      deduction: b.deduction,
+      is_active: true,
+    });
   }
 
   // ════════════════════════════════════════════

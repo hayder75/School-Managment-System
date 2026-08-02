@@ -38,6 +38,11 @@ async function updatePayroll(req, res) {
   res.json({ success: true, data: entry });
 }
 
+async function calculatePayroll(req, res) {
+  const data = await payrollService.calculatePayroll(req.tenant.id, req.validated.body);
+  res.json({ success: true, data });
+}
+
 async function getSummary(req, res) {
   const { month, year } = req.query;
   const summary = await payrollService.getPayrollSummary(req.tenant.id, month, year);
@@ -87,7 +92,7 @@ async function listAudits(req, res) {
 
 module.exports = {
   createSalaryGrade, listSalaryGrades, updateSalaryGrade, removeSalaryGrade,
-  createPayroll, listPayroll, updatePayroll, getSummary,
+  createPayroll, listPayroll, updatePayroll, getSummary, calculatePayroll,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,
   listLeaves, createLeave, approveLeave, rejectLeave,
   listAudits,

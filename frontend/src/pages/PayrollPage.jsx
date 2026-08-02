@@ -2,7 +2,7 @@ import { useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
-import { useSalaryGrades, useCreateSalaryGrade, useDeleteSalaryGrade, usePayroll, useCreatePayroll, usePayrollSummary } from "../hooks/usePayroll";
+import { useSalaryGrades, useCreateSalaryGrade, useDeleteSalaryGrade, usePayroll, useCreatePayroll, useCalculatePayroll, usePayrollSummary } from "../hooks/usePayroll";
 import { useUsers } from "../hooks/useUsers";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -153,6 +153,7 @@ function PayrollEntriesTab() {
   const { data: staffData } = useUsers({ role: "teacher", limit: 500 });
   const { data: gradesData } = useSalaryGrades();
   const createPayroll = useCreatePayroll();
+  const calculatePayroll = useCalculatePayroll();
   const [open, setOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [form, setForm] = useState({ user_id: "", basic_pay: "", allowances_total: "0", deductions_total: "0", net_pay: "", ...EMPTY_BREAKDOWN, bank_account: "", bank_name: "", work_days: "", absent_days: "" });
@@ -196,6 +197,27 @@ function PayrollEntriesTab() {
       const basic = parseFloat(grade.basic_salary);
       const totals = computeTotals({ ...form, basic_pay: basic });
       setForm({ ...form, basic_pay: basic.toString(), ...totals });
+    }
+  }
+
+  async function handleCalculateTax() {
+    const basicPay = parseFloat(form.basic_pay) || 0;
+    if (basicPay <= 0) return;
+    try {
+      const { data } = await calculatePayroll.mutateAsync({
+        basic_pay: basicPay,
+        overtime: parseFloat(form.overtime) || 0,
+      });
+      const next = {
+        ...form,
+        income_tax: data.income_tax != null ? data.income_tax.toString() : "",
+        pension_employee: data.pension_employee != null ? data.pension_employee.toString() : "",
+        pension_employer: data.pension_employer != null ? data.pension_employer.toString() : "",
+      };
+      const totals = computeTotals(next);
+      setForm({ ...next, ...totals });
+    } catch {
+      setFieldErrors({ form: "Could not calculate tax. Check tax brackets are configured." });
     }
   }
 
@@ -268,6 +290,15 @@ function PayrollEntriesTab() {
                   <Label>Absent Days</Label>
                   <Input type="number" value={form.absent_days} onChange={(e) => handleFormField("absent_days", e.target.value)} />
                 </div>
+              </div>
+              <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
+                <div className="text-sm">
+                  <p className="font-medium">Auto calculate tax & pension</p>
+                  <p className="text-muted-foreground text-xs">Fills income tax (from tax brackets) and pension 7% / 11% from basic + overtime. You can still edit them after.</p>
+                </div>
+                <Button type="button" size="sm" onClick={handleCalculateTax} disabled={calculatePayroll.isPending}>
+                  {calculatePayroll.isPending ? "Calculating..." : "Calculate Tax & Pension"}
+                </Button>
               </div>
               <div className="border-t pt-4">
                 <Label className="text-sm font-semibold">Allowances</Label>

@@ -27,6 +27,44 @@ function num(v) {
   return parseFloat(v || 0) || 0;
 }
 
+function round2(v) {
+  return Math.round(v * 100) / 100;
+}
+
+// === AUTO TAX & PENSION ===
+async function getActiveTaxBrackets(tenantId) {
+  return db('tax_brackets').where({ tenant_id: tenantId, is_active: true }).orderBy('min_salary');
+}
+
+// Ethiopian-style bracket formula: tax = taxable*rate - deduction for the bracket containing `taxable`.
+function computeIncomeTax(taxable, brackets) {
+  let tax = 0;
+  for (const b of brackets) {
+    const min = parseFloat(b.min_salary);
+    const max = b.max_salary != null ? parseFloat(b.max_salary) : Infinity;
+    if (taxable > min && taxable <= max) {
+      const rate = parseFloat(b.rate) / 100;
+      const deduction = parseFloat(b.deduction) || 0;
+      tax = Math.max(0, taxable * rate - deduction);
+      break;
+    }
+  }
+  return round2(tax);
+}
+
+// Fill income_tax + pension from basic/OT whenever the client didn't supply them.
+async function applyAutoCalculations(tenantId, data) {
+  const out = { ...data };
+  const basic = num(data.basic_pay);
+  if (out.income_tax == null) {
+    const brackets = await getActiveTaxBrackets(tenantId);
+    if (brackets.length) out.income_tax = computeIncomeTax(basic + num(data.overtime), brackets);
+  }
+  if (out.pension_employee == null && basic > 0) out.pension_employee = round2(basic * 0.07);
+  if (out.pension_employer == null && basic > 0) out.pension_employer = round2(basic * 0.11);
+  return out;
+}
+
 function computeTotals(data) {
   const totals = {};
   if (ALLOWANCE_FIELDS.some((f) => data[f] != null)) {
@@ -42,9 +80,21 @@ function computeTotals(data) {
 }
 
 async function createPayroll(tenantId, data) {
-  const totals = computeTotals(data);
-  const [entry] = await db('payroll').insert({ ...data, ...totals, tenant_id: tenantId }).returning('*');
+  const enriched = await applyAutoCalculations(tenantId, data);
+  const totals = computeTotals(enriched);
+  const [entry] = await db('payroll').insert({ ...enriched, ...totals, tenant_id: tenantId }).returning('*');
   return entry;
+}
+
+// Preview computed values without saving (used by the UI "Calculate" button).
+async function calculatePayroll(tenantId, data) {
+  const enriched = await applyAutoCalculations(tenantId, data);
+  const totals = computeTotals(enriched);
+  return {
+    ...enriched,
+    ...totals,
+    taxable_income: round2(num(data.basic_pay) + num(data.overtime)),
+  };
 }
 
 async function findAllPayroll(tenantId, { page = 1, limit = 20, month, year, status, user_id } = {}) {
@@ -65,8 +115,19 @@ async function findAllPayroll(tenantId, { page = 1, limit = 20, month, year, sta
 async function updatePayroll(tenantId, id, data) {
   const existing = await db('payroll').where({ tenant_id: tenantId, id }).first();
   if (!existing) return undefined;
-  const totals = computeTotals({ ...existing, ...data });
-  const [entry] = await db('payroll').where({ tenant_id: tenantId, id }).update({ ...data, ...totals }).returning('*');
+  const merged = { ...existing, ...data };
+  const payChanged = data.basic_pay != null || data.overtime != null;
+  const derived = {};
+  if (payChanged) {
+    if (data.income_tax == null) {
+      const brackets = await getActiveTaxBrackets(tenantId);
+      if (brackets.length) derived.income_tax = computeIncomeTax(num(merged.basic_pay) + num(merged.overtime), brackets);
+    }
+    if (data.pension_employee == null) derived.pension_employee = round2(num(merged.basic_pay) * 0.07);
+    if (data.pension_employer == null) derived.pension_employer = round2(num(merged.basic_pay) * 0.11);
+  }
+  const totals = computeTotals({ ...merged, ...derived });
+  const [entry] = await db('payroll').where({ tenant_id: tenantId, id }).update({ ...data, ...derived, ...totals }).returning('*');
   return entry;
 }
 
@@ -134,7 +195,7 @@ async function createPayrollAudit(tenantId, data) {
 
 module.exports = {
   createSalaryGrade, findAllSalaryGrades, updateSalaryGrade, removeSalaryGrade,
-  createPayroll, findAllPayroll, updatePayroll, getPayrollSummary,
+  createPayroll, findAllPayroll, updatePayroll, getPayrollSummary, calculatePayroll,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,
   listLeaves, createLeave, approveLeave, rejectLeave,
   listPayrollAudits, createPayrollAudit,
