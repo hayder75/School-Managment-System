@@ -8,7 +8,7 @@ async function create(req, res) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only create exams for classes and subjects you teach' } });
     }
   }
-  const exam = await examService.create(req.tenant.id, req.validated.body);
+  const exam = await examService.create(req.tenant.id, req.validated.body, req.user.userId);
   res.status(201).json({ success: true, data: exam });
 }
 

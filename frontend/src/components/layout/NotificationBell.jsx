@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications, useUnreadCount, useMarkNotificationRead, useMarkAllRead } from "../../hooks/useNotifications";
 import { useAuthStore } from "../../store/auth";
-import { getSocket, connectSocket } from "../../lib/socket";
+import { connectSocket } from "../../lib/socket";
 import { Button } from "../ui/button";
 import { Bell, CheckCheck } from "lucide-react";
 
@@ -9,6 +10,7 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const token = useAuthStore((s) => s.token);
+  const queryClient = useQueryClient();
   const { data: unreadData } = useUnreadCount();
   const { data: notifsData } = useNotifications({ limit: 10 });
   const markRead = useMarkNotificationRead();
@@ -21,10 +23,15 @@ export default function NotificationBell() {
     if (!token) return;
 
     const socket = connectSocket(token);
-    socket.on("notification:new", () => {
-      window.location.reload();
-    });
-  }, [token]);
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+    };
+    socket.on("notification:new", handler);
+    return () => {
+      socket.off("notification:new", handler);
+    };
+  }, [token, queryClient]);
 
   useEffect(() => {
     function handleClick(e) {

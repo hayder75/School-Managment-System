@@ -1,4 +1,6 @@
 const db = require('../../config/database');
+const broadcast = require('../../socket/broadcast');
+const logger = require('../../config/logger');
 
 function computeGradeLetter(marks, total) {
   if (marks == null || total == null || Number(total) <= 0) return null;
@@ -76,7 +78,41 @@ async function upsertGrades(tenantId, examId, grades, userId) {
     return results;
   });
 
+  await notifyGradesPosted(tenantId, exam, rows);
+
   return rows;
+}
+
+async function notifyGradesPosted(tenantId, exam, rows) {
+  try {
+    if (!rows || rows.length === 0) return;
+    const studentIds = rows.map((r) => r.student_id);
+    const examName = exam?.name || 'exam';
+
+    await broadcast.notifyUsers(tenantId, studentIds, {
+      title: 'Grade Posted',
+      message: `Your result for ${examName} has been posted.`,
+      type: 'grade',
+      refType: 'exam',
+      refId: exam?.id,
+    });
+
+    const parentRows = await db('student_parents')
+      .join('students', 'student_parents.student_id', 'students.id')
+      .where({ 'student_parents.tenant_id': tenantId })
+      .whereIn('students.user_id', studentIds)
+      .select('student_parents.parent_id');
+
+    await broadcast.notifyUsers(tenantId, parentRows.map((p) => p.parent_id), {
+      title: 'Grade Posted',
+      message: `A grade for your child has been posted for ${examName}.`,
+      type: 'grade',
+      refType: 'exam',
+      refId: exam?.id,
+    });
+  } catch (err) {
+    logger.error('Grade notification error', { error: err.message });
+  }
 }
 
 async function getByExam(tenantId, examId) {

@@ -1,9 +1,50 @@
 const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
+const broadcast = require('../../socket/broadcast');
+const logger = require('../../config/logger');
 
-async function create(tenantId, data) {
+async function create(tenantId, data, actorId = null) {
   const [exam] = await db('exams').insert({ ...data, tenant_id: tenantId }).returning('*');
+  await notifyExamCreated(tenantId, exam, actorId);
   return exam;
+}
+
+async function notifyExamCreated(tenantId, exam, actorId) {
+  try {
+    const studentRows = await db('students')
+      .where({ tenant_id: tenantId, class_id: exam.class_id })
+      .select('user_id');
+    const teacherRows = await db('teacher_subjects')
+      .where({ tenant_id: tenantId, class_id: exam.class_id, subject_id: exam.subject_id })
+      .select('teacher_id');
+    const recipients = [
+      ...studentRows.map((s) => s.user_id),
+      ...teacherRows.map((t) => t.teacher_id),
+    ].filter((id) => id && id !== actorId);
+
+    await broadcast.notifyUsers(tenantId, recipients, {
+      title: 'New Exam Scheduled',
+      message: `${exam.name || 'An exam'} has been scheduled on ${exam.date || 'a new date'}.`,
+      type: 'exam',
+      refType: 'exam',
+      refId: exam.id,
+    });
+
+    const parentRows = await db('student_parents')
+      .join('students', 'student_parents.student_id', 'students.id')
+      .where({ 'student_parents.tenant_id': tenantId, 'students.class_id': exam.class_id })
+      .select('student_parents.parent_id');
+
+    await broadcast.notifyUsers(tenantId, parentRows.map((p) => p.parent_id), {
+      title: 'New Exam Scheduled',
+      message: `A new exam "${exam.name || 'An exam'}" has been scheduled for your child's class on ${exam.date || 'a new date'}.`,
+      type: 'exam',
+      refType: 'exam',
+      refId: exam.id,
+    });
+  } catch (err) {
+    logger.error('Exam notification error', { error: err.message });
+  }
 }
 
 async function findAll(tenantId, { page = 1, limit = 20, class_id, subject_id } = {}) {

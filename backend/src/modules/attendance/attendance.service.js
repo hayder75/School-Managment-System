@@ -1,5 +1,7 @@
 const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
+const broadcast = require('../../socket/broadcast');
+const logger = require('../../config/logger');
 
 async function mark(tenantId, classId, teacherId, date, records) {
   const unique = [];
@@ -51,7 +53,42 @@ async function mark(tenantId, classId, teacherId, date, records) {
     }
   });
 
+  await notifyAttendanceMarked(tenantId, classId, date, rows);
+
   return rows;
+}
+
+async function notifyAttendanceMarked(tenantId, classId, date, rows) {
+  try {
+    const notable = rows.filter((r) => r.status === 'absent' || r.status === 'late');
+    if (notable.length === 0) return;
+    const studentIds = notable.map((r) => r.student_id);
+    const statusLabel = notable.length === 1 ? notable[0].status : 'absent/late';
+
+    await broadcast.notifyUsers(tenantId, studentIds, {
+      title: 'Attendance Update',
+      message: `You were marked ${statusLabel} on ${date}.`,
+      type: 'attendance',
+      refType: 'attendance',
+      refId: classId,
+    });
+
+    const parentRows = await db('student_parents')
+      .join('students', 'student_parents.student_id', 'students.id')
+      .where({ 'student_parents.tenant_id': tenantId })
+      .whereIn('students.user_id', studentIds)
+      .select('student_parents.parent_id');
+
+    await broadcast.notifyUsers(tenantId, parentRows.map((p) => p.parent_id), {
+      title: 'Attendance Update',
+      message: `Your child was marked ${statusLabel} on ${date}.`,
+      type: 'attendance',
+      refType: 'attendance',
+      refId: classId,
+    });
+  } catch (err) {
+    logger.error('Attendance notification error', { error: err.message });
+  }
 }
 
 async function getByClassAndDate(tenantId, classId, date) {

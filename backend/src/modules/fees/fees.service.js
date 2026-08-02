@@ -1,5 +1,7 @@
 const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
+const broadcast = require('../../socket/broadcast');
+const logger = require('../../config/logger');
 
 async function createFeeStructure(tenantId, data) {
   const [fee] = await db('fee_structures').insert({ ...data, tenant_id: tenantId }).returning('*');
@@ -43,7 +45,30 @@ async function createPayment(tenantId, data) {
     }
   }
   const [payment] = await db('payments').insert({ ...data, tenant_id: tenantId }).returning('*');
+  await notifyPaymentRecorded(tenantId, payment);
   return payment;
+}
+
+async function notifyPaymentRecorded(tenantId, payment) {
+  try {
+    const recipients = [payment.student_id];
+    const parentRows = await db('student_parents')
+      .join('students', 'student_parents.student_id', 'students.id')
+      .where({ 'student_parents.tenant_id': tenantId })
+      .where('students.user_id', payment.student_id)
+      .select('student_parents.parent_id');
+    recipients.push(...parentRows.map((p) => p.parent_id));
+
+    await broadcast.notifyUsers(tenantId, recipients, {
+      title: 'Payment Recorded',
+      message: `A payment of ${payment.amount_paid} has been recorded against your account.`,
+      type: 'payment',
+      refType: 'payment',
+      refId: payment.id,
+    });
+  } catch (err) {
+    logger.error('Payment notification error', { error: err.message });
+  }
 }
 
 async function updatePayment(tenantId, id, data) {

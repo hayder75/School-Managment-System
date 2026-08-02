@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const db = require('../config/database');
 const logger = require('../config/logger');
-const notificationService = require('../modules/notifications/notifications.service');
+const broadcast = require('./broadcast');
 
 function setupSocket(httpServer) {
   const io = new Server(httpServer, {
@@ -12,6 +12,8 @@ function setupSocket(httpServer) {
       credentials: true,
     },
   });
+
+  broadcast.setIo(io);
 
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
@@ -94,21 +96,17 @@ function setupSocket(httpServer) {
           .whereNot('user_id', userId);
 
         for (const p of participants) {
-          await notificationService.create(
+          await broadcast.notifyUser(
             socket.user.tenantId,
             p.user_id,
-            'New Message',
-            content.slice(0, 100),
-            'chat',
-            'conversation',
-            conversationId
+            {
+              title: 'New Message',
+              message: content.slice(0, 100),
+              type: 'chat',
+              refType: 'conversation',
+              refId: conversationId,
+            }
           );
-          io.to(`user:${p.user_id}`).emit('notification:new', {
-            title: 'New Message',
-            message: content.slice(0, 100),
-            type: 'chat',
-            reference_id: conversationId,
-          });
         }
 
         callback?.({ success: true, message });
