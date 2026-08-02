@@ -86,7 +86,7 @@ const enrollSchema = z.object({
     enrollment: z.object({
       academic_year_id: z.string().uuid().optional(),
       class_id: z.string().uuid().optional(),
-      grade_level: z.number().int().optional(),
+      grade_level: z.union([z.string().max(20), z.number().int()]).optional(),
       section: z.string().max(20).optional(),
       admission_category: z.string().max(50).optional(),
       admission_modality: z.string().max(50).optional(),
@@ -106,7 +106,7 @@ const enrollmentSchema = z.object({
   body: z.object({
     academic_year_id: z.string().uuid().optional(),
     class_id: z.string().uuid().optional(),
-    grade_level: z.number().int().optional(),
+    grade_level: z.union([z.string().max(20), z.number().int()]).optional(),
     section: z.string().max(20).optional(),
     admission_category: z.string().max(50).optional(),
     admission_modality: z.string().max(50).optional(),

@@ -144,6 +144,7 @@ export default function TeachersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Gender</TableHead>
                   <TableHead>Job Title</TableHead>
                   <TableHead>Qualification</TableHead>
                   <TableHead>Field of Study</TableHead>
@@ -156,6 +157,7 @@ export default function TeachersPage() {
                   <TableRow key={teacher.id}>
                     <TableCell className="font-medium">{teacher.first_name} {teacher.last_name}</TableCell>
                     <TableCell>{teacher.email}</TableCell>
+                    <TableCell>{teacher.gender ? teacher.gender.charAt(0).toUpperCase() + teacher.gender.slice(1) : "—"}</TableCell>
                     <TableCell>{teacher.job_title || "—"}</TableCell>
                     <TableCell>{teacher.qualification || "—"}</TableCell>
                     <TableCell>{teacher.field_of_study || "—"}</TableCell>
@@ -170,7 +172,7 @@ export default function TeachersPage() {
                   </TableRow>
                 ))}
                 {teachers.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No teachers found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No teachers found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

@@ -444,7 +444,7 @@ function EnrollmentTab({ studentId, enrollments, onReload }) {
     const p = {};
     for (const [k, v] of Object.entries(form)) {
       if (v === "" || v === null || v === undefined) continue;
-      if (k === "grade_level" || k === "meals_per_week" || k === "num_textbooks") p[k] = parseInt(v, 10);
+      if (k === "meals_per_week" || k === "num_textbooks") p[k] = parseInt(v, 10);
       else p[k] = v;
     }
     return p;
@@ -496,7 +496,7 @@ function EnrollmentTab({ studentId, enrollments, onReload }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Grade Level</Label>
-                    <Input type="number" value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: e.target.value })} />
+                    <Input value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: e.target.value })} placeholder="e.g. 1 or Nursery" />
                   </div>
                   <div className="space-y-2">
                     <Label>Section</Label>

@@ -22,7 +22,7 @@ export default function UsersPage() {
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "" });
+  const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "" });
   const [fieldErrors, setFieldErrors] = useState({});
 
   const isStaffRole = ["admin", "teacher", "hr", "finance", "support"].includes(form.role);
@@ -33,7 +33,7 @@ export default function UsersPage() {
     try {
       await createUser.mutateAsync(form);
       setOpen(false);
-      setForm({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "" });
+      setForm({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "" });
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -94,6 +94,17 @@ export default function UsersPage() {
               <FieldError errors={fieldErrors} field="role" />
               {isStaffRole && (
                 <>
+                  <div className="space-y-2">
+                    <Label>Gender</Label>
+                    <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <Label>Job Title</Label>
                     <Input value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} placeholder="e.g. Teacher, Director" />

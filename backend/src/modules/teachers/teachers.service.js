@@ -49,6 +49,7 @@ async function findTeachers(tenantId, { page = 1, limit = 20, search } = {}) {
       'users.job_title',
       'users.qualification',
       'users.field_of_study',
+      'users.gender',
       'users.created_at'
     )
     .orderBy('users.last_name', 'asc');

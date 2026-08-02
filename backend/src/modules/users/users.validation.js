@@ -11,6 +11,7 @@ const createUserSchema = z.object({
     job_title: z.string().max(150).optional(),
     qualification: z.string().max(150).optional(),
     field_of_study: z.string().max(150).optional(),
+    gender: z.enum(['male', 'female', 'other']).optional(),
   }),
 });
 
@@ -24,6 +25,7 @@ const updateUserSchema = z.object({
     job_title: z.string().max(150).optional().nullable(),
     qualification: z.string().max(150).optional().nullable(),
     field_of_study: z.string().max(150).optional().nullable(),
+    gender: z.enum(['male', 'female', 'other']).optional().nullable(),
   }),
 });
 

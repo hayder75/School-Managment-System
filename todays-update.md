@@ -257,3 +257,19 @@ Mapped the five `data/*.xlsx` workbooks into the schema (migration `031_add_impo
 - Payroll breakdown create (no net_pay sent) → server computed allowances 350 / deductions 315 / net 1535; update recomputes from merged row (overtime 100 → allowances 400 / net 1585). Test rows deleted afterward.
 - `/api/academics/academic-years` returns years.
 - Backend roles regression: 49/49 checks still pass. Frontend `npm run build` + `oxlint` clean (only pre-existing warnings).
+
+### Round 3 follow-up — full data-coverage audit + fixes (2026-08-02)
+
+Audited every column in the five `data/*.xlsx` files against the schema. Nearly everything was already covered; three gaps found and fixed:
+
+1. **`enrollments.grade_level` was an integer** but the data has text grades — KG is `Nursery`/`LKG`/`UKG`, primary is `Grade 1`–`Grade 8`. Migration `032_fix_enrollment_grade_level_add_user_gender.js` alters it to `varchar(20)` (verified stored as `Nursery` via API). Zod `enrollmentSchema`/`enrollSchema` now accept string-or-number; enrollment UI grade field is free text with hint `e.g. 1 or Nursery`.
+2. **No staff gender** — `users` gained a `gender` column (migration 032); wired into `users.service` userFields+create, create/update validation, `teachers.findTeachers` select, and Users/Teachers pages.
+3. **`GET /academics/academic-years`** added (needed by the enrollment form; already covered last round).
+
+**Coverage summary per workbook:**
+- `basic stu prim (2).xlsx` (30 cols, 2,128 rows) — 100% mapped (demographics + addresses + parent education via `student_parents.education_level`).
+- `enroll prim (2).xlsx` / `enroll kg (2).xlsx` — 100% mapped to `enrollments` (grade now text-capable).
+- `JUNE SALARY 2018.xlsx` — mapped to `payroll` + `users.job_title`; only derived columns (`Gross Earning`, `Taxable Income`, `Signature`) are not stored — computed instead.
+- `statistical data (2).xlsx` — names/sex/qualification/field-of-study/job position map to `users`; subject+class taught map to `teacher_subjects`; weekly period counts are workload stats (not stored); the `students`/`period` sheets are aggregate curriculum/report data.
+
+**Verification:** KG `grade_level` + user `gender` smoke-tested via API (test rows cleaned up); backend roles regression 49/49; frontend `npm run build` + `oxlint` clean.
