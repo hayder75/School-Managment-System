@@ -321,6 +321,15 @@ async function getHeadcountReport(tenantId) {
 
 // ── Student Reports ──
 
+function percentageToGpa(pct) {
+  if (pct == null) return null;
+  if (pct >= 90) return 4.0;
+  if (pct >= 80) return 3.0;
+  if (pct >= 70) return 2.0;
+  if (pct >= 60) return 1.0;
+  return 0.0;
+}
+
 async function getStudentGradeSummary(tenantId, studentId, subjectIds) {
   let query = db('grades')
     .where({ 'grades.tenant_id': tenantId, 'grades.student_id': studentId })
@@ -328,7 +337,8 @@ async function getStudentGradeSummary(tenantId, studentId, subjectIds) {
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
     .select(
       'subjects.name as subject_name',
-      db.raw('ROUND(AVG(grades.marks_obtained), 1) as average'),
+      db.raw('COALESCE(SUM(grades.marks_obtained), 0) as obtained'),
+      db.raw('COALESCE(SUM(exams.total_marks), 0) as possible'),
       db.raw('COUNT(*)::int as exam_count')
     )
     .groupBy('subjects.name')
@@ -338,11 +348,32 @@ async function getStudentGradeSummary(tenantId, studentId, subjectIds) {
     query = query.whereIn('exams.subject_id', subjectIds);
   }
 
-  const grades = await query;
+  const rows = await query;
 
-  const overall = grades.reduce((s, g) => ({ total: s.total + parseFloat(g.average), count: s.count + 1 }), { total: 0, count: 0 });
+  let obtainedTotal = 0;
+  let possibleTotal = 0;
+  const by_subject = rows.map((r) => {
+    const obtained = parseFloat(r.obtained);
+    const possible = parseFloat(r.possible);
+    obtainedTotal += obtained;
+    possibleTotal += possible;
+    return {
+      subject_name: r.subject_name,
+      exam_count: r.exam_count,
+      average: possible > 0 ? parseFloat(((obtained / possible) * 100).toFixed(1)) : null,
+    };
+  });
 
-  return { by_subject: grades, overall_average: overall.count > 0 ? (overall.total / overall.count).toFixed(1) : null };
+  const overall_average = possibleTotal > 0
+    ? parseFloat(((obtainedTotal / possibleTotal) * 100).toFixed(1))
+    : null;
+
+  return {
+    by_subject,
+    overall_average,
+    gpa: percentageToGpa(overall_average),
+    total_exams: by_subject.reduce((sum, s) => sum + s.exam_count, 0),
+  };
 }
 
 async function getStudentAttendanceSummary(tenantId, studentId, { term_id } = {}) {

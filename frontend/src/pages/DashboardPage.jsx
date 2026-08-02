@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import {
   Users, GraduationCap, BookOpen, School, Megaphone, UserCheck, DollarSign,
   TrendingDown, Wallet, Calendar, CheckCircle, XCircle, Clock, BarChart3,
-  Building2, TrendingUp, CreditCard, AlertTriangle, ShieldAlert, Globe,
+  Building2, TrendingUp, CreditCard, AlertTriangle, ShieldAlert, Globe, Award,
 } from "lucide-react";
 
 function StatCard({ title, value, icon: Icon, sub, color }) {
@@ -189,8 +189,9 @@ function StudentDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Student Dashboard</h1><p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard title="Overall Average" value={grades.overall_average ? `${grades.overall_average}%` : "—"} icon={BarChart3} color="text-blue-600" />
+        <StatCard title="GPA" value={grades.gpa != null ? grades.gpa.toFixed(1) : "—"} icon={Award} color="text-indigo-600" />
         <StatCard title="Attendance" value={presentPct ? `${presentPct}%` : "—"} icon={UserCheck} sub={`${attendance.total || 0} days recorded`} color={presentPct >= 80 ? "text-green-600" : "text-yellow-600"} />
         <StatCard title="Subjects" value={grades.by_subject?.length || "—"} icon={BookOpen} sub="With recorded grades" />
       </div>
@@ -234,10 +235,14 @@ function ChildAcademicCard({ child }) {
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <div className="p-2 border rounded">
             <p className="text-xs text-muted-foreground">Overall Average</p>
             <p className="text-lg font-bold">{grades.overall_average != null ? `${grades.overall_average}%` : "—"}</p>
+          </div>
+          <div className="p-2 border rounded">
+            <p className="text-xs text-muted-foreground">GPA</p>
+            <p className="text-lg font-bold">{grades.gpa != null ? grades.gpa.toFixed(1) : "—"}</p>
           </div>
           <div className="p-2 border rounded">
             <p className="text-xs text-muted-foreground">Attendance</p>

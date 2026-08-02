@@ -1,6 +1,21 @@
 const PDFDocument = require('pdfkit');
 const db = require('../config/database');
 
+function gradeLetter(score, max) {
+  if (score == null || !max || max <= 0) return '-';
+  const ratio = score / max;
+  return ratio >= 0.9 ? 'A' : ratio >= 0.8 ? 'B' : ratio >= 0.7 ? 'C' : ratio >= 0.6 ? 'D' : 'F';
+}
+
+function gpaFromPct(pct) {
+  if (pct == null) return null;
+  if (pct >= 90) return 4.0;
+  if (pct >= 80) return 3.0;
+  if (pct >= 70) return 2.0;
+  if (pct >= 60) return 1.0;
+  return 0.0;
+}
+
 async function generateReportCard(tenantId, studentId, academicYear) {
   const student = await db('students')
     .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
@@ -10,45 +25,155 @@ async function generateReportCard(tenantId, studentId, academicYear) {
     .first();
   if (!student) throw new Error('NOT_FOUND');
 
+  const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
+  const schoolName = tenant?.name || 'School';
+
   let gradesQuery = db('grades')
     .where({ 'grades.tenant_id': tenantId, 'grades.student_id': studentId })
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
-    .select('subjects.name as subject', 'grades.marks_obtained', 'exams.total_marks', 'exams.name as exam_name', 'exams.date as exam_date');
+    .leftJoin('terms', 'exams.term_id', 'terms.id')
+    .select(
+      'subjects.name as subject',
+      'grades.marks_obtained',
+      'exams.total_marks',
+      'exams.name as exam_name',
+      'exams.date as exam_date',
+      'terms.name as term_name',
+      'exams.term_id'
+    );
 
   if (academicYear) {
     gradesQuery = gradesQuery.whereRaw("EXTRACT(YEAR FROM exams.date) = ?", [parseInt(academicYear, 10)]);
   }
-  const grades = await gradesQuery.orderBy('exams.date', 'asc');
+  const gradeRows = await gradesQuery.orderBy('exams.date', 'asc');
+
+  const bySubject = {};
+  for (const g of gradeRows) {
+    if (!bySubject[g.subject]) bySubject[g.subject] = { subject: g.subject, obtained: 0, possible: 0, count: 0 };
+    bySubject[g.subject].obtained += parseFloat(g.marks_obtained) || 0;
+    bySubject[g.subject].possible += parseFloat(g.total_marks) || 0;
+    bySubject[g.subject].count += 1;
+  }
+  const subjectSummary = Object.values(bySubject).map((s) => ({
+    ...s,
+    average: s.possible > 0 ? (s.obtained / s.possible) * 100 : null,
+  })).sort((a, b) => a.subject.localeCompare(b.subject));
+
+  let obtainedTotal = 0;
+  let possibleTotal = 0;
+  for (const s of subjectSummary) {
+    obtainedTotal += s.obtained;
+    possibleTotal += s.possible;
+  }
+  const overall = possibleTotal > 0 ? (obtainedTotal / possibleTotal) * 100 : null;
+  const gpa = gpaFromPct(overall);
+
+  const attRecords = await db('attendance')
+    .where({ tenant_id: tenantId, student_id: studentId })
+    .select('status')
+    .count('* as count')
+    .groupBy('status');
+  const attTotal = attRecords.reduce((sum, r) => sum + parseInt(r.count, 10), 0);
+  const attPresent = parseInt(attRecords.find((r) => r.status === 'present')?.count || 0, 10);
+  const attPresentPct = attTotal > 0 ? (attPresent / attTotal) * 100 : null;
+
+  const discipline = await db('student_discipline')
+    .where({ tenant_id: tenantId, student_id: student.id })
+    .orderBy('created_at', 'desc');
+
+  const termGroups = {};
+  for (const g of gradeRows) {
+    const key = g.term_name || 'Ungrouped';
+    if (!termGroups[key]) termGroups[key] = [];
+    termGroups[key].push(g);
+  }
+  const termOrder = Object.keys(termGroups).sort((a, b) => {
+    if (a === 'Ungrouped') return 1;
+    if (b === 'Ungrouped') return -1;
+    return a.localeCompare(b);
+  });
 
   const doc = new PDFDocument({ margin: 50 });
   const buffers = [];
   doc.on('data', (b) => buffers.push(b));
   doc.on('end', () => {});
 
-  doc.fontSize(20).text('Report Card', { align: 'center' });
+  doc.fontSize(18).text('Report Card', { align: 'center' });
+  doc.fontSize(10).text(schoolName, { align: 'center' });
   doc.moveDown();
   doc.fontSize(12).text(`Student: ${student.first_name} ${student.last_name}`);
-  doc.text(`Class: ${student.class_name || 'N/A'}`);
-  doc.text(`Year: ${academicYear || new Date().getFullYear()}`);
+  doc.fontSize(10);
+  doc.text(`Class: ${student.class_name || 'N/A'}   |   Student #: ${student.student_number || 'N/A'}`);
+  doc.text(`Year: ${academicYear || new Date().getFullYear()}   |   Generated: ${new Date().toLocaleDateString()}`);
   doc.moveDown();
 
-  doc.fontSize(10).text('Subject', 50, doc.y, { width: 200, continued: true });
-  doc.text('Score', 300, doc.y, { width: 80, continued: true });
+  doc.font('Helvetica-Bold').fontSize(11).text('Subject Summary');
+  doc.moveDown(0.3);
+  doc.fontSize(10);
+  doc.text('Subject', 50, doc.y, { width: 200, continued: true });
+  doc.text('Exams', 260, doc.y, { width: 50, continued: true });
+  doc.text('Average', 320, doc.y, { width: 70, continued: true });
   doc.text('Grade', 400, doc.y);
   doc.moveDown(0.5);
-
-  for (const g of grades) {
-    const hasScore = g.marks_obtained != null && g.marks_obtained !== '';
-    const score = hasScore ? parseFloat(g.marks_obtained) : null;
-    const max = g.total_marks != null ? parseFloat(g.total_marks) : null;
-    const letter = score != null && max && max > 0
-      ? (score / max >= 0.9 ? 'A' : score / max >= 0.8 ? 'B' : score / max >= 0.7 ? 'C' : score / max >= 0.6 ? 'D' : 'F')
-      : '-';
-    doc.text(g.subject || 'Unknown', 50, doc.y, { width: 200, continued: true });
-    doc.text(score != null ? score.toString() : '-', 300, doc.y, { width: 80, continued: true });
-    doc.text(letter, 400, doc.y);
+  if (subjectSummary.length === 0) {
+    doc.font('Helvetica').text('No grades recorded.', 50, doc.y);
+  }
+  for (const s of subjectSummary) {
+    doc.font('Helvetica');
+    doc.text(s.subject, 50, doc.y, { width: 200, continued: true });
+    doc.text(`${s.count}`, 260, doc.y, { width: 50, continued: true });
+    doc.text(s.average != null ? `${s.average.toFixed(1)}%` : '-', 320, doc.y, { width: 70, continued: true });
+    doc.text(s.average != null ? gradeLetter(s.obtained, s.possible) : '-', 400, doc.y);
     doc.moveDown(0.3);
+  }
+  doc.moveDown(0.4);
+  doc.font('Helvetica-Bold');
+  doc.text('Overall Average', 50, doc.y, { width: 200, continued: true });
+  doc.text(overall != null ? `${overall.toFixed(1)}%` : '-', 320, doc.y, { width: 70, continued: true });
+  doc.text(`GPA: ${gpa != null ? gpa.toFixed(1) : '-'}`, 400, doc.y);
+  doc.moveDown(0.5);
+
+  doc.font('Helvetica-Bold').fontSize(11).text('Attendance');
+  doc.fontSize(10).font('Helvetica');
+  doc.moveDown(0.3);
+  doc.text(`Total Days Recorded: ${attTotal}   |   Present: ${attPresent}   |   Attendance: ${attPresentPct != null ? `${attPresentPct.toFixed(1)}%` : '-'}`);
+  doc.moveDown(0.7);
+
+  for (const term of termOrder) {
+    doc.font('Helvetica-Bold').fontSize(11).text(term);
+    doc.fontSize(10).font('Helvetica');
+    doc.moveDown(0.3);
+    doc.text('Exam', 50, doc.y, { width: 180, continued: true });
+    doc.text('Subject', 240, doc.y, { width: 120, continued: true });
+    doc.text('Score', 370, doc.y, { width: 60, continued: true });
+    doc.text('Grade', 440, doc.y);
+    doc.moveDown(0.5);
+    for (const g of termGroups[term]) {
+      const hasScore = g.marks_obtained != null && g.marks_obtained !== '';
+      const score = hasScore ? parseFloat(g.marks_obtained) : null;
+      const max = g.total_marks != null ? parseFloat(g.total_marks) : null;
+      doc.font('Helvetica');
+      doc.text(g.exam_name || g.subject || 'Unknown', 50, doc.y, { width: 180, continued: true });
+      doc.text(g.subject || 'Unknown', 240, doc.y, { width: 120, continued: true });
+      doc.text(score != null ? `${score}/${max != null ? max : '-'}` : '-', 370, doc.y, { width: 60, continued: true });
+      doc.text(gradeLetter(score, max), 440, doc.y);
+      doc.moveDown(0.3);
+    }
+    doc.moveDown(0.5);
+  }
+
+  doc.font('Helvetica-Bold').fontSize(11).text('Conduct / Discipline');
+  doc.fontSize(10).font('Helvetica');
+  doc.moveDown(0.3);
+  if (discipline.length === 0) {
+    doc.text('No discipline records.', 50, doc.y);
+  }
+  for (const d of discipline) {
+    const date = d.created_at ? new Date(d.created_at).toLocaleDateString() : '';
+    doc.text(`${date}  [${d.incident_type}] (${d.status})`, 50, doc.y);
+    doc.text(d.description || '', 60, doc.y, { width: 430 });
+    doc.moveDown(0.4);
   }
 
   doc.end();

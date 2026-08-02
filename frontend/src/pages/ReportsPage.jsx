@@ -646,7 +646,7 @@ function StudentGradesReport() {
       <h3 className="text-lg font-semibold">My Grades</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report ? (
         <>
-          <StatCard title="Overall Average" value={report.overall_average || "—"} />
+          <StatCard title="Overall Average" value={report.overall_average != null ? `${report.overall_average}%` : "—"} />
           {report.by_subject?.length > 0 && (
             <Card>
               <CardContent className="p-0">
@@ -658,7 +658,7 @@ function StudentGradesReport() {
                     {report.by_subject.map((s, i) => (
                       <TableRow key={i}>
                         <TableCell className="font-medium">{s.subject_name}</TableCell>
-                        <TableCell className="font-semibold">{s.average}</TableCell>
+                        <TableCell className="font-semibold">{s.average != null ? `${s.average}%` : "—"}</TableCell>
                         <TableCell>{s.exam_count}</TableCell>
                       </TableRow>
                     ))}
