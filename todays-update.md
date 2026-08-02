@@ -336,3 +336,103 @@ The `statistical data (2).xlsx` tracks per-teacher teaching load that wasn't in 
 6. **Seed**: demo teacher seeded with section_count 14, ppw 22, OT 6, total 28. Also fixed the recurring footgun — `002_dev_users.js` now calls `seedTenant` at the end so `npm run seed` no longer leaves roles/permissions cascade-deleted (was requiring a manual `seedTenant` after every seed).
 
 **Verified:** teacher create rejects missing section_count/periods_per_week (validation), accepts with values (auto total), non-teacher create passes without load; update recomputes total (25+5→30); teachers endpoint returns fields; demo teacher seeded 14/22/6/28; roles regression 49/49 (and 49/49 immediately after re-seed, proving self-healing); payroll calc still matches Amanuel (tax 3203.73). Frontend build + lint clean (pre-existing warnings only).
+
+### Round 3 follow-up 7 — pre-production cross-role integration deep-dive (2026-08-02)
+
+Full audit of every related-concept workflow between roles (teacher ↔ student ↔ parent ↔ admin ↔ finance ↔ hr) ahead of Excel seeding. The backend access-scoping is largely correct; the breaks are frontend gaps, dead/unwired endpoints, and one missing subsystem (notifications). Findings are grouped by severity. This is a findings document only — fixes to follow in follow-up 8.
+
+---
+
+#### CRITICAL — broken end-to-end
+
+**C-1. Grade entry cannot begin (exam → roster dead on arrival).**
+- `ExamsPage.jsx` GradeEntry loads only `useExamGrades(exam.id)` → `GET /grades/exams/:examId` → `grades.service.js:82` returns **existing grade rows only**, never the class roster.
+- No grade rows are materialized at exam creation (`exams.service.js:4` inserts only the exam row).
+- A fresh exam renders "No students in this exam. Create a student and assign them." (`ExamsPage.jsx:49-50`) — the teacher cannot submit the first grade through the UI.
+- Roster endpoint `GET /students/class/:classId` exists (`students.routes.js:21`, `useStudentsByClass` hook) but is never used by the grade-entry flow.
+- Fix direction: grade entry must union the class roster with existing grades (roster from `students` where `class_id = exam.class_id`, left-joined to `grades` on `exam_id`).
+
+**C-2. No notifications for any domain event — only chat.**
+- The only `notificationService.create` call in the entire backend is `socket/index.js:97` (new chat message).
+- Exam creation (`exams.service.js`), grade upsert (`grades.service.js:13`), attendance mark (`attendance.service.js`), fee payment (`fees.service.js:29`), announcement publish (`announcements.service.js:4`) → **none notify**.
+- `notifications` table supports `reference_type`/`reference_id` (`notifications.service.js:4-17`) but they are only populated for chat.
+- The bell is wired (polls every 30s via `useNotifications.js:11`, socket `notification:new` listener in `NotificationBell.jsx:20`) but effectively always empty.
+- Nits: `NotificationBell.jsx:25` does `window.location.reload()` on every notification; socket connect in `useEffect` has no cleanup.
+
+**C-3. Announcement targeting is dead code + a real plural/singular bug.**
+- Dashboards (`DashboardPage.jsx:120,147,183,220`) and `AnnouncementsPage.jsx:21` call `useAnnouncements` → `GET /announcements` → `findAll` (`announcements.service.js:11`) which has **no audience/role/class filtering**. Everyone sees every announcement.
+- `useMyAnnouncements` (`useAnnouncements.js:12` → `GET /announcements/my`) is defined but **never called anywhere**.
+- Bug: role strings are singular (`'teacher'`,`'student'`,`'parent'`) but the audience enum is plural `['all','teachers','students','parents','class']` (`announcements.validation.js:7`). `findForUser` filters `.orWhere('announcements.audience', role)` (`announcements.service.js:44`) — so `audience='teachers'` never matches role `'teacher'`. Only `all` and `class` ever surface via `/my`.
+- When `class_id` is absent, `findForUser` (`announcements.service.js:39`) skips the class filter entirely → returns **every** `audience='class'` announcement for every class (data leak).
+- No notification created when an announcement is published (`announcements.controller.js` inserts the row only).
+- UI: Create/Edit/Delete buttons render for everyone on `/announcements` (`AnnouncementsPage.jsx:68-70,137-139`) but backend POST/PUT/DELETE require admin/owner (`announcements.routes.js:17-19`).
+
+**C-4. Parent portal has no child academic data despite full backend support.**
+- Backend permits parents on grades, attendance, exams, report-card, and `/fees/my` (all pass `canViewStudentByUserId` → `access.js:50-53`; `reports.routes.js:35-36`; `fees.controller.js:5-35`).
+- Frontend: parent nav = Dashboard, Timetable, Announcements, Chat only (`Sidebar.jsx:106-111`). `ParentDashboard` (`DashboardPage.jsx:217-258`) renders only children name/class/student#/status — **no grades, no attendance, no fee balance** (outstanding_balance is computed at `parents.service.js:137` but never displayed).
+- `/students` routes are admin/owner/teacher-only (`App.jsx:103-108`); `/reports` excludes teachers AND parents (`App.jsx:125-130`); `/exams` + `/attendance` are admin/owner/teacher-only.
+- `GET /fees/my` has no frontend caller (no `useMyFees` hook wired).
+- No online payment path anywhere — `POST /fees/payments` requires admin/owner/finance (`fees.routes.js:17`).
+
+#### HIGH — wrong or broken
+
+**H-1. Report-card & invoice PDF buttons 403 (ID-type mismatch).**
+- `StudentDetailPage.jsx:103,106` open `/api/pdf/report-card/${id}` and `/api/pdf/invoice/${id}` where `id` is the **students record id** (e.g. from `StudentsPage.jsx` list).
+- But `pdf.routes.js:15,31` and `pdf.service.js:6,62` treat the param as a **users.id** (`canViewStudentByUserId`), and access check at `pdf.routes.js:14-16` compares `student.user_id`. Since `students.id ≠ students.user_id`, the buttons 403/404.
+- Contrast: `PaymentsPage.jsx:163` correctly passes `p.student_id` (a `users.id`).
+
+**H-2. Teacher grade-history subject leak.**
+- `grades.controller.js:61-66` (GET `/grades/students/:studentId`) checks only `canViewStudentByUserId` → `access.js:54-57` → `isTeacherAssignedToClass` (class-level, subject ignored). A Math teacher can pull any subject's grades for students in a class they teach. Same leak on `reports.routes.js:35` / `reports.controller.js:115`.
+
+**H-3. Timetable auto-generate ignores teacher assignments + parent misclassified as admin.**
+- `operations.service.js:122-142` cycles subjects and teachers by modulo counter → `timetable_entries` with teacher_id unrelated to class_id/subject_id. Also wipes all existing entries (`:144`).
+- `TimetablePage.jsx:25`: `isAdmin = !isStudent && !isTeacher` → a parent is treated as admin, sees the all-classes dropdown, "Auto Generate", and "Add Entry" dialog. Backend 403s; view of a non-child class 403s too.
+- Teachers cannot create timetable entries at all (`timetable.routes.js:14` limits POST to admin/owner); no assignment validation on create (`timetable.controller.js:5-8`).
+
+**H-4. Overall average is wrong math, displayed as %.**
+- `reports.service.js:324-340`: per-subject `average = AVG(marks_obtained)` — raw marks, never normalized by `total_marks`. `overall_average` is a simple equal-weight mean of per-subject averages.
+- Displayed as `%` on `DashboardPage.jsx:193,205`. With mixed exam totals (10-pt quiz + 100-pt final) this is mathematically wrong.
+- No GPA concept anywhere in the backend.
+
+**H-5. Report card is bare.**
+- `pdf.service.js:4-58` renders only per-exam rows (subject, score, letter). No overall average, no attendance, no conduct/discipline, no term/period grouping (only optional `year` filter).
+- Supporting data exists unused: attendance summary (`reports.service.js:342-366`), discipline records (`students.service.js:367-395`, `student_discipline` table).
+
+**H-6. Teacher dashboard "My Classes" stat is school-wide.**
+- `DashboardPage.jsx:155` uses `useClasses({limit:200})` → `GET /classes` returns all tenant classes unfiltered (`classes.service.js:9-25`), not scoped to the teacher's `teacher_subjects`. The "Classes taught" label is misleading.
+
+**H-7. Payments: no student filter; createPayment doesn't enforce student role.**
+- `PaymentsPage.jsx:19` calls `usePayments({ page, limit: 20 })` with no `student_id`; backend supports `?student_id=` (`fees.service.js:69`). No filter UI in payment history.
+- `createPayment` (`fees.service.js:31-36`) only checks the target exists in `users` within the tenant — it does **not** verify role `'student'` or that a `students` record exists. Cross-tenant still protected.
+
+**H-8. No automatic per-student fee ledger.**
+- No billing engine generates payment rows when a fee structure is created/assigned. Outstanding balance is only the sum of manually-entered `payments.balance` for statuses pending/partial/overdue (`fees.controller.js:30-32`, `parents.service.js:139-148`). A fee a student owes with no payment row appears nowhere. `frequency` is stored but never used for auto-billing.
+
+**H-9. UI role-gating holes.**
+- `StudentsPage.jsx` has no role gating — Add/Edit/Delete/Promote render for teachers (`StudentsPage.jsx:128-129,166,132-163,398-400`) and 403 on the backend (`students.routes.js:23-26,53-55`).
+- `ExamsPage.jsx:103-106` filters classes and subjects independently → teacher can pick a subject they teach only in class A paired with class B (backend 403s via `isTeacherAssignedToClassSubject`).
+
+#### LOW — nits & dead code
+
+- **L-1. Enroll-path guardian linking bypasses checks.** `/students/enroll` links guardians via `students.service.js:15-35` without checking parent exists / role `parent` / tenant ownership / duplicate `(student_id,parent_id)` dedupe (unique constraint would throw a raw DB error). `linkParent` (`parents.service.js:44-90`) does all of this correctly — the two paths diverge. No frontend calls `/students/enroll`; `StudentsPage.jsx:257` only has a `parent_status` text field.
+- **L-2. `is_primary` not settable in link dialog; `education_level` missing from link flow.** `ParentsPage.jsx:19` declares `is_primary` in state but the dialog never renders a toggle; `linkParent` (`parents.service.js:87`) and `linkParentSchema` (`parents.validation.js:3-10`) never set `education_level`.
+- **L-3. Primary parent has no consumer.** `generateReportCard` (`pdf.service.js:4-58`) lists no parent/guardian; invoice doesn't use it; no notifications/email reference it.
+- **L-4. Teacher-only reports unreachable.** `/reports/my-students`, `/reports/my-grades`, `/reports/my-attendance` exist (`reports.routes.js:20-22`) and `ReportsPage.jsx:733` adds a "My Reports" teacher tab, but `/reports` route excludes `teacher` (`App.jsx:125-130`).
+- **L-5. Dead hooks.** `useStudent` (`useStudents.js:12`), `useStudentGrades` (`useGrades.js:12`), `useMyAnnouncements` (`useAnnouncements.js:12`), `useStudentReport` (`DashboardPage.jsx:12`), `useMyFees` (nonexistent) — defined but never wired.
+- **L-6. HR dashboard "Staff" stat hardcoded `"—"`** (`DashboardPage.jsx:310`); no staff count implemented.
+- **L-7. Socket singleton never disconnected** (`frontend/src/lib/socket.js`); notification bell has no cleanup.
+
+---
+
+#### Recommended fix order (for follow-up 8)
+
+1. **C-1** — grade entry roster (union class students + existing grades).
+2. **C-2** — notification engine: fan out on exam create, grade upsert, attendance mark, fee payment, announcement publish (target students/parents/teachers by class).
+3. **C-3** — fix audience enum ↔ role mapping (accept both forms), wire `useMyAnnouncements`, enforce class_id filtering, hide admin actions from non-admin roles, notify on publish.
+4. **C-4** — parent portal: child grades/attendance/fees cards + balance + report-card link; add routes.
+5. **H-1** — PDF links pass `user_id` (or make pdf.service resolve students.id → user_id).
+6. **H-2** — subject-scope teacher grade history.
+7. **H-3** — timetable create validation vs teacher_subjects; fix parent role detection; (auto-gen teacher assignment fix optional).
+8. **H-4/H-5** — normalized averages + enriched report card.
+9. **H-7/H-8** — student role enforcement + per-student ledger.
+10. **H-9/L-nits** — role-gate UIs, clean dead hooks.
