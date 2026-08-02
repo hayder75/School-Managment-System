@@ -9,14 +9,6 @@ export function useExamGrades(examId) {
   });
 }
 
-export function useStudentGrades(studentId) {
-  return useQuery({
-    queryKey: ["grades", "student", studentId],
-    queryFn: () => api.get(`/grades/students/${studentId}`),
-    enabled: !!studentId,
-  });
-}
-
 export function useEnterGrades() {
   const qc = useQueryClient();
   return useMutation({

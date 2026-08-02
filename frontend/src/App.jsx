@@ -126,6 +126,9 @@ function AppContent() {
             <Route path="/payroll" element={<PayrollPage />} />
             <Route path="/salary-register" element={<SalaryRegisterPage />} />
             <Route path="/staff/:id" element={<StaffDetailPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr", "teacher"]} permissions={["reports.view"]} />}>
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 

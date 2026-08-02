@@ -9,14 +9,6 @@ export function useStudents(params = {}, options = {}) {
   });
 }
 
-export function useStudent(id) {
-  return useQuery({
-    queryKey: ["students", id],
-    queryFn: () => api.get(`/students/${id}`),
-    enabled: !!id,
-  });
-}
-
 export function useCreateStudent() {
   const qc = useQueryClient();
   return useMutation({

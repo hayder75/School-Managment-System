@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../store/auth";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, usePromoteStudents, useEnrollmentStats } from "../hooks/useStudents";
@@ -15,6 +16,8 @@ import { TableSkeleton, CardSkeleton } from "../components/ui/skeleton";
 import { Plus, Search, GraduationCap, Users, BookOpen, ExternalLink } from "lucide-react";
 
 export default function StudentsPage() {
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin" || user?.role === "owner";
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
@@ -129,7 +132,8 @@ export default function StudentsPage() {
           <p className="text-muted-foreground">Manage student records</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
+          {isAdmin && (
+            <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">Promote Students</Button>
             </DialogTrigger>
@@ -161,7 +165,9 @@ export default function StudentsPage() {
               </form>
             </DialogContent>
           </Dialog>
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+          )}
+          {isAdmin && (
+            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />Add Student</Button>
             </DialogTrigger>
@@ -330,6 +336,7 @@ export default function StudentsPage() {
               </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 
@@ -396,8 +403,8 @@ export default function StudentsPage() {
                     <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs ${s.status === "active" ? "bg-green-100 text-green-800" : s.status === "graduated" ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"}`}>{s.status}</span></td>
                     <td className="p-3 text-right">
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/students/${s.id}`)}><ExternalLink className="h-3 w-3 mr-1" />View</Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>
-                      <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm("Delete this student?")) deleteStudent.mutate(s.id); }}>Delete</Button>
+                      {isAdmin && <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>}
+                      {isAdmin && <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm("Delete this student?")) deleteStudent.mutate(s.id); }}>Delete</Button>}
                     </td>
                   </tr>
                 ))}

@@ -8,8 +8,8 @@ import { useMyChildren } from "../hooks/useParents";
 import { useMyAnnouncements } from "../hooks/useAnnouncements";
 import { usePaymentSummary, usePayments, useMyFees } from "../hooks/useFees";
 import { useExpenseTotals } from "../hooks/useExpenses";
-import { usePayrollSummary, usePayroll } from "../hooks/usePayroll";
-import { useStudentGradeSummary, useStudentAttendanceSummary, useStudentReport, useMyStudents } from "../hooks/useReports";
+import { usePayroll } from "../hooks/usePayroll";
+import { useStudentGradeSummary, useStudentAttendanceSummary, useMyStudents, useStaffDirectory } from "../hooks/useReports";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import {
   Users, GraduationCap, BookOpen, School, Megaphone, UserCheck, DollarSign,
@@ -325,7 +325,6 @@ function ParentDashboard() {
 function FinanceDashboard() {
   const { data: paymentSummary } = usePaymentSummary();
   const { data: expenseTotals } = useExpenseTotals();
-  const { data: payrollSummary } = usePayrollSummary();
   const { data: paymentsData } = usePayments({ limit: 5 });
 
   const totalCollected = paymentSummary?.data?.total_collected || 0;
@@ -363,7 +362,7 @@ function FinanceDashboard() {
 }
 
 function HRDashboard() {
-  const { data: payrollSummary } = usePayrollSummary();
+  const { data: staffData } = useStaffDirectory();
   const { data: payrollData } = usePayroll({ limit: 5 });
 
   const recentPayroll = payrollData?.data || [];
@@ -372,7 +371,7 @@ function HRDashboard() {
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">HR Dashboard</h1><p className="text-muted-foreground">Staff & payroll overview</p></div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Staff" value={"—"} icon={Users} sub="HR module" />
+        <StatCard title="Staff" value={staffData?.data?.total || "—"} icon={Users} sub="Total employees" />
         <StatCard title="Payroll Entries" value={payrollData?.meta?.total || "—"} icon={CreditCard} color="text-blue-600" />
         <StatCard title="Pending Payroll" value={recentPayroll.filter((p) => p.status === "pending").length} icon={AlertTriangle} color="text-yellow-600" />
       </div>

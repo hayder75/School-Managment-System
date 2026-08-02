@@ -103,7 +103,14 @@ export default function ExamsPage() {
   const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
   const assignedSubjectIds = isTeacher ? assignments.map((a) => a.subject_id) : [];
   const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.includes(c.id)) : allClasses;
-  const subjects = isTeacher ? allSubjects.filter((s) => assignedSubjectIds.includes(s.id)) : allSubjects;
+  const subjects = isTeacher
+    ? allSubjects.filter((s) => {
+        if (form.class_id) {
+          return assignments.some((a) => a.class_id === form.class_id && a.subject_id === s.id);
+        }
+        return assignedSubjectIds.includes(s.id);
+      })
+    : allSubjects;
 
   async function handleCreate(e) {
     e.preventDefault();
