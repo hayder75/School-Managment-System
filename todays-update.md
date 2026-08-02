@@ -379,7 +379,7 @@ Full audit of every related-concept workflow between roles (teacher ↔ student 
 **H-1. Report-card & invoice PDF buttons 403 (ID-type mismatch).**
 - `StudentDetailPage.jsx:103,106` open `/api/pdf/report-card/${id}` and `/api/pdf/invoice/${id}` where `id` is the **students record id** (e.g. from `StudentsPage.jsx` list).
 - But `pdf.routes.js:15,31` and `pdf.service.js:6,62` treat the param as a **users.id** (`canViewStudentByUserId`), and access check at `pdf.routes.js:14-16` compares `student.user_id`. Since `students.id ≠ students.user_id`, the buttons 403/404.
-- Contrast: `PaymentsPage.jsx:163` correctly passes `p.student_id` (a `users.id`).
+- Contrast: `PaymentsPage.jsx:163` correctly passes `p.student_id` (a `users.id`). **[DONE] `pdf.routes.js` now resolves the param via `resolveStudentUserId` (matches either `students.id` or `students.user_id` in the tenant), so both callers work. Verified: report-card + invoice return `application/pdf` 200 for both `users.id` and `students.id` (admin, teacher, finance, parent-as-child), unknown id → 404, unrelated student → 403. Roles 49/49.**
 
 **H-2. Teacher grade-history subject leak.**
 - `grades.controller.js:61-66` (GET `/grades/students/:studentId`) checks only `canViewStudentByUserId` → `access.js:54-57` → `isTeacherAssignedToClass` (class-level, subject ignored). A Math teacher can pull any subject's grades for students in a class they teach. Same leak on `reports.routes.js:35` / `reports.controller.js:115`.
