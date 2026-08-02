@@ -11,7 +11,7 @@ const router = Router();
 router.use(auth);
 router.use(tenant);
 
-router.post('/', requireAccess(['admin', 'owner'], ['timetable.manage']), validate(createEntrySchema), controller.create);
+router.post('/', requireAccess(['admin', 'owner', 'teacher'], ['timetable.manage']), validate(createEntrySchema), controller.create);
 router.get('/classes/:classId', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['timetable.view']), controller.getByClass);
 router.get('/teachers/:teacherId', requireAccess(['admin', 'owner', 'teacher'], ['timetable.view']), controller.getByTeacher);
 router.put('/:id', requireAccess(['admin', 'owner'], ['timetable.manage']), validate(updateEntrySchema), controller.update);

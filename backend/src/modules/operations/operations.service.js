@@ -111,32 +111,60 @@ async function backup(tenantId) {
 }
 
 // === TIMETABLE AUTO-GENERATION ===
+const TIMETABLE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function pickAssignment(pool, classId, classSubjectCount, scheduledToday) {
+  let candidates = pool.filter((a) => !scheduledToday.has(a.subject_id));
+  if (candidates.length === 0) candidates = pool;
+  let chosen = candidates[0];
+  let best = Infinity;
+  for (const a of candidates) {
+    const count = classSubjectCount[`${classId}:${a.subject_id}`] || 0;
+    if (count < best) {
+      best = count;
+      chosen = a;
+    }
+  }
+  return chosen;
+}
+
 async function autoGenerateTimetable(tenantId) {
   const classes = await db('classes').where({ tenant_id: tenantId });
-  const subjects = await db('subjects').where({ tenant_id: tenantId });
-  const teachers = await db('users').where({ tenant_id: tenantId, role: 'teacher', status: 'active' });
-  const days = [1, 2, 3, 4, 5, 6];
   const slots = [];
-  let count = 0;
+  const busyTeacher = new Set();
+  const classSubjectCount = {};
 
   for (const cls of classes) {
-    for (const day of days) {
+    const assignments = await db('teacher_subjects')
+      .where({ 'teacher_subjects.tenant_id': tenantId, 'teacher_subjects.class_id': cls.id })
+      .join('users', 'teacher_subjects.teacher_id', 'users.id')
+      .where('users.status', 'active')
+      .select('teacher_subjects.subject_id', 'teacher_subjects.teacher_id')
+      .orderBy('teacher_subjects.is_primary', 'desc');
+
+    if (assignments.length === 0) continue;
+
+    for (let day = 0; day < TIMETABLE_DAYS.length; day++) {
+      const scheduledToday = new Set();
       for (let period = 1; period <= 6; period++) {
-        const subj = subjects[count % subjects.length];
-        const teacher = teachers[count % teachers.length];
-        if (subj && teacher) {
-          slots.push({
-            tenant_id: tenantId,
-            class_id: cls.id,
-            subject_id: subj.id,
-            teacher_id: teacher.id,
-            day_of_week: day,
-            start_time: `${String(8 + period).padStart(2, '0')}:00`,
-            end_time: `${String(9 + period).padStart(2, '0')}:00`,
-            room: `Room ${101 + period}`,
-          });
-        }
-        count++;
+        const free = assignments.filter((a) => !busyTeacher.has(`${a.teacher_id}:${day}:${period}`));
+        const pool = free.length > 0 ? free : assignments;
+        const chosen = pickAssignment(pool, cls.id, classSubjectCount, scheduledToday);
+
+        busyTeacher.add(`${chosen.teacher_id}:${day}:${period}`);
+        scheduledToday.add(chosen.subject_id);
+        classSubjectCount[`${cls.id}:${chosen.subject_id}`] = (classSubjectCount[`${cls.id}:${chosen.subject_id}`] || 0) + 1;
+
+        slots.push({
+          tenant_id: tenantId,
+          class_id: cls.id,
+          subject_id: chosen.subject_id,
+          teacher_id: chosen.teacher_id,
+          day_of_week: TIMETABLE_DAYS[day],
+          start_time: `${String(8 + period).padStart(2, '0')}:00`,
+          end_time: `${String(9 + period).padStart(2, '0')}:00`,
+          room: `Room ${101 + period}`,
+        });
       }
     }
   }

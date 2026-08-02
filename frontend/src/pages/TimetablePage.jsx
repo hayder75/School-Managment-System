@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
 import { useClassTimetable, useCreateTimetableEntry, useDeleteTimetableEntry } from "../hooks/useTimetable";
@@ -6,6 +6,7 @@ import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers } from "../hooks/useTeachers";
 import { useTeacherAssignments } from "../hooks/useTeachers";
 import { useStudents } from "../hooks/useStudents";
+import { useMyChildren } from "../hooks/useParents";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -22,7 +23,8 @@ export default function TimetablePage() {
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === "student";
   const isTeacher = user?.role === "teacher";
-  const isAdmin = !isStudent && !isTeacher;
+  const isParent = user?.role === "parent";
+  const isAdmin = user?.role === "admin" || user?.role === "owner";
   const [classId, setClassId] = useState("");
   const { data: classesData } = useClasses({ limit: 200 });
   const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
@@ -33,6 +35,7 @@ export default function TimetablePage() {
     { user_id: user?.id, limit: 1 },
     { enabled: isStudent && !!user?.id }
   );
+  const { data: myChildrenData } = useMyChildren({ enabled: isParent });
   const createEntry = useCreateTimetableEntry();
   const deleteEntry = useDeleteTimetableEntry();
 
@@ -42,10 +45,25 @@ export default function TimetablePage() {
     }
   }, [isStudent, myStudentData]);
 
+  const childClassIds = useMemo(
+    () => (isParent ? (myChildrenData?.data || []).map((c) => c.class_id).filter(Boolean) : []),
+    [isParent, myChildrenData]
+  );
+
+  useEffect(() => {
+    if (isParent && childClassIds.length > 0) {
+      setClassId((prev) => prev || childClassIds[0]);
+    }
+  }, [isParent, childClassIds]);
+
   const allClasses = classesData?.data || [];
   const assignments = assignmentsData?.data || [];
   const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
-  const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.includes(c.id)) : allClasses;
+  const classes = isTeacher
+    ? allClasses.filter((c) => assignedClassIds.includes(c.id))
+    : isParent
+      ? allClasses.filter((c) => childClassIds.includes(c.id))
+      : allClasses;
 
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -67,6 +85,12 @@ export default function TimetablePage() {
   const entries = timetableData?.data || [];
   const subjects = subjectsData?.data || [];
   const teachers = teachersData?.data || [];
+  const teacherSubjectIds = isTeacher && classId
+    ? assignments.filter((a) => a.class_id === classId).map((a) => a.subject_id)
+    : null;
+  const subjectOptions = isTeacher
+    ? subjects.filter((s) => teacherSubjectIds.includes(s.id))
+    : subjects;
 
   const timetableByDay = {};
   days.forEach((day) => {
@@ -75,7 +99,9 @@ export default function TimetablePage() {
 
   async function handleCreate(e) {
     e.preventDefault();
-    await createEntry.mutateAsync(form);
+    const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ""));
+    if (isTeacher) payload.teacher_id = user?.id;
+    await createEntry.mutateAsync(payload);
     setOpen(false);
     setForm({ class_id: "", subject_id: "", teacher_id: "", day_of_week: "monday", start_time: "08:00", end_time: "09:00", room: "" });
   }
@@ -92,7 +118,9 @@ export default function TimetablePage() {
               ? `Your class schedule — ${myClass.name}`
               : isTeacher && myClass
                 ? `Classes you teach — ${myClass.name}`
-                : "Manage class schedules"
+                : isParent && myClass
+                  ? `Your child's schedule — ${myClass.name}`
+                  : "Manage class schedules"
             }
           </p>
         </div>
@@ -110,7 +138,10 @@ export default function TimetablePage() {
               <Button variant="outline" onClick={handleGenerate} disabled={generating}>
                 <Wand2 className="h-4 w-4 mr-2" /> {generating ? "Generating..." : "Auto Generate"}
               </Button>
-              <Dialog open={open} onOpenChange={setOpen}>
+            </>
+          )}
+          {classId && (isAdmin || isTeacher) && (
+            <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button><Plus className="h-4 w-4 mr-2" /> Add Entry</Button>
               </DialogTrigger>
@@ -122,14 +153,18 @@ export default function TimetablePage() {
                     <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                       <SelectContent>
-                        {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        {subjectOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Teacher</Label>
-                    <Select value={form.teacher_id} onValueChange={(v) => setForm({ ...form, teacher_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                    <Select
+                      value={isTeacher ? user?.id : form.teacher_id}
+                      disabled={isTeacher}
+                      onValueChange={(v) => setForm({ ...form, teacher_id: v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}
                       </SelectContent>
@@ -162,7 +197,6 @@ export default function TimetablePage() {
                 </form>
               </DialogContent>
             </Dialog>
-            </>
           )}
         </div>
       </div>

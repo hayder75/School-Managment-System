@@ -129,6 +129,7 @@ async function getChildrenForParent(tenantId, parentId) {
     .select(
       'student_parents.id as link_id',
       'students.id', 'students.user_id', 'students.student_number', 'students.status',
+      'students.class_id',
       'users.first_name', 'users.last_name', 'users.email',
       'classes.name as class_name',
       'student_parents.relationship', 'student_parents.is_primary'

@@ -3,7 +3,36 @@ const access = require('../../shared/access');
 const db = require('../../config/database');
 
 async function create(req, res) {
-  const entry = await timetableService.createEntry(req.tenant.id, req.validated.body);
+  const { userId, role } = req.user;
+  const body = { ...req.validated.body };
+
+  if (role === 'teacher') {
+    body.teacher_id = userId;
+  }
+
+  if (body.teacher_id) {
+    const assignment = await db('teacher_subjects')
+      .where({
+        tenant_id: req.tenant.id,
+        teacher_id: body.teacher_id,
+        subject_id: body.subject_id,
+        class_id: body.class_id,
+      })
+      .first();
+    if (!assignment) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_ASSIGNMENT', message: 'Teacher is not assigned to this subject in this class' },
+      });
+    }
+  } else if (role !== 'admin' && role !== 'owner') {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'Only admins can create entries without a teacher' },
+    });
+  }
+
+  const entry = await timetableService.createEntry(req.tenant.id, body);
   res.status(201).json({ success: true, data: entry });
 }
 
