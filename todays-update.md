@@ -372,7 +372,7 @@ Full audit of every related-concept workflow between roles (teacher ↔ student 
 - Frontend: parent nav = Dashboard, Timetable, Announcements, Chat only (`Sidebar.jsx:106-111`). `ParentDashboard` (`DashboardPage.jsx:217-258`) renders only children name/class/student#/status — **no grades, no attendance, no fee balance** (outstanding_balance is computed at `parents.service.js:137` but never displayed).
 - `/students` routes are admin/owner/teacher-only (`App.jsx:103-108`); `/reports` excludes teachers AND parents (`App.jsx:125-130`); `/exams` + `/attendance` are admin/owner/teacher-only.
 - `GET /fees/my` has no frontend caller (no `useMyFees` hook wired).
-- No online payment path anywhere — `POST /fees/payments` requires admin/owner/finance (`fees.routes.js:17`).
+- No online payment path anywhere — `POST /fees/payments` requires admin/owner/finance (`fees.routes.js:17`). **[DONE] `ParentDashboard` now renders a `ChildAcademicCard` per child showing overall average + per-subject averages (via `GET /reports/students/:id/grades`), attendance % (via `/reports/students/:id/attendance`), and outstanding balance from `GET /parents/my-children` (previously computed but never displayed). Added a `useMyFees` hook wired to `GET /fees/my` and a "Fee Payments" card (total paid, outstanding, recent payments) on the parent dashboard; header stat now shows total outstanding fees. Backend was already fully parent-enabled (verified: parent gets grades/attendance/fees/my-children 200). Online payment path intentionally left for a future phase — admin/finance-only `POST /fees/payments` unchanged. Frontend build clean, roles 49/49.**
 
 #### HIGH — wrong or broken
 

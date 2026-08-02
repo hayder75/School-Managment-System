@@ -6,7 +6,7 @@ import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers } from "../hooks/useTeachers";
 import { useMyChildren } from "../hooks/useParents";
 import { useMyAnnouncements } from "../hooks/useAnnouncements";
-import { usePaymentSummary, usePayments } from "../hooks/useFees";
+import { usePaymentSummary, usePayments, useMyFees } from "../hooks/useFees";
 import { useExpenseTotals } from "../hooks/useExpenses";
 import { usePayrollSummary, usePayroll } from "../hooks/usePayroll";
 import { useStudentGradeSummary, useStudentAttendanceSummary, useStudentReport, useMyStudents } from "../hooks/useReports";
@@ -214,11 +214,63 @@ function StudentDashboard() {
   );
 }
 
+function ChildAcademicCard({ child }) {
+  const { data: gradeData } = useStudentGradeSummary(child.user_id);
+  const { data: attendanceData } = useStudentAttendanceSummary(child.user_id);
+  const grades = gradeData?.data || {};
+  const attendance = attendanceData?.data || {};
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{child.first_name} {child.last_name}</CardTitle>
+          <span className={`px-2 py-0.5 rounded-full text-xs ${
+            child.status === "active" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+          }`}>{child.status}</span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Class: {child.class_name || "N/A"} · Student #: {child.student_number || "N/A"}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-2 border rounded">
+            <p className="text-xs text-muted-foreground">Overall Average</p>
+            <p className="text-lg font-bold">{grades.overall_average != null ? `${grades.overall_average}%` : "—"}</p>
+          </div>
+          <div className="p-2 border rounded">
+            <p className="text-xs text-muted-foreground">Attendance</p>
+            <p className="text-lg font-bold">{attendance.present_percentage != null ? `${attendance.present_percentage}%` : "—"}</p>
+          </div>
+          <div className="p-2 border rounded">
+            <p className="text-xs text-muted-foreground">Outstanding</p>
+            <p className="text-lg font-bold">{child.outstanding_balance ? `$${Number(child.outstanding_balance).toLocaleString()}` : "$0"}</p>
+          </div>
+        </div>
+        {grades.by_subject?.length > 0 && (
+          <div className="space-y-1">
+            {grades.by_subject.map((s) => (
+              <div key={s.subject_name} className="flex items-center justify-between text-sm">
+                <span>{s.subject_name}</span>
+                <span className="text-muted-foreground">{s.average}% · {s.exam_count} exam{s.exam_count !== 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ParentDashboard() {
   const user = useAuthStore((s) => s.user);
   const { data: myChildrenData } = useMyChildren();
   const { data: announcementsData } = useMyAnnouncements();
+  const { data: myFeesData } = useMyFees();
   const children = myChildrenData?.data || [];
+  const myFees = myFeesData?.data || {};
+  const totalOutstanding = children.reduce((s, c) => s + (parseFloat(c.outstanding_balance) || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -226,26 +278,31 @@ function ParentDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard title="Linked Children" value={children.length} icon={Users} />
         <StatCard title="Active" value={children.filter((c) => c.status === "active").length} icon={CheckCircle} color="text-green-600" />
-        <StatCard title="Announcements" value={announcementsData?.data?.length || "—"} icon={Megaphone} />
+        <StatCard title="Outstanding Fees" value={totalOutstanding ? `$${totalOutstanding.toLocaleString()}` : "$0"} icon={DollarSign} color={totalOutstanding > 0 ? "text-red-600" : "text-green-600"} />
       </div>
-      {children.length > 0 && (
+      {children.map((c) => <ChildAcademicCard key={c.id} child={c} />)}
+      {(myFees.payments?.length > 0 || myFees.total_paid > 0) && (
         <Card>
-          <CardHeader><CardTitle>My Children</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Fee Payments</CardTitle></CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {children.map((c) => (
-                <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{c.first_name} {c.last_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Class: {c.class_name || "N/A"} · Student #: {c.student_number || "N/A"}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${
-                    c.status === "active"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}>{c.status}</span>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="p-2 border rounded">
+                <p className="text-xs text-muted-foreground">Total Paid</p>
+                <p className="text-lg font-bold">${Number(myFees.total_paid || 0).toLocaleString()}</p>
+              </div>
+              <div className="p-2 border rounded">
+                <p className="text-xs text-muted-foreground">Outstanding</p>
+                <p className="text-lg font-bold">${Number(myFees.outstanding || 0).toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {myFees.payments.slice(0, 5).map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-2 border rounded text-sm">
+                  <span>{p.fee_name || "Fee"} · {p.first_name} {p.last_name}</span>
+                  <span className="font-medium">${parseFloat(p.amount_paid).toFixed(2)}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    p.status === "paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                  }`}>{p.status}</span>
                 </div>
               ))}
             </div>

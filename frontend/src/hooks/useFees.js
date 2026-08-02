@@ -48,3 +48,10 @@ export function usePaymentSummary() {
     queryFn: () => api.get("/fees/summary"),
   });
 }
+
+export function useMyFees() {
+  return useQuery({
+    queryKey: ["my-fees"],
+    queryFn: () => api.get("/fees/my"),
+  });
+}
