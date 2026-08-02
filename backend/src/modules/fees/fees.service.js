@@ -30,7 +30,11 @@ async function removeFeeStructure(tenantId, id) {
 
 async function createPayment(tenantId, data) {
   const { student_id } = data;
-  const student = await db('users').where({ id: student_id, tenant_id: tenantId }).select('id').first();
+  const student = await db('users')
+    .join('students', 'students.user_id', 'users.id')
+    .where({ 'users.id': student_id, 'users.tenant_id': tenantId, 'users.role': 'student' })
+    .select('users.id')
+    .first();
   if (!student) {
     const err = new Error('STUDENT_NOT_FOUND');
     err.code = 'STUDENT_NOT_FOUND';
@@ -117,7 +121,74 @@ async function getPaymentSummary(tenantId) {
   };
 }
 
+async function getStudentLedger(tenantId, studentId) {
+  const student = await db('users')
+    .join('students', 'students.user_id', 'users.id')
+    .where({ 'users.id': studentId, 'users.tenant_id': tenantId, 'users.role': 'student' })
+    .select(
+      'users.id', 'users.first_name', 'users.last_name', 'users.email',
+      'students.student_number', 'students.class_id'
+    )
+    .first();
+  if (!student) return null;
+
+  const studentClass = student.class_id
+    ? await db('classes').where({ tenant_id: tenantId, id: student.class_id }).select('name').first()
+    : null;
+  student.class_name = studentClass?.name || null;
+
+  let query = db('fee_structures').where({ tenant_id: tenantId, is_active: true });
+  if (student.class_id) {
+    query = query.where(function () {
+      this.whereNull('class_id').orWhere('class_id', student.class_id);
+    });
+  } else {
+    query = query.whereNull('class_id');
+  }
+  const structures = await query.orderBy('name');
+
+  const payments = await db('payments')
+    .where({ 'payments.tenant_id': tenantId, 'payments.student_id': studentId })
+    .leftJoin('fee_structures', 'payments.fee_structure_id', 'fee_structures.id')
+    .select('payments.*', 'fee_structures.name as fee_name')
+    .orderBy('payments.created_at', 'desc');
+
+  const paidByStructure = {};
+  for (const p of payments) {
+    const key = p.fee_structure_id || '__unallocated';
+    paidByStructure[key] = (paidByStructure[key] || 0) + parseFloat(p.amount_paid || 0);
+  }
+
+  const lines = structures.map((f) => {
+    const amount = parseFloat(f.amount || 0);
+    const paid = paidByStructure[f.id] || 0;
+    const balance = Math.max(0, amount - paid);
+    return {
+      fee_structure_id: f.id,
+      name: f.name,
+      frequency: f.frequency,
+      amount,
+      paid,
+      balance,
+      status: balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'pending',
+    };
+  });
+
+  const totalOwed = lines.reduce((s, l) => s + l.amount, 0);
+  const totalPaid = lines.reduce((s, l) => s + l.paid, 0);
+
+  return {
+    student,
+    structures: lines,
+    payments,
+    total_owed: parseFloat(totalOwed.toFixed(2)),
+    total_paid: parseFloat(totalPaid.toFixed(2)),
+    total_balance: parseFloat((totalOwed - totalPaid).toFixed(2)),
+  };
+}
+
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
+  getStudentLedger,
 };

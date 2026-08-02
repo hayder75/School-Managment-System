@@ -55,3 +55,11 @@ export function useMyFees() {
     queryFn: () => api.get("/fees/my"),
   });
 }
+
+export function useStudentLedger(studentId) {
+  return useQuery({
+    queryKey: ["fee-ledger", studentId],
+    queryFn: () => api.get(`/fees/ledger/${studentId}`),
+    enabled: !!studentId,
+  });
+}

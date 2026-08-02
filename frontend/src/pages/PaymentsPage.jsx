@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
-import { usePayments, useCreatePayment, usePaymentSummary } from "../hooks/useFees";
+import { usePayments, useCreatePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
 import { useUsers } from "../hooks/useUsers";
 import { Button } from "../components/ui/button";
@@ -16,10 +16,14 @@ import { Plus, DollarSign, Download } from "lucide-react";
 
 export default function PaymentsPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = usePayments({ page, limit: 20 });
+  const [filterStudentId, setFilterStudentId] = useState("");
+  const { data, isLoading } = usePayments(
+    filterStudentId ? { page, limit: 20, student_id: filterStudentId } : { page, limit: 20 }
+  );
   const { data: summaryData } = usePaymentSummary();
   const { data: studentsData } = useUsers({ role: "student", limit: 500 });
   const { data: feesData } = useFeeStructures({ limit: 200 });
+  const { data: ledgerData } = useStudentLedger(filterStudentId);
   const createPayment = useCreatePayment();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ student_id: "", fee_structure_id: "", amount_paid: "", payment_method: "cash", remarks: "" });
@@ -30,6 +34,7 @@ export default function PaymentsPage() {
   const students = studentsData?.data || [];
   const fees = feesData?.data || [];
   const summary = summaryData?.data || {};
+  const ledger = ledgerData?.data || {};
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -133,8 +138,66 @@ export default function PaymentsPage() {
         </Card>
       </div>
 
+      {ledger.structures?.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Fee Statement — {ledger.student?.first_name} {ledger.student?.last_name} ({ledger.student?.student_number || "—"})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="p-2 border rounded">
+                <p className="text-xs text-muted-foreground">Total Owed</p>
+                <p className="text-lg font-bold">{Number(ledger.total_owed).toLocaleString()}</p>
+              </div>
+              <div className="p-2 border rounded">
+                <p className="text-xs text-muted-foreground">Paid</p>
+                <p className="text-lg font-bold text-green-600">{Number(ledger.total_paid).toLocaleString()}</p>
+              </div>
+              <div className="p-2 border rounded">
+                <p className="text-xs text-muted-foreground">Balance</p>
+                <p className="text-lg font-bold text-red-600">{Number(ledger.total_balance).toLocaleString()}</p>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fee</TableHead>
+                  <TableHead>Frequency</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Balance</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ledger.structures.map((s) => (
+                  <TableRow key={s.fee_structure_id}>
+                    <TableCell className="font-medium">{s.name}</TableCell>
+                    <TableCell className="capitalize">{s.frequency}</TableCell>
+                    <TableCell>{Number(s.amount).toLocaleString()}</TableCell>
+                    <TableCell>{Number(s.paid).toLocaleString()}</TableCell>
+                    <TableCell>{Number(s.balance).toLocaleString()}</TableCell>
+                    <TableCell><Badge variant={s.status === "paid" ? "success" : s.status === "partial" ? "warning" : "secondary"}>{s.status}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardHeader><CardTitle>Payment History</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Payment History</CardTitle>
+            <Select value={filterStudentId} onValueChange={(v) => { setFilterStudentId(v); setPage(1); }}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="All students" /></SelectTrigger>
+              <SelectContent>
+                {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
