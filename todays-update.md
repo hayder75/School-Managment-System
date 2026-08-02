@@ -350,7 +350,7 @@ Full audit of every related-concept workflow between roles (teacher ↔ student 
 - No grade rows are materialized at exam creation (`exams.service.js:4` inserts only the exam row).
 - A fresh exam renders "No students in this exam. Create a student and assign them." (`ExamsPage.jsx:49-50`) — the teacher cannot submit the first grade through the UI.
 - Roster endpoint `GET /students/class/:classId` exists (`students.routes.js:21`, `useStudentsByClass` hook) but is never used by the grade-entry flow.
-- Fix direction: grade entry must union the class roster with existing grades (roster from `students` where `class_id = exam.class_id`, left-joined to `grades` on `exam_id`).
+- Fix direction: grade entry must union the class roster with existing grades (roster from `students` where `class_id = exam.class_id`, left-joined to `grades` on `exam_id`). **[DONE] `grades.service.js` `getByExam` now returns the full class roster left-joined with grades — ungraded students show `marks_obtained: null` instead of being absent; grade entry + revert verified via API (Markos 53/C kept, Nathanel 88/B entered then reverted). Frontend empty-state message updated. Frontend build clean, roles 49/49.**
 
 **C-2. No notifications for any domain event — only chat.**
 - The only `notificationService.create` call in the entire backend is `socket/index.js:97` (new chat message).

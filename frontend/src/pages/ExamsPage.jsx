@@ -47,7 +47,7 @@ function GradeEntry({ exam }) {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : records.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No students in this exam. Create a student and assign them.</p>
+        <p className="text-sm text-muted-foreground">No students in this class. Add students to {exam.class_name || "the class"} first.</p>
       ) : (
         <Table>
           <TableHeader>

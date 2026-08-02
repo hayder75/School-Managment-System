@@ -80,14 +80,27 @@ async function upsertGrades(tenantId, examId, grades, userId) {
 }
 
 async function getByExam(tenantId, examId) {
-  return db('grades')
-    .where({ 'grades.tenant_id': tenantId, 'grades.exam_id': examId })
-    .leftJoin('users', 'grades.student_id', 'users.id')
+  const exam = await db('exams').where({ tenant_id: tenantId, id: examId }).first();
+  if (!exam) return [];
+
+  return db('students')
+    .where({ 'students.tenant_id': tenantId, 'students.class_id': exam.class_id })
+    .leftJoin('users', 'students.user_id', 'users.id')
+    .leftJoin('grades', function () {
+      this.on('grades.student_id', '=', 'users.id')
+        .andOn('grades.exam_id', '=', db.raw('?', [examId]));
+    })
     .select(
-      'grades.*',
+      'users.id as student_id',
       'users.first_name',
       'users.last_name',
-      'users.email'
+      'users.email',
+      'students.student_number',
+      'grades.id as grade_id',
+      'grades.marks_obtained',
+      'grades.grade_letter',
+      'grades.remarks',
+      'grades.locked_by'
     )
     .orderBy('users.first_name');
 }
