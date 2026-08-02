@@ -15,6 +15,7 @@ const createUserSchema = z.object({
   body: baseUserFields
     .extend({
       email: z.string().email('Valid email is required'),
+      username: z.string().max(50).optional(),
       first_name: z.string().min(1, 'First name is required').max(100),
       last_name: z.string().min(1, 'Last name is required').max(100),
       phone: z.string().optional(),
@@ -37,6 +38,7 @@ const updateUserSchema = z.object({
   body: z.object({
     first_name: z.string().min(1).max(100).optional(),
     last_name: z.string().min(1).max(100).optional(),
+    username: z.string().max(50).optional(),
     phone: z.string().optional(),
     role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'support']).optional(),
     status: z.enum(['active', 'invited', 'suspended']).optional(),

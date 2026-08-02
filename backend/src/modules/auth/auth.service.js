@@ -6,8 +6,20 @@ const config = require('../../config');
 const logger = require('../../config/logger');
 const { getEffectivePermissions } = require('../roles/roles.service');
 
-async function login(email, password) {
-  const user = await db('users').where({ email }).first();
+async function login(identifier, password) {
+  const raw = String(identifier || '').trim();
+  const input = raw.toLowerCase();
+  if (!input) {
+    throw new Error('INVALID_CREDENTIALS');
+  }
+
+  const user = await db('users')
+    .where(function () {
+      this.where('email', 'ilike', input)
+        .orWhere('username', 'ilike', input)
+        .orWhere('phone', '=', raw);
+    })
+    .first();
   if (!user || !user.password_hash) {
     throw new Error('INVALID_CREDENTIALS');
   }
@@ -50,6 +62,8 @@ async function login(email, password) {
       role: user.role,
       tenantId: user.tenant_id,
       avatar: user.avatar,
+      phone: user.phone,
+      username: user.username,
       permissions,
     },
   };
@@ -74,6 +88,7 @@ async function getMe(userId) {
     tenantId: user.tenant_id,
     avatar: user.avatar,
     phone: user.phone,
+    username: user.username,
     status: user.status,
     permissions,
   };

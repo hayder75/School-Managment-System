@@ -1,10 +1,15 @@
 const { z } = require('zod');
 
 const loginSchema = z.object({
-  body: z.object({
-    email: z.string().email('Valid email is required'),
-    password: z.string().min(1, 'Password is required'),
-  }),
+  body: z
+    .object({
+      identifier: z.string().min(1, 'Email, phone, or username is required').optional(),
+      email: z.string().email('Valid email is required').optional(),
+      password: z.string().min(1, 'Password is required'),
+    })
+    .refine((data) => data.identifier || data.email, {
+      message: 'Email, phone, or username is required',
+    }),
 });
 
 const setPasswordSchema = z.object({

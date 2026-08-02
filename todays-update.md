@@ -436,3 +436,17 @@ Full audit of every related-concept workflow between roles (teacher ↔ student 
 8. **H-4/H-5** — normalized averages + enriched report card.
 9. **H-7/H-8** — student role enforcement + per-student ledger.
 10. **H-9/L-nits** — role-gate UIs, clean dead hooks.
+
+---
+
+## Flex-Login Feature (2026-08-03)
+
+**[DONE]** Sign-in now resolves a single identifier against **email, phone, or username** (`+` password) so users can log in with whatever they remember, alongside the existing email flow.
+
+- **Backend** — new migration `034_add_username.js` adds `users.username` varchar(50), indexed + tenant-scoped unique (`tenant_id, username`). `auth.service.js:login(identifier, password)` normalizes the input (trim + lowercase) and matches `email ILIKE` **or** `username ILIKE` **or** exact `phone`, then runs the unchanged password/status/JWT/permission flow; login + `/auth/me` responses now include `phone` and `username`. `loginSchema` accepts `identifier` **or** legacy `email` (+ `password`); controller reads `identifier` with `email` fallback and generalized the error to "Invalid email, phone, username, or password". `users.service` create/update + validation accept `username`; seed `002_dev_users.js` backfills the 7 demo accounts (`owner`/`admin`/`teacher`/`student`/`parent`/`finance`/`hr`, existing demo `phone` already unique).
+- **Frontend** — `store/auth.js:login` posts `{ identifier, password }`; `LoginPage` input relabeled "Email, phone, or username" (type `text`, new placeholder + divider copy), dev-user quick-login unchanged (still fills email).
+- **Verified** — `/tmp/opencode/flexlogin_verify.sh` PASS=14/14: login by email / phone (`+251-911-000013`) / username (`admin`) / case-insensitive username + email, legacy `{email,password}` body still 200, response carries `phone`+`username`, wrong password 401, unknown identifier 401, blank/missing identifier 400, suspended account 403 (temp row cleaned up), `/auth/me` returns `username`. Regression `roles_verify.sh` PASS=49/49; frontend build clean, lint clean (pre-existing warnings only).
+
+---
+
+#### Recommended fix order (for follow-up 8)

@@ -6,7 +6,7 @@ import api from "../../lib/api";
 import student3dBoy from "../../assets/student_3d_boy.png";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -34,7 +34,7 @@ export default function LoginPage() {
     setSelectedDevId(userId);
     const user = devUsers.find((u) => u.id === userId);
     if (!user) return;
-    setEmail(user.email);
+    setIdentifier(user.email);
     setPassword("1234");
     setError("");
     setLoading(true);
@@ -52,7 +52,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
       navigate("/dashboard");
     } catch (err) {
       setError(err?.error?.message || err?.message || "Login failed");
@@ -144,7 +144,7 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="flex items-center my-5 text-[11px] text-zinc-400 font-medium gap-3">
             <div className="h-px bg-gray-200/80 flex-1" />
-            <span>or use email</span>
+            <span>or use email, phone, or username</span>
             <div className="h-px bg-gray-200/80 flex-1" />
           </div>
 
@@ -157,17 +157,17 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Email Input */}
+            {/* Identifier Input */}
             <div className="space-y-1">
               <label className="text-xs font-semibold text-zinc-700 block">
-                Email *
+                Email, phone, or username *
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
-                placeholder="Enter your email"
+                placeholder="Enter your email, phone, or username"
                 className="w-full bg-[#f9fafb] border border-gray-200 text-zinc-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-[#538a8d] focus:bg-white transition-all placeholder:text-zinc-400"
               />
             </div>

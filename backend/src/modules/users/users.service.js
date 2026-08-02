@@ -4,7 +4,7 @@ const config = require('../../config');
 const { paginatedResult } = require('../../shared/pagination');
 
 const userFields = [
-  'id', 'tenant_id', 'email', 'first_name', 'last_name',
+  'id', 'tenant_id', 'email', 'username', 'first_name', 'last_name',
   'phone', 'avatar', 'role', 'status', 'last_login', 'created_at', 'updated_at',
   'job_title', 'qualification', 'field_of_study', 'gender',
   'section_count', 'periods_per_week', 'overtime_periods', 'total_periods',
@@ -15,6 +15,7 @@ async function create(tenantId, data) {
     .insert({
       tenant_id: tenantId,
       email: data.email,
+      username: data.username || null,
       first_name: data.first_name,
       last_name: data.last_name,
       phone: data.phone || null,

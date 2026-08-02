@@ -10,8 +10,8 @@ export const useAuthStore = create((set) => ({
   setUser: (user) =>
     set({ user, isAuthenticated: !!user, isLoading: false }),
 
-  login: async (email, password) => {
-    const res = await api.post("/auth/login", { email, password });
+  login: async (identifier, password) => {
+    const res = await api.post("/auth/login", { identifier, password });
     const { user, token } = res.data;
     set({ user, token, isAuthenticated: true, isLoading: false });
     return user;

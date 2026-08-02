@@ -52,13 +52,13 @@ exports.seed = async function (knex) {
   // 1. USERS (role accounts for login)
   // ════════════════════════════════════════════
   const users = [
-    { id: '00000000-0000-0000-0000-000000000010', email: 'owner@demo.com',     first_name: 'Abebe', last_name: 'Bekele',     role: 'owner', phone: '+251-911-000010' },
-    { id: '00000000-0000-0000-0000-000000000011', email: 'admin@demo.com',     first_name: 'Ester',   last_name: 'Tadese',     role: 'admin', phone: '+251-911-000011' },
-    { id: '00000000-0000-0000-0000-000000000012', email: 'teacher@demo.com',   first_name: 'Yohannes',    last_name: 'Woldemichael',   role: 'teacher', phone: '+251-911-000012', section_count: 14, periods_per_week: 22, overtime_periods: 6, total_periods: 28 },
-    { id: '00000000-0000-0000-0000-000000000013', email: 'student@demo.com',   first_name: 'Markos',    last_name: 'Alemu',     role: 'student', phone: '+251-911-000013' },
-    { id: '00000000-0000-0000-0000-000000000014', email: 'parent@demo.com',    first_name: 'Asnake',  last_name: 'Mengasha',    role: 'parent', phone: '+251-911-000014' },
-    { id: '00000000-0000-0000-0000-000000000015', email: 'finance@demo.com',   first_name: 'Sara',   last_name: 'Desalegn',   role: 'finance', phone: '+251-911-000015' },
-    { id: '00000000-0000-0000-0000-000000000016', email: 'hr@demo.com',        first_name: 'Haftom',   last_name: 'Gebreegziabher',        role: 'hr', phone: '+251-911-000016' },
+    { id: '00000000-0000-0000-0000-000000000010', email: 'owner@demo.com',     first_name: 'Abebe', last_name: 'Bekele',     role: 'owner', phone: '+251-911-000010', username: 'owner' },
+    { id: '00000000-0000-0000-0000-000000000011', email: 'admin@demo.com',     first_name: 'Ester',   last_name: 'Tadese',     role: 'admin', phone: '+251-911-000011', username: 'admin' },
+    { id: '00000000-0000-0000-0000-000000000012', email: 'teacher@demo.com',   first_name: 'Yohannes',    last_name: 'Woldemichael',   role: 'teacher', phone: '+251-911-000012', username: 'teacher', section_count: 14, periods_per_week: 22, overtime_periods: 6, total_periods: 28 },
+    { id: '00000000-0000-0000-0000-000000000013', email: 'student@demo.com',   first_name: 'Markos',    last_name: 'Alemu',     role: 'student', phone: '+251-911-000013', username: 'student' },
+    { id: '00000000-0000-0000-0000-000000000014', email: 'parent@demo.com',    first_name: 'Asnake',  last_name: 'Mengasha',    role: 'parent', phone: '+251-911-000014', username: 'parent' },
+    { id: '00000000-0000-0000-0000-000000000015', email: 'finance@demo.com',   first_name: 'Sara',   last_name: 'Desalegn',   role: 'finance', phone: '+251-911-000015', username: 'finance' },
+    { id: '00000000-0000-0000-0000-000000000016', email: 'hr@demo.com',        first_name: 'Haftom',   last_name: 'Gebreegziabher',        role: 'hr', phone: '+251-911-000016', username: 'hr' },
   ];
 
   for (const u of users) {

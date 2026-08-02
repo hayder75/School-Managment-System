@@ -3,8 +3,8 @@ const config = require('../../config');
 
 async function login(req, res) {
   try {
-    const { email, password } = req.validated.body;
-    const result = await authService.login(email, password);
+    const { identifier, email, password } = req.validated.body;
+    const result = await authService.login(identifier || email, password);
 
     res.cookie('token', result.token, {
       httpOnly: true,
@@ -18,7 +18,7 @@ async function login(req, res) {
     if (err.message === 'INVALID_CREDENTIALS') {
       return res.status(401).json({
         success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email, phone, username, or password' },
       });
     }
     if (err.message === 'ACCOUNT_INACTIVE') {
