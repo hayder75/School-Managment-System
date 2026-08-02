@@ -9,10 +9,11 @@ export function useAnnouncements(params = {}, options = {}) {
   });
 }
 
-export function useMyAnnouncements(classId) {
+export function useMyAnnouncements(classId, options = {}) {
   return useQuery({
     queryKey: ["announcements", "my", classId],
     queryFn: () => api.get("/announcements/my", { params: { class_id: classId } }),
+    ...options,
   });
 }
 

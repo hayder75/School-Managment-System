@@ -36,24 +36,26 @@ async function remove(tenantId, id) {
   return db('announcements').where({ tenant_id: tenantId, id }).del();
 }
 
-async function findForUser(tenantId, userId, role, classId) {
+async function findForUser(tenantId, userId, role, classIds) {
   let query = db('announcements')
     .where({ 'announcements.tenant_id': tenantId, 'announcements.is_published': true })
     .where(function () {
       this.where('announcements.audience', 'all')
         .orWhere('announcements.audience', role)
-        .orWhere('announcements.audience', 'class');
+        .orWhere('announcements.audience', `${role}s`)
+        .orWhere(function () {
+          this.where('announcements.audience', 'class');
+          if (classIds && classIds.length > 0) {
+            this.whereIn('announcements.class_id', classIds);
+          } else {
+            this.whereRaw('1 = 0');
+          }
+        });
     })
     .leftJoin('users', 'announcements.created_by', 'users.id')
     .select('announcements.*', 'users.first_name', 'users.last_name')
     .orderBy('announcements.created_at', 'desc');
 
-  if (classId) {
-    query = query.where(function () {
-      this.where('announcements.class_id', classId)
-        .orWhereNull('announcements.class_id');
-    });
-  }
   return query;
 }
 

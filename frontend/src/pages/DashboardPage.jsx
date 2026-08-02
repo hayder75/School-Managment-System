@@ -5,7 +5,7 @@ import { useClasses } from "../hooks/useClasses";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers } from "../hooks/useTeachers";
 import { useMyChildren } from "../hooks/useParents";
-import { useAnnouncements } from "../hooks/useAnnouncements";
+import { useMyAnnouncements } from "../hooks/useAnnouncements";
 import { usePaymentSummary, usePayments } from "../hooks/useFees";
 import { useExpenseTotals } from "../hooks/useExpenses";
 import { usePayrollSummary, usePayroll } from "../hooks/usePayroll";
@@ -117,7 +117,7 @@ function AdminDashboard() {
   const { data: enrollmentStats } = useEnrollmentStats();
   const { data: paymentSummary } = usePaymentSummary();
   const { data: expenseTotals } = useExpenseTotals();
-  const { data: announcementsData } = useAnnouncements({ limit: 5 });
+  const { data: announcementsData } = useMyAnnouncements();
 
   const totalExpenses = expenseTotals?.data?.reduce((s, e) => s + parseFloat(e.total || 0), 0) || 0;
   const totalCollected = paymentSummary?.data?.total_collected || 0;
@@ -144,7 +144,7 @@ function AdminDashboard() {
 function TeacherDashboard() {
   const user = useAuthStore((s) => s.user);
   const { data: myStudentsData } = useMyStudents();
-  const { data: announcementsData } = useAnnouncements({ limit: 5 });
+  const { data: announcementsData } = useMyAnnouncements();
   const { data: classesData } = useClasses({ limit: 200 });
   const myStudents = myStudentsData?.data || [];
 
@@ -154,7 +154,7 @@ function TeacherDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard title="My Classes" value={classesData?.meta?.total || "—"} icon={BookOpen} sub="Classes taught" />
         <StatCard title="Students" value={myStudents.length || "—"} icon={GraduationCap} sub="Across all classes" />
-        <StatCard title="Announcements" value={announcementsData?.meta?.total || "—"} icon={Megaphone} />
+        <StatCard title="Announcements" value={announcementsData?.data?.length || "—"} icon={Megaphone} />
       </div>
       {myStudents.length > 0 && (
         <Card>
@@ -180,7 +180,7 @@ function StudentDashboard() {
   const user = useAuthStore((s) => s.user);
   const { data: gradeData } = useStudentGradeSummary(user?.id);
   const { data: attendanceData } = useStudentAttendanceSummary(user?.id);
-  const { data: announcementsData } = useAnnouncements({ limit: 5 });
+  const { data: announcementsData } = useMyAnnouncements();
 
   const grades = gradeData?.data || {};
   const attendance = attendanceData?.data || {};
@@ -217,7 +217,7 @@ function StudentDashboard() {
 function ParentDashboard() {
   const user = useAuthStore((s) => s.user);
   const { data: myChildrenData } = useMyChildren();
-  const { data: announcementsData } = useAnnouncements({ limit: 5 });
+  const { data: announcementsData } = useMyAnnouncements();
   const children = myChildrenData?.data || [];
 
   return (
@@ -226,7 +226,7 @@ function ParentDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard title="Linked Children" value={children.length} icon={Users} />
         <StatCard title="Active" value={children.filter((c) => c.status === "active").length} icon={CheckCircle} color="text-green-600" />
-        <StatCard title="Announcements" value={announcementsData?.meta?.total || "—"} icon={Megaphone} />
+        <StatCard title="Announcements" value={announcementsData?.data?.length || "—"} icon={Megaphone} />
       </div>
       {children.length > 0 && (
         <Card>
