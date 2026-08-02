@@ -3,7 +3,7 @@ import { useSystemStats } from "../hooks/useTenants";
 import { useStudents, useEnrollmentStats } from "../hooks/useStudents";
 import { useClasses } from "../hooks/useClasses";
 import { useSubjects } from "../hooks/useSubjects";
-import { useTeachers } from "../hooks/useTeachers";
+import { useTeachers, useTeacherAssignments } from "../hooks/useTeachers";
 import { useMyChildren } from "../hooks/useParents";
 import { useMyAnnouncements } from "../hooks/useAnnouncements";
 import { usePaymentSummary, usePayments, useMyFees } from "../hooks/useFees";
@@ -145,16 +145,19 @@ function TeacherDashboard() {
   const user = useAuthStore((s) => s.user);
   const { data: myStudentsData } = useMyStudents();
   const { data: announcementsData } = useMyAnnouncements();
-  const { data: classesData } = useClasses({ limit: 200 });
+  const { data: assignmentsData } = useTeacherAssignments(user?.id);
   const myStudents = myStudentsData?.data || [];
+  const assignments = assignmentsData?.data || [];
+  const taughtClassCount = new Set(assignments.map((a) => a.class_id)).size;
+  const taughtSubjectCount = new Set(assignments.map((a) => a.subject_id)).size;
 
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Teacher Dashboard</h1><p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p></div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="My Classes" value={classesData?.meta?.total || "—"} icon={BookOpen} sub="Classes taught" />
+        <StatCard title="My Classes" value={taughtClassCount || "—"} icon={BookOpen} sub="Classes taught" />
+        <StatCard title="Subjects" value={taughtSubjectCount || "—"} icon={School} sub="Assigned to teach" />
         <StatCard title="Students" value={myStudents.length || "—"} icon={GraduationCap} sub="Across all classes" />
-        <StatCard title="Announcements" value={announcementsData?.data?.length || "—"} icon={Megaphone} />
       </div>
       {myStudents.length > 0 && (
         <Card>
