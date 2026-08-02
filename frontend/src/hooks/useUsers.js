@@ -8,6 +8,14 @@ export function useUsers(params = {}) {
   });
 }
 
+export function useUser(id) {
+  return useQuery({
+    queryKey: ["users", id],
+    queryFn: () => api.get(`/users/${id}`),
+    enabled: !!id,
+  });
+}
+
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({

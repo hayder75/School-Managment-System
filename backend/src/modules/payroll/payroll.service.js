@@ -47,17 +47,18 @@ async function createPayroll(tenantId, data) {
   return entry;
 }
 
-async function findAllPayroll(tenantId, { page = 1, limit = 20, month, year, status } = {}) {
+async function findAllPayroll(tenantId, { page = 1, limit = 20, month, year, status, user_id } = {}) {
   let query = db('payroll')
     .where({ 'payroll.tenant_id': tenantId })
     .leftJoin('users', 'payroll.user_id', 'users.id')
     .leftJoin('salary_grades', 'payroll.salary_grade_id', 'salary_grades.id')
-    .select('payroll.*', 'users.first_name', 'users.last_name', 'users.email', 'salary_grades.name as grade_name')
+    .select('payroll.*', 'users.first_name', 'users.last_name', 'users.email', 'users.job_title', 'salary_grades.name as grade_name')
     .orderBy('payroll.year', 'desc')
     .orderBy('payroll.month', 'desc');
   if (month) query = query.where('payroll.month', month);
   if (year) query = query.where('payroll.year', year);
   if (status) query = query.where('payroll.status', status);
+  if (user_id) query = query.where('payroll.user_id', user_id);
   return paginatedResult(query, page, limit);
 }
 

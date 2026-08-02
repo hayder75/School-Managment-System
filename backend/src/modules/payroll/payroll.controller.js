@@ -27,8 +27,8 @@ async function createPayroll(req, res) {
 }
 
 async function listPayroll(req, res) {
-  const { page, limit, month, year, status } = req.query;
-  const result = await payrollService.findAllPayroll(req.tenant.id, { page, limit, month, year, status });
+  const { page, limit, month, year, status, user_id } = req.query;
+  const result = await payrollService.findAllPayroll(req.tenant.id, { page, limit, month, year, status, user_id });
   res.json({ success: true, ...result });
 }
 

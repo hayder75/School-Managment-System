@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
 import { useUsers, useCreateUser, useDeleteUser } from "../../hooks/useUsers";
@@ -15,6 +16,7 @@ import { Plus, Trash2, Search } from "lucide-react";
 const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "support"];
 
 export default function UsersPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -176,7 +178,11 @@ export default function UsersPage() {
                 <TableBody>
                   {users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/staff/${user.id}`)}>
+                          {user.first_name} {user.last_name}
+                        </Button>
+                      </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{user.role}</Badge>

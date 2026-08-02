@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
 import { useTeachers, useTeacherAssignments, useAssignSubject, useRemoveAssignment } from "../../hooks/useTeachers";
@@ -118,6 +119,7 @@ function TeacherAssignments({ teacherId, teacherName }) {
 }
 
 export default function TeachersPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -155,7 +157,11 @@ export default function TeachersPage() {
               <TableBody>
                 {teachers.map((teacher) => (
                   <TableRow key={teacher.id}>
-                    <TableCell className="font-medium">{teacher.first_name} {teacher.last_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/staff/${teacher.id}`)}>
+                        {teacher.first_name} {teacher.last_name}
+                      </Button>
+                    </TableCell>
                     <TableCell>{teacher.email}</TableCell>
                     <TableCell>{teacher.gender ? teacher.gender.charAt(0).toUpperCase() + teacher.gender.slice(1) : "—"}</TableCell>
                     <TableCell>{teacher.job_title || "—"}</TableCell>

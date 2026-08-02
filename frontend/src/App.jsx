@@ -23,6 +23,8 @@ const FeeStructuresPage = lazy(() => import("./pages/FeeStructuresPage"));
 const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
 const PayrollPage = lazy(() => import("./pages/PayrollPage"));
+const SalaryRegisterPage = lazy(() => import("./pages/SalaryRegisterPage"));
+const StaffDetailPage = lazy(() => import("./pages/StaffDetailPage"));
 const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const ImportPage = lazy(() => import("./pages/ImportPage"));
@@ -122,6 +124,8 @@ function AppContent() {
 
           <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr"]} permissions={["payroll.view", "reports.view"]} />}>
             <Route path="/payroll" element={<PayrollPage />} />
+            <Route path="/salary-register" element={<SalaryRegisterPage />} />
+            <Route path="/staff/:id" element={<StaffDetailPage />} />
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 

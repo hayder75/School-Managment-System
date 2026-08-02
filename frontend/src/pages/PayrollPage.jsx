@@ -1,4 +1,5 @@
 import { useState, Fragment } from "react";
+import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useSalaryGrades, useCreateSalaryGrade, useDeleteSalaryGrade, usePayroll, useCreatePayroll, usePayrollSummary } from "../hooks/usePayroll";
@@ -142,6 +143,7 @@ function SalaryGradesTab() {
 }
 
 function PayrollEntriesTab() {
+  const navigate = useNavigate();
   const now = new Date();
   const [page, setPage] = useState(1);
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -368,7 +370,11 @@ function PayrollEntriesTab() {
                             {expandedId === e.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </Button>
                         </TableCell>
-                        <TableCell className="font-medium">{e.first_name} {e.last_name}</TableCell>
+                        <TableCell className="font-medium">
+                          <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/staff/${e.user_id}`)}>
+                            {e.first_name} {e.last_name}
+                          </Button>
+                        </TableCell>
                         <TableCell>{parseFloat(e.basic_pay).toLocaleString()}</TableCell>
                         <TableCell>{parseFloat(e.allowances_total || 0).toLocaleString()}</TableCell>
                         <TableCell>{parseFloat(e.deductions_total || 0).toLocaleString()}</TableCell>
