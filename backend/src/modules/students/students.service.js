@@ -21,14 +21,33 @@ async function enroll(tenantId, userId, data) {
           uniqueGuardians.push(g);
         }
       }
-      const links = uniqueGuardians.map((g) => ({
-        tenant_id: tenantId,
-        student_id: student.id,
-        parent_id: g.parent_id,
-        relationship: g.relationship || null,
-        is_primary: g.is_primary || false,
-        education_level: g.education_level || null,
-      }));
+
+      if (uniqueGuardians.length > 0) {
+        const parentIds = uniqueGuardians.map((g) => g.parent_id);
+        const parents = await trx('users')
+          .where({ tenant_id: tenantId, role: 'parent' })
+          .whereIn('id', parentIds)
+          .select('id');
+        if (parents.length !== uniqueGuardians.length) {
+          const err = new Error('PARENT_NOT_FOUND');
+          err.code = 'PARENT_NOT_FOUND';
+          throw err;
+        }
+      }
+
+      let hasPrimary = false;
+      const links = uniqueGuardians.map((g) => {
+        const isPrimary = g.is_primary === true || (!hasPrimary && !uniqueGuardians.some((x) => x.is_primary === true));
+        if (isPrimary) hasPrimary = true;
+        return {
+          tenant_id: tenantId,
+          student_id: student.id,
+          parent_id: g.parent_id,
+          relationship: g.relationship || null,
+          is_primary: isPrimary,
+          education_level: g.education_level || null,
+        };
+      });
       if (links.length > 0) {
         await trx('student_parents').insert(links);
       }

@@ -42,6 +42,7 @@ const RolesPermissionsPage = lazy(() => import("./pages/school-admin/RolesPermis
 const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
+const SetPasswordPage = lazy(() => import("./pages/auth/SetPasswordPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,7 @@ function AppContent() {
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/auth/set-password" element={<SetPasswordPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />

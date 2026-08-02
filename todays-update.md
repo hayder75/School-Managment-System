@@ -449,4 +449,26 @@ Full audit of every related-concept workflow between roles (teacher ↔ student 
 
 ---
 
+## Backlog Completion (2026-08-03)
+
+Finished the remaining open Fix-Plan / LOW items. Items previously shipped (verified in code): SEC-2 (auth middleware re-checks role/status/tenant from DB each request), SEC-3 (no `password_hash` in any response — parents/reports/staff/students all select explicit fields), SEC-4 (chat participant checks REST+socket), SEC-5 (HR cannot grant/edit/delete admin+owner accounts), PARENT-1/2/3 (unlink by `link_id`, duplicate link → 409 `ALREADY_LINKED`, tenant-ownership + single-primary enforcement), PARENT-4 (guardians shown on StudentDetailPage), GRADE-2 (`grade_letter` recomputed from marks on every upsert), STU-1 (promote/transfer reconcile attendance rows), EXAM-1/GRADE-1/GRADE-3/ATT-1, BILL-2/3, AUTH-1, L-4/6/7.
+
+**[DONE] L-1. Enroll-path guardian validation.** `students.service.enroll` now validates every guardian `parent_id` is an existing **parent** in the tenant (else `400 PARENT_NOT_FOUND` via controller), dedupes repeated parent_ids, and enforces a single primary: if any guardian is marked `is_primary` it wins; otherwise the first gets primary. Verified: teacher id as guardian → 400 PARENT_NOT_FOUND.
+
+**[DONE] L-2. Link flow `is_primary` + `education_level`.** `linkParentSchema`/`updateLinkSchema` accept `education_level` (max 150) and the service persists it; `ParentsPage` link dialog adds an education-level input and a "Set as primary guardian" toggle. Verified: link with `education_level:"Grade 8"`/`is_primary:true` stored; update link → "Diploma"; duplicate link → 409.
+
+**[DONE] L-3. Primary guardian on report card.** `generateReportCard` resolves the primary (or first) guardian via `student_parents` and prints `Guardian: <name> (<relationship>)  |  Education: <level>` under the class/student-number line. Verified in the decompressed PDF stream.
+
+**[DONE] BILL-4. Payment edit/refund/delete UI.** Backend `PUT/DELETE /fees/payments/:id` already existed; frontend now exposes them: added `useUpdatePayment`/`useDeletePayment` hooks and an edit dialog (amount/method/remarks), a Refund action (`status:"refunded"`), and a Delete action (shown for already-refunded rows) on the Payments history table. Verified: edit amount → 600, refund → `refunded`, delete → 200.
+
+**[DONE] AUTH-2. Invite flow end-to-end.** `users.service.create` now emails the invitation link (`sendInviteEmail`, `{frontendUrl}/auth/set-password?token=...`; logs the link when SMTP is unreachable) instead of only returning the token. New `SetPasswordPage` at `/auth/set-password` calls `POST /auth/set-password` and links to login on success. Verified: create user → `invitation_token` returned + link logged, set-password with invite token → 200, invited user logs in with the new password.
+
+**[DONE] L-5. Dead hook removed.** Deleted unused `useStudentReport` from `useReports.js`.
+
+**[DONE] SEC-1. Dev-users endpoint** was already hardened: `/auth/dev-users` is registered only when `config.env !== 'production'` and `getDevUsers` excludes `super_admin` (returns only the 7 demo accounts) — confirmed in `auth.routes.js`/`auth.service.js`.
+
+**Verified** — `/tmp/opencode/finishup_verify.sh` PASS=14/14 (all of the above via API/DB), regression `roles_verify.sh` PASS=49/49, flex-login still 14/14, frontend `npm run build` clean + `npm run lint` 0 errors.
+
+---
+
 #### Recommended fix order (for follow-up 8)

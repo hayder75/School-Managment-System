@@ -42,6 +42,32 @@ export function useCreatePayment() {
   });
 }
 
+export function useUpdatePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/fees/payments/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["fee-summary"] });
+      qc.invalidateQueries({ queryKey: ["fee-ledger"] });
+      qc.invalidateQueries({ queryKey: ["my-fees"] });
+    },
+  });
+}
+
+export function useDeletePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => api.delete(`/fees/payments/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["fee-summary"] });
+      qc.invalidateQueries({ queryKey: ["fee-ledger"] });
+      qc.invalidateQueries({ queryKey: ["my-fees"] });
+    },
+  });
+}
+
 export function usePaymentSummary() {
   return useQuery({
     queryKey: ["fee-summary"],

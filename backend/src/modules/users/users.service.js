@@ -2,6 +2,8 @@ const db = require('../../config/database');
 const jwt = require('jsonwebtoken');
 const config = require('../../config');
 const { paginatedResult } = require('../../shared/pagination');
+const { sendInviteEmail } = require('../../shared/email');
+const logger = require('../../config/logger');
 
 const userFields = [
   'id', 'tenant_id', 'email', 'username', 'first_name', 'last_name',
@@ -39,6 +41,14 @@ async function create(tenantId, data) {
       { expiresIn: '7d' }
     );
     user.invitation_token = token;
+
+    const inviteLink = `${config.frontendUrl}/auth/set-password?token=${token}`;
+    const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
+    const schoolName = tenant?.name || 'School';
+    const sent = await sendInviteEmail(user.email, inviteLink, schoolName);
+    if (!sent) {
+      logger.info(`Invite email not delivered to ${user.email}; set-password link: ${inviteLink}`);
+    }
   }
 
   return user;

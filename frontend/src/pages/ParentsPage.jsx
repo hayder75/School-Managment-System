@@ -16,7 +16,7 @@ export default function ParentsPage() {
   const [search, setSearch] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
   const [selectedParent, setSelectedParent] = useState(null);
-  const [linkForm, setLinkForm] = useState({ student_id: "", relationship: "guardian", is_primary: false });
+  const [linkForm, setLinkForm] = useState({ student_id: "", relationship: "guardian", is_primary: false, education_level: "" });
   const [fieldErrors, setFieldErrors] = useState({});
 
   const { data, isLoading } = useParents({ page, limit: 20, search: search || undefined });
@@ -36,7 +36,7 @@ export default function ParentsPage() {
     try {
       await linkParent.mutateAsync({ parent_id: selectedParent.id, ...linkForm });
       setLinkOpen(false);
-      setLinkForm({ student_id: "", relationship: "guardian", is_primary: false });
+      setLinkForm({ student_id: "", relationship: "guardian", is_primary: false, education_level: "" });
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -122,6 +122,25 @@ export default function ParentsPage() {
                         </Select>
                       </div>
                       <FieldError errors={fieldErrors} field="relationship" />
+                      <div className="space-y-2">
+                        <Label>Education Level (optional)</Label>
+                        <Input
+                          value={linkForm.education_level}
+                          onChange={(e) => setLinkForm({ ...linkForm, education_level: e.target.value })}
+                          placeholder="e.g. Grade 8, Diploma"
+                        />
+                      </div>
+                      <FieldError errors={fieldErrors} field="education_level" />
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={linkForm.is_primary}
+                          onChange={(e) => setLinkForm({ ...linkForm, is_primary: e.target.checked })}
+                          className="w-4 h-4 rounded border-gray-300 text-[#538a8d] focus:ring-0 cursor-pointer"
+                        />
+                        <span>Set as primary guardian</span>
+                      </label>
+                      <FieldError errors={fieldErrors} field="is_primary" />
                       <Button type="submit" className="w-full">Link</Button>
                     </form>
                   </DialogContent>

@@ -28,6 +28,16 @@ async function generateReportCard(tenantId, studentId, academicYear) {
   const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
   const schoolName = tenant?.name || 'School';
 
+  const guardians = await db('student_parents')
+    .where({ 'student_parents.tenant_id': tenantId, 'student_parents.student_id': student.id })
+    .leftJoin('users', 'student_parents.parent_id', 'users.id')
+    .select(
+      'student_parents.relationship', 'student_parents.is_primary', 'student_parents.education_level',
+      'users.first_name', 'users.last_name'
+    )
+    .orderBy('student_parents.is_primary', 'desc');
+  const primaryGuardian = guardians.find((g) => g.is_primary) || guardians[0] || null;
+
   let gradesQuery = db('grades')
     .where({ 'grades.tenant_id': tenantId, 'grades.student_id': studentId })
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
@@ -105,6 +115,11 @@ async function generateReportCard(tenantId, studentId, academicYear) {
   doc.fontSize(12).text(`Student: ${student.first_name} ${student.last_name}`);
   doc.fontSize(10);
   doc.text(`Class: ${student.class_name || 'N/A'}   |   Student #: ${student.student_number || 'N/A'}`);
+  if (primaryGuardian) {
+    const rel = primaryGuardian.relationship || 'guardian';
+    const edu = primaryGuardian.education_level ? `   |   Education: ${primaryGuardian.education_level}` : '';
+    doc.text(`Guardian: ${primaryGuardian.first_name} ${primaryGuardian.last_name} (${rel})${edu}`);
+  }
   doc.text(`Year: ${academicYear || new Date().getFullYear()}   |   Generated: ${new Date().toLocaleDateString()}`);
   doc.moveDown();
 

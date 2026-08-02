@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
-import { usePayments, useCreatePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
+import { usePayments, useCreatePayment, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
 import { useUsers } from "../hooks/useUsers";
 import { Button } from "../components/ui/button";
@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, DollarSign, Download } from "lucide-react";
+import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2 } from "lucide-react";
 
 export default function PaymentsPage() {
   const [page, setPage] = useState(1);
@@ -25,7 +25,10 @@ export default function PaymentsPage() {
   const { data: feesData } = useFeeStructures({ limit: 200 });
   const { data: ledgerData } = useStudentLedger(filterStudentId);
   const createPayment = useCreatePayment();
+  const updatePayment = useUpdatePayment();
+  const deletePayment = useDeletePayment();
   const [open, setOpen] = useState(false);
+  const [editPayment, setEditPayment] = useState(null);
   const [form, setForm] = useState({ student_id: "", fee_structure_id: "", amount_paid: "", payment_method: "cash", remarks: "" });
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -52,6 +55,55 @@ export default function PaymentsPage() {
     }
   }
 
+  function startEdit(p) {
+    setEditPayment(p);
+    setForm({
+      student_id: p.student_id,
+      fee_structure_id: p.fee_structure_id || "",
+      amount_paid: p.amount_paid,
+      payment_method: p.payment_method || "cash",
+      remarks: p.remarks || "",
+    });
+    setFieldErrors({});
+    setOpen(true);
+  }
+
+  async function handleEdit(e) {
+    e.preventDefault();
+    setFieldErrors({});
+    try {
+      await updatePayment.mutateAsync({
+        id: editPayment.id,
+        amount_paid: parseFloat(form.amount_paid),
+        payment_method: form.payment_method,
+        remarks: form.remarks || null,
+      });
+      setOpen(false);
+      setEditPayment(null);
+      setForm({ student_id: "", fee_structure_id: "", amount_paid: "", payment_method: "cash", remarks: "" });
+    } catch (err) {
+      setFieldErrors(extractApiErrors(err));
+    }
+  }
+
+  async function handleRefund(p) {
+    if (!confirm(`Refund payment of ${parseFloat(p.amount_paid).toLocaleString()} for ${p.first_name} ${p.last_name}?`)) return;
+    try {
+      await updatePayment.mutateAsync({ id: p.id, status: "refunded" });
+    } catch (err) {
+      alert(err?.error?.message || err?.message || "Refund failed");
+    }
+  }
+
+  async function handleDelete(p) {
+    if (!confirm(`Delete payment of ${parseFloat(p.amount_paid).toLocaleString()} for ${p.first_name} ${p.last_name}? This cannot be undone.`)) return;
+    try {
+      await deletePayment.mutateAsync(p.id);
+    } catch (err) {
+      alert(err?.error?.message || err?.message || "Delete failed");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -59,17 +111,17 @@ export default function PaymentsPage() {
           <h1 className="text-3xl font-bold">Payments</h1>
           <p className="text-muted-foreground">Record and track student payments</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditPayment(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Record Payment</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <DialogHeader><DialogTitle>{editPayment ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
+            <form onSubmit={editPayment ? handleEdit : handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
                 <Label>Student</Label>
-                <Select value={form.student_id} onValueChange={(v) => setForm({ ...form, student_id: v })}>
+                <Select value={form.student_id} onValueChange={(v) => setForm({ ...form, student_id: v })} disabled={!!editPayment}>
                   <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                   <SelectContent>
                     {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
@@ -79,7 +131,7 @@ export default function PaymentsPage() {
               <FieldError errors={fieldErrors} field="student_id" />
               <div className="space-y-2">
                 <Label>Fee Structure (optional)</Label>
-                <Select value={form.fee_structure_id} onValueChange={(v) => setForm({ ...form, fee_structure_id: v })}>
+                <Select value={form.fee_structure_id} onValueChange={(v) => setForm({ ...form, fee_structure_id: v })} disabled={!!editPayment}>
                   <SelectTrigger><SelectValue placeholder="Select fee" /></SelectTrigger>
                   <SelectContent>
                     {fees.map((f) => <SelectItem key={f.id} value={f.id}>{f.name} ({parseFloat(f.amount).toLocaleString()})</SelectItem>)}
@@ -111,7 +163,7 @@ export default function PaymentsPage() {
                 <Label>Remarks</Label>
                 <Input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
               </div>
-              <Button type="submit" className="w-full">Record Payment</Button>
+              <Button type="submit" className="w-full">{editPayment ? "Save Changes" : "Record Payment"}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -211,7 +263,7 @@ export default function PaymentsPage() {
                     <TableHead>Method</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="w-20">Invoice</TableHead>
+                    <TableHead className="w-32">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -223,14 +275,28 @@ export default function PaymentsPage() {
                       <TableCell><Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge></TableCell>
                       <TableCell>{p.paid_date ? new Date(p.paid_date).toLocaleDateString() : "—"}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}>
-                          <Download className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" title="Invoice" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="Edit" onClick={() => startEdit(p)} disabled={p.status === "refunded"}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {p.status !== "refunded" ? (
+                            <Button variant="ghost" size="icon" title="Refund" onClick={() => handleRefund(p)}>
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" title="Delete" className="text-red-500" onClick={() => handleDelete(p)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                   {payments.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No payments yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No payments yet</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

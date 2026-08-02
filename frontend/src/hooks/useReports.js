@@ -1,14 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "../lib/api";
 
-export function useStudentReport(studentId) {
-  return useQuery({
-    queryKey: ["report-student", studentId],
-    queryFn: () => api.get(`/reports/students/${studentId}`),
-    enabled: !!studentId,
-  });
-}
-
 export function useClassReport(classId) {
   return useQuery({
     queryKey: ["report-class", classId],

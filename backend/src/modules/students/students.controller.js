@@ -7,8 +7,15 @@ async function create(req, res) {
 }
 
 async function enroll(req, res) {
-  const student = await studentsService.enroll(req.tenant.id, req.user.userId, req.validated.body);
-  res.status(201).json({ success: true, data: student });
+  try {
+    const student = await studentsService.enroll(req.tenant.id, req.user.userId, req.validated.body);
+    res.status(201).json({ success: true, data: student });
+  } catch (err) {
+    if (err.code === 'PARENT_NOT_FOUND') {
+      return res.status(400).json({ success: false, error: { code: 'PARENT_NOT_FOUND', message: 'Guardian must be an existing parent in this school' } });
+    }
+    throw err;
+  }
 }
 
 async function list(req, res) {
