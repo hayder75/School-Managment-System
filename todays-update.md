@@ -323,3 +323,16 @@ Verified the whole multi-tenant system operates correctly before any Excel seedi
 4. **Tenant isolation**: cross-tenant student access denied (`FORBIDDEN`) in both directions; each tenant's `/users` list strictly scoped (scratch saw only its 7 users, demo its 32, no bleed). Suspending the tenant → API calls return `TENANT_INACTIVE` (403); reactivation restores access.
 5. **Access matrix**: owner/teacher/student/parent all read student records appropriately (teacher = own classes only, student = own record, parent = children via `getChildrenUserIdsForParent`); hr/finance/support denied `FORBIDDEN` on student endpoints; support denied on teachers/classes/subjects. Class listing scoping (`/students/class/:id`) limited to admin/owner/teacher as designed.
 6. **Cleanup**: deleted the scratch tenant — FKs cascade everywhere (users/students/roles/classes/subjects/teacher_subjects all 0). Demo tenant intact (32 users, 26 students, 8 roles, 6 tax brackets, 12 payroll rows), roles regression `PASS=49 FAIL=0`, `POST /payroll/calculate` still matches Amanuel (12910.65+2100 → tax 3203.73), frontend `npm run build` + `oxlint` clean (pre-existing warnings only).
+
+### Round 3 follow-up 6 — teacher teaching-load fields (2026-08-02)
+
+The `statistical data (2).xlsx` tracks per-teacher teaching load that wasn't in the data model. Added it so the data survives seeding and is usable in the UI.
+
+1. **Migration `033_add_teacher_teaching_load.js`**: `users` gains `section_count`, `periods_per_week`, `overtime_periods`, `total_periods` (all nullable ints).
+2. **`users.validation.js`**: for `role=teacher`, `section_count` + `periods_per_week` are **required** (superRefine); `overtime_periods` defaults 0; `total_periods` optional (auto-computed). Non-teacher roles can omit all — "if entered great, if not we pass".
+3. **`users.service.js`**: create stores the new fields, auto-computing `total_periods = periods_per_week + overtime_periods` when not supplied; update recomputes `total_periods` whenever ppw/OT change. New fields added to `userFields`.
+4. **`teachers.service.js`**: teachers list now returns the load fields.
+5. **Frontend**: `UsersPage` Add User dialog shows a "Teaching Load" block (Sections*/Periods per week*/OT per week) for teacher role, coerces numbers on submit; `TeachersPage` table gains Sections/P/W/OT columns; `StaffDetailPage` Job card shows the load fields for teachers.
+6. **Seed**: demo teacher seeded with section_count 14, ppw 22, OT 6, total 28. Also fixed the recurring footgun — `002_dev_users.js` now calls `seedTenant` at the end so `npm run seed` no longer leaves roles/permissions cascade-deleted (was requiring a manual `seedTenant` after every seed).
+
+**Verified:** teacher create rejects missing section_count/periods_per_week (validation), accepts with values (auto total), non-teacher create passes without load; update recomputes total (25+5→30); teachers endpoint returns fields; demo teacher seeded 14/22/6/28; roles regression 49/49 (and 49/49 immediately after re-seed, proving self-healing); payroll calc still matches Amanuel (tax 3203.73). Frontend build + lint clean (pre-existing warnings only).

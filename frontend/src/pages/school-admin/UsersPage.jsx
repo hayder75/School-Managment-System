@@ -24,7 +24,7 @@ export default function UsersPage() {
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "" });
+  const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "", section_count: "", periods_per_week: "", overtime_periods: "0" });
   const [fieldErrors, setFieldErrors] = useState({});
 
   const isStaffRole = ["admin", "teacher", "hr", "finance", "support"].includes(form.role);
@@ -33,9 +33,13 @@ export default function UsersPage() {
     e.preventDefault();
     setFieldErrors({});
     try {
-      await createUser.mutateAsync(form);
+      const payload = { ...form };
+      payload.section_count = payload.section_count === "" ? null : Number(payload.section_count);
+      payload.periods_per_week = payload.periods_per_week === "" ? null : Number(payload.periods_per_week);
+      payload.overtime_periods = payload.overtime_periods === "" ? 0 : Number(payload.overtime_periods);
+      await createUser.mutateAsync(payload);
       setOpen(false);
-      setForm({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "" });
+      setForm({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "", section_count: "", periods_per_week: "", overtime_periods: "0" });
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -121,6 +125,22 @@ export default function UsersPage() {
                       <Input value={form.field_of_study} onChange={(e) => setForm({ ...form, field_of_study: e.target.value })} placeholder="e.g. Mathematics" />
                     </div>
                   </div>
+                  {form.role === "teacher" && (
+                    <div className="grid grid-cols-3 gap-4 rounded-md border p-3">
+                      <div className="space-y-2">
+                        <Label>Section Count <span className="text-red-500">*</span></Label>
+                        <Input type="number" min="0" required value={form.section_count} onChange={(e) => setForm({ ...form, section_count: e.target.value })} placeholder="e.g. 14" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Periods / Week <span className="text-red-500">*</span></Label>
+                        <Input type="number" min="0" required value={form.periods_per_week} onChange={(e) => setForm({ ...form, periods_per_week: e.target.value })} placeholder="e.g. 22" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>OT Periods / Week</Label>
+                        <Input type="number" min="0" value={form.overtime_periods} onChange={(e) => setForm({ ...form, overtime_periods: e.target.value })} placeholder="e.g. 6" />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               <Button type="submit" className="w-full" disabled={createUser.isPending}>

@@ -7,6 +7,7 @@ const userFields = [
   'id', 'tenant_id', 'email', 'first_name', 'last_name',
   'phone', 'avatar', 'role', 'status', 'last_login', 'created_at', 'updated_at',
   'job_title', 'qualification', 'field_of_study', 'gender',
+  'section_count', 'periods_per_week', 'overtime_periods', 'total_periods',
 ];
 
 async function create(tenantId, data) {
@@ -23,6 +24,10 @@ async function create(tenantId, data) {
       qualification: data.qualification || null,
       field_of_study: data.field_of_study || null,
       gender: data.gender || null,
+      section_count: data.section_count ?? null,
+      periods_per_week: data.periods_per_week ?? null,
+      overtime_periods: data.overtime_periods ?? 0,
+      total_periods: data.total_periods ?? ((data.periods_per_week ?? 0) + (data.overtime_periods ?? 0)),
     })
     .returning(userFields);
 
@@ -65,6 +70,12 @@ async function findById(tenantId, id) {
 }
 
 async function update(tenantId, id, data) {
+  if (data.total_periods == null && (data.periods_per_week != null || data.overtime_periods != null)) {
+    const current = await db('users').where({ tenant_id: tenantId, id }).first();
+    const ppw = data.periods_per_week ?? current?.periods_per_week ?? 0;
+    const ot = data.overtime_periods ?? current?.overtime_periods ?? 0;
+    data.total_periods = ppw + ot;
+  }
   data.updated_at = db.fn.now();
   const [user] = await db('users')
     .where({ tenant_id: tenantId, id })

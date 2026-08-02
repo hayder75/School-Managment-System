@@ -150,6 +150,9 @@ export default function TeachersPage() {
                   <TableHead>Job Title</TableHead>
                   <TableHead>Qualification</TableHead>
                   <TableHead>Field of Study</TableHead>
+                  <TableHead>Sections</TableHead>
+                  <TableHead>P/W</TableHead>
+                  <TableHead>OT</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
@@ -167,6 +170,9 @@ export default function TeachersPage() {
                     <TableCell>{teacher.job_title || "—"}</TableCell>
                     <TableCell>{teacher.qualification || "—"}</TableCell>
                     <TableCell>{teacher.field_of_study || "—"}</TableCell>
+                    <TableCell>{teacher.section_count ?? "—"}</TableCell>
+                    <TableCell>{teacher.periods_per_week ?? "—"}</TableCell>
+                    <TableCell>{teacher.overtime_periods ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={teacher.status === "active" ? "success" : "warning"}>{teacher.status}</Badge>
                     </TableCell>
@@ -178,7 +184,7 @@ export default function TeachersPage() {
                   </TableRow>
                 ))}
                 {teachers.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No teachers found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">No teachers found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

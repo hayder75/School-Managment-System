@@ -77,6 +77,14 @@ export default function StaffDetailPage() {
             <p><span className="text-muted-foreground">Field of Study:</span> {user.field_of_study || "—"}</p>
             <p><span className="text-muted-foreground">Gender:</span> {user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "—"}</p>
             <p><span className="text-muted-foreground">Role:</span> {user.role}</p>
+            {user.role === "teacher" && (
+              <>
+                <p><span className="text-muted-foreground">Sections:</span> {user.section_count ?? "—"}</p>
+                <p><span className="text-muted-foreground">Periods / Week:</span> {user.periods_per_week ?? "—"}</p>
+                <p><span className="text-muted-foreground">OT Periods / Week:</span> {user.overtime_periods ?? "—"}</p>
+                <p><span className="text-muted-foreground">Total Periods:</span> {user.total_periods ?? "—"}</p>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
