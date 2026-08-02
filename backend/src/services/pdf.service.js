@@ -134,26 +134,97 @@ async function generatePayslip(tenantId, payrollId) {
     .where({ 'payroll.id': payrollId, 'payroll.tenant_id': tenantId })
     .leftJoin('users', 'payroll.user_id', 'users.id')
     .leftJoin('salary_grades', 'payroll.salary_grade_id', 'salary_grades.id')
-    .select('payroll.*', 'users.first_name', 'users.last_name', 'salary_grades.name as grade_name')
+    .select(
+      'payroll.*',
+      'users.first_name', 'users.last_name', 'users.job_title',
+      'salary_grades.name as grade_name'
+    )
     .first();
   if (!payroll) throw new Error('NOT_FOUND');
+
+  const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
+  const schoolName = tenant?.name || 'School';
+
+  const fmt = (v) => (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const allowances = [
+    ['Transport Allowance', payroll.transport_allowance],
+    ['Overtime', payroll.overtime],
+    ['Back Pay', payroll.back_pay],
+    ['Unit Leader Allowance', payroll.unit_leader_allowance],
+    ['Department Head Allowance', payroll.department_head_allowance],
+    ['Housing Allowance', payroll.housing_allowance],
+    ['Account Allowance', payroll.account_allowance],
+    ['Phone Allowance', payroll.phone_allowance],
+  ].filter(([, v]) => parseFloat(v) > 0);
+
+  const deductions = [
+    ['Income Tax', payroll.income_tax],
+    ['School Pay', payroll.school_pay],
+    ['Eder', payroll.eder],
+    ['Office Loan', payroll.office_loan],
+    ['Café Loan', payroll.cafe_loan],
+    ['Pension Con. 7%', payroll.pension_employee],
+    ['Pension Con. 11%', payroll.pension_employer],
+    ['N.E. Starving', payroll.ne_starving],
+  ].filter(([, v]) => parseFloat(v) > 0);
+
+  const basic = parseFloat(payroll.basic_pay) || 0;
+  const allowancesTotal = parseFloat(payroll.allowances_total) || 0;
+  const deductionsTotal = parseFloat(payroll.deductions_total) || 0;
+  const gross = basic + allowancesTotal;
+  const net = parseFloat(payroll.net_pay) || 0;
+  const period = `${monthNames[payroll.month - 1] || payroll.month} ${payroll.year}`;
 
   const doc = new PDFDocument({ margin: 50 });
   const buffers = [];
   doc.on('data', (b) => buffers.push(b));
 
-  doc.fontSize(20).text('PAYSLIP', { align: 'center' });
-  doc.moveDown();
-  doc.fontSize(12).text(`Employee: ${payroll.first_name} ${payroll.last_name}`);
-  doc.text(`Grade: ${payroll.grade_name || 'N/A'}`);
-  doc.text(`Period: ${payroll.month}/${payroll.year}`);
+  doc.fontSize(16).text('PAYSLIP', { align: 'center' });
+  doc.fontSize(12).text(schoolName, { align: 'center' });
+  doc.fontSize(9).text(`Payroll Sheet for the Month of ${period}`, { align: 'center' });
   doc.moveDown();
 
-  doc.text(`Basic Pay: ${payroll.basic_pay} ETB`);
-  doc.text(`Allowances: ${payroll.allowances_total || 0} ETB`);
-  doc.text(`Deductions: ${payroll.deductions_total || 0} ETB`);
+  doc.fontSize(11).text(`Employee: ${payroll.first_name} ${payroll.last_name}`);
+  doc.fontSize(9);
+  doc.text(`Job Title: ${payroll.job_title || 'N/A'}   |   Grade: ${payroll.grade_name || 'N/A'}`);
+  if (payroll.work_days != null || payroll.absent_days != null) {
+    doc.text(`Work Days: ${payroll.work_days ?? '—'}   |   Absent Days: ${payroll.absent_days ?? '—'}`);
+  }
+  if (payroll.bank_account || payroll.bank_name) {
+    doc.text(`Bank: ${payroll.bank_name || 'N/A'}   |   Account: ${payroll.bank_account || '—'}`);
+  }
   doc.moveDown();
-  doc.fontSize(14).text(`Net Pay: ${payroll.net_pay} ETB`, { align: 'right' });
+
+  const row = (label, value, bold = false) => {
+    const y = doc.y;
+    doc.font(bold ? 'Helvetica-Bold' : 'Helvetica');
+    doc.text(label, 50, y, { width: 300 });
+    doc.text(value, 420, y, { width: 130, align: 'right' });
+    doc.moveDown(0.25);
+  };
+
+  doc.font('Helvetica-Bold').fontSize(10).text('EARNINGS', 50, doc.y);
+  doc.moveDown(0.25);
+  row('Basic Salary', `${fmt(basic)} ETB`);
+  for (const [label, v] of allowances) row(label, `${fmt(v)} ETB`);
+  row('Gross Earnings', `${fmt(gross)} ETB`, true);
+
+  doc.moveDown(0.5);
+  doc.font('Helvetica-Bold').fontSize(10).text('DEDUCTIONS', 50, doc.y);
+  doc.moveDown(0.25);
+  if (deductions.length === 0) row('No deductions', '—');
+  for (const [label, v] of deductions) row(label, `${fmt(v)} ETB`);
+  row('Total Deductions', `${fmt(deductionsTotal)} ETB`, true);
+
+  doc.moveDown(0.5);
+  const y = doc.y;
+  doc.font('Helvetica-Bold').fontSize(12);
+  doc.text('Net Pay', 50, y, { width: 300 });
+  doc.text(`${fmt(net)} ETB`, 420, y, { width: 130, align: 'right' });
+  doc.moveDown(1);
+  doc.fontSize(9).font('Helvetica').text(`Net Pay in words: ${net.toLocaleString('en-US')} ETB`, 50, doc.y);
 
   doc.end();
   return new Promise((resolve) => {

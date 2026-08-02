@@ -20,7 +20,8 @@ async function removeSalaryGrade(tenantId, id) {
 }
 
 const ALLOWANCE_FIELDS = ['transport_allowance', 'overtime', 'back_pay', 'unit_leader_allowance', 'department_head_allowance', 'housing_allowance', 'account_allowance', 'phone_allowance'];
-const DEDUCTION_FIELDS = ['income_tax', 'eder', 'office_loan', 'cafe_loan', 'school_pay', 'pension_employee', 'pension_employer', 'ne_starving'];
+const DEDUCTION_FIELDS = ['income_tax', 'eder', 'office_loan', 'cafe_loan', 'school_pay', 'pension_employee', 'ne_starving'];
+const EMPLOYER_FIELDS = ['pension_employer'];
 
 function num(v) {
   return parseFloat(v || 0) || 0;

@@ -65,6 +65,7 @@ const updatePayrollSchema = z.object({
     status: z.enum(['pending', 'paid', 'cancelled']).optional(),
     paid_date: z.string().optional(),
     remarks: z.string().optional(),
+    basic_pay: z.number().positive().optional(),
     ...payrollBreakdownFields,
   }),
 });

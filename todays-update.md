@@ -273,3 +273,12 @@ Audited every column in the five `data/*.xlsx` files against the schema. Nearly 
 - `statistical data (2).xlsx` — names/sex/qualification/field-of-study/job position map to `users`; subject+class taught map to `teacher_subjects`; weekly period counts are workload stats (not stored); the `students`/`period` sheets are aggregate curriculum/report data.
 
 **Verification:** KG `grade_level` + user `gender` smoke-tested via API (test rows cleaned up); backend roles regression 49/49; frontend `npm run build` + `oxlint` clean.
+
+### Round 3 follow-up 2 — full payslip + payroll math matches the salary Excel (2026-08-02)
+
+User asked whether the payroll/salary side "works as the data". Audit found storage + net-pay math worked, but two things did not match the `JUNE SALARY 2018.xlsx` workbook; fixed both:
+
+1. **Payslip PDF was totals-only.** Rewrote `generatePayslip` in `services/pdf.service.js` to mirror the Excel salary sheet: school name, employee name + job title + grade, work/absent days, bank account/name, an EARNINGS block (basic + each allowance line + Gross Earnings), a DEDUCTIONS block (income tax, school pay, eder, office/café loans, pension 7%/11%, N.E. Starving + Total Deductions), and Net Pay. Only non-zero lines render.
+2. **Payroll math now matches the workbook.** Reverse-engineered the Excel: `gross = basic + allowances`; **pension 11% is the employer share — excluded from Total Deductions**; `total deductions = income tax + eder + pension 7% + loans + school pay + N.E.`; `net = gross − total deductions`. So `DEDUCTION_FIELDS` in `payroll.service.js` no longer sums `pension_employer` into `deductions_total` (the column still stores it for reporting; frontend form labels it "Pension (Employer, not deducted)"). Also `updatePayrollSchema` now accepts `basic_pay` (it was being stripped by Zod, so editing basic silently did nothing).
+
+**Verified end-to-end against Amanuel Abebe's real row** (basic 12,910.65, OT 2,100, DH 1,000, income tax 3,203.7275, eder 100, pension 7% 903.7455, pension 11% 1,420.1715): system computed gross 16,010.65, total deductions 4,207.47, net 11,803.18 — identical to the Excel. Payslip PDF rendered with the full breakdown. Test row restored to seed values afterward; backend roles regression 49/49, frontend `npm run build` + `oxlint` clean.

@@ -32,9 +32,11 @@ const DEDUCTION_FIELDS = [
   { key: "cafe_loan", label: "Cafe Loan" },
   { key: "school_pay", label: "School Pay" },
   { key: "pension_employee", label: "Pension (Employee)" },
-  { key: "pension_employer", label: "Pension (Employer)" },
   { key: "ne_starving", label: "N.E. Starving" },
+  { key: "pension_employer", label: "Pension (Employer, not deducted)" },
 ];
+
+const DEDUCTION_TOTAL_FIELDS = DEDUCTION_FIELDS.filter((f) => f.key !== "pension_employer");
 
 const EMPTY_BREAKDOWN = Object.fromEntries([
   ...ALLOWANCE_FIELDS.map((f) => [f.key, ""]),
@@ -44,7 +46,7 @@ const EMPTY_BREAKDOWN = Object.fromEntries([
 function computeTotals(form) {
   const basic = parseFloat(form.basic_pay) || 0;
   const allowances = ALLOWANCE_FIELDS.reduce((s, f) => s + (parseFloat(form[f.key]) || 0), 0);
-  const deductions = DEDUCTION_FIELDS.reduce((s, f) => s + (parseFloat(form[f.key]) || 0), 0);
+  const deductions = DEDUCTION_TOTAL_FIELDS.reduce((s, f) => s + (parseFloat(form[f.key]) || 0), 0);
   return {
     allowances_total: allowances.toFixed(2),
     deductions_total: deductions.toFixed(2),
