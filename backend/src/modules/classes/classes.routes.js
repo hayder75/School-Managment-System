@@ -2,7 +2,7 @@ const { Router } = require('express');
 const controller = require('./classes.controller');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
-const rbac = require('../../middleware/rbac');
+const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
 const { createClassSchema, updateClassSchema } = require('./classes.validation');
 
@@ -10,10 +10,10 @@ const router = Router();
 
 router.use(auth);
 router.use(tenant);
-router.post('/', rbac('admin', 'owner'), validate(createClassSchema), controller.create);
-router.get('/', rbac('admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'), controller.list);
-router.get('/:id', rbac('admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'), controller.getById);
-router.put('/:id', rbac('admin', 'owner'), validate(updateClassSchema), controller.update);
-router.delete('/:id', rbac('admin', 'owner'), controller.remove);
+router.post('/', requireAccess(['admin', 'owner'], ['classes.manage']), validate(createClassSchema), controller.create);
+router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'], ['classes.manage']), controller.list);
+router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'], ['classes.manage']), controller.getById);
+router.put('/:id', requireAccess(['admin', 'owner'], ['classes.manage']), validate(updateClassSchema), controller.update);
+router.delete('/:id', requireAccess(['admin', 'owner'], ['classes.manage']), controller.remove);
 
 module.exports = router;

@@ -2,7 +2,7 @@ const { Router } = require('express');
 const controller = require('./expenses.controller');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
-const rbac = require('../../middleware/rbac');
+const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
 const { createExpenseSchema, updateExpenseSchema } = require('./expenses.validation');
 
@@ -10,7 +10,7 @@ const router = Router();
 
 router.use(auth);
 router.use(tenant);
-router.use(rbac('admin', 'owner', 'finance'));
+router.use(requireAccess(['admin', 'owner', 'finance'], ['expenses.manage']));
 
 router.get('/totals', controller.getTotals);
 router.post('/', validate(createExpenseSchema), controller.create);

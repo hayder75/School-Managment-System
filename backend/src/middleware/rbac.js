@@ -34,3 +34,4 @@ function rbac(...allowedRoles) {
 }
 
 module.exports = rbac;
+module.exports.rolesHierarchy = rolesHierarchy;

@@ -36,6 +36,7 @@ const BackupPage = lazy(() => import("./pages/BackupPage"));
 const TaxSettingsPage = lazy(() => import("./pages/TaxSettingsPage"));
 const LeaveManagementPage = lazy(() => import("./pages/LeaveManagementPage"));
 const PayrollAuditPage = lazy(() => import("./pages/PayrollAuditPage"));
+const RolesPermissionsPage = lazy(() => import("./pages/school-admin/RolesPermissionsPage"));
 const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
@@ -86,6 +87,7 @@ function AppContent() {
             <Route path="/backup" element={<BackupPage />} />
             <Route path="/tax-settings" element={<TaxSettingsPage />} />
             <Route path="/operations" element={<OperationsPage />} />
+            <Route path="/roles" element={<RolesPermissionsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 

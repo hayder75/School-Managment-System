@@ -1,11 +1,14 @@
 const db = require('../../config/database');
 const bcrypt = require('bcrypt');
 const { paginatedResult } = require('../../shared/pagination');
+const { seedTenant } = require('../roles/roles.seed');
 
 async function create(data) {
   const { owner_email, owner_first_name, owner_last_name, ...tenantData } = data;
 
   const [tenant] = await db('tenants').insert(tenantData).returning('*');
+
+  await seedTenant(db, tenant.id);
 
   if (owner_email) {
     const passwordHash = await bcrypt.hash('school123', 10);

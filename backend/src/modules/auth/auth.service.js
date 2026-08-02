@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const db = require('../../config/database');
 const config = require('../../config');
 const logger = require('../../config/logger');
+const { getEffectivePermissions } = require('../roles/roles.service');
 
 async function login(email, password) {
   const user = await db('users').where({ email }).first();
@@ -33,6 +34,12 @@ async function login(email, password) {
     { expiresIn: config.jwt.expiresIn }
   );
 
+  const permissions = await getEffectivePermissions(user.tenant_id, {
+    userId: user.id,
+    tenantId: user.tenant_id,
+    role: user.role,
+  });
+
   return {
     token,
     user: {
@@ -43,6 +50,7 @@ async function login(email, password) {
       role: user.role,
       tenantId: user.tenant_id,
       avatar: user.avatar,
+      permissions,
     },
   };
 }
@@ -50,6 +58,12 @@ async function login(email, password) {
 async function getMe(userId) {
   const user = await db('users').where({ id: userId }).first();
   if (!user) throw new Error('USER_NOT_FOUND');
+
+  const permissions = await getEffectivePermissions(user.tenant_id, {
+    userId: user.id,
+    tenantId: user.tenant_id,
+    role: user.role,
+  });
 
   return {
     id: user.id,
@@ -61,6 +75,7 @@ async function getMe(userId) {
     avatar: user.avatar,
     phone: user.phone,
     status: user.status,
+    permissions,
   };
 }
 

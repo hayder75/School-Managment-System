@@ -160,3 +160,38 @@ Notes:
 - Test data created during regression (test payment, chat conversation, attendance rows) was cleaned up afterward.
 - Frontend `oxlint` passes (only pre-existing warnings); `npm run build` succeeds. `frontend/dist` is gitignored.
 - No backend test suite exists (`npm test` has no `*.test.js` files); verification is via the API regression battery above.
+
+---
+
+## Roles & Permissions Feature (2026-08-02)
+
+**Model**: Per-school (tenant) custom roles + additive per-user grants. Base system roles are unchanged; custom roles (`roles` → `role_permissions`) and direct per-user grants (`user_roles` + `user_permissions`) only ADD permission keys on top of the user's base role. `requireAccess` middleware (`backend/src/middleware/access.js`) checks base/effective role first (owner passes admin routes, etc.), then additive permission keys — so existing role-hierarchy behavior is preserved.
+
+**Backend**
+- Migration `030_create_roles_permissions` (applied as Batch 9): tables `roles`, `permissions`, `role_permissions`, `user_roles`, `user_permissions`; seeds 8 system roles + 32 permission catalog + 97 role_permissions for every existing tenant; new tenants seed roles on creation.
+- Permission catalog: 32 keys (dashboard.view, students.view, teachers.manage, users.manage, fees.manage, grades.manage, roles.manage, etc.). Defaults: owner/admin = all, teacher = 8, student = 3, parent = 4, finance = 7, hr = 8, support = 3.
+- Endpoints (`/api/roles`, owner/admin only, `/my` for any authed user): `GET /`, `GET /permissions`, `POST /` (create role), `PUT /:id`, `DELETE /:id` (system roles → 400 `ROLE_IS_SYSTEM`), `GET /users/:userId`, `PUT /users/:userId` (set `role_ids` + `permission_keys`).
+- Login and `/auth/me` return `user.permissions` (effective keys).
+- `roles.manage` force-preserved on the `owner` role regardless of payload.
+- Bug fixed in `roles.service.js` `resolvePermissionIds`: empty input now returns `{ ids: [], found: new Set() }` (was bare `[]` → `ids.length` threw on empty PUT).
+
+**Frontend**
+- `frontend/src/hooks/useRoles.js`: `useRoles`, `useRolePermissions`, `useCreateRole`, `useUpdateRole`, `useDeleteRole`, `useUserRoles`, `useSetUserRoles`.
+- `frontend/src/pages/school-admin/RolesPermissionsPage.jsx`: tabs layout (Roles / User Overrides). Roles tab lists roles with permission chips, create/edit dialog with permission checkboxes, delete for non-system roles. User Overrides tab selects a user (base-role badge), edits custom-role + direct-permission checkboxes seeded from current effective access, dirty-check + save.
+- `frontend/src/App.jsx`: `/roles` route registered inside `RoleRoute roles={["admin","owner"]}`.
+- `frontend/src/components/layout/Sidebar.jsx`: "Roles & Permissions" nav entry added for owner and admin (reused for desktop sidebar + mobile sheet).
+
+**Verification (all passed)**
+| Check | Result |
+|-------|--------|
+| Owner `GET /api/roles` | 200, system roles + custom roles listed |
+| Owner `GET /api/roles/permissions` | 200, 32-key catalog |
+| Teacher `GET /api/roles` | 403 (owner/admin only) |
+| Teacher `GET /api/roles/my` | 200, base 8 keys only |
+| `PUT /api/roles/users/:id` empty arrays | 200; roles/permissions cleared to [] |
+| Teacher `/roles/my` after empty PUT | base 8 keys only (no leftover `fees.manage`) |
+| Additive grant `fees.manage` to teacher | appears in `/roles/my` effective keys |
+| Revert (empty PUT) | teacher back to base 8 keys |
+| `DELETE /api/roles/:id` system role | 400 `ROLE_IS_SYSTEM` |
+| Frontend `npm run build` | success |
+| Frontend `oxlint` (new files) | clean |

@@ -27,6 +27,7 @@ const studentRoutes = require('./modules/students/students.routes');
 const parentRoutes = require('./modules/parents/parents.routes');
 const announcementRoutes = require('./modules/announcements/announcements.routes');
 const academicsRoutes = require('./modules/academics/academics.routes');
+const rolesRoutes = require('./modules/roles/roles.routes');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/parents', parentRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/academics', academicsRoutes);
+app.use('/api/roles', rolesRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/operations', require('./modules/operations/operations.routes'));
 app.use('/api/pdf', require('./modules/pdf/pdf.routes'));

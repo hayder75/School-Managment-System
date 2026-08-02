@@ -3,6 +3,7 @@ const controller = require('./fees.controller');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const rbac = require('../../middleware/rbac');
+const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
 const { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema } = require('./fees.validation');
 
@@ -13,7 +14,7 @@ router.use(tenant);
 
 router.get('/my', rbac('student', 'parent'), controller.getMyFees);
 
-router.use(rbac('admin', 'owner', 'finance'));
+router.use(requireAccess(['admin', 'owner', 'finance'], ['fees.manage', 'payments.manage']));
 
 router.get('/summary', controller.getSummary);
 router.post('/structures', validate(createFeeStructureSchema), controller.createFeeStructure);

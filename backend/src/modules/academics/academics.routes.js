@@ -1,14 +1,14 @@
 const { Router } = require('express');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
-const rbac = require('../../middleware/rbac');
+const requireAccess = require('../../middleware/access');
 const db = require('../../config/database');
 
 const router = Router();
 
 router.use(auth);
 router.use(tenant);
-router.use(rbac('admin', 'owner'));
+router.use(requireAccess(['admin', 'owner'], ['academics.manage']));
 
 async function rollover(req, res) {
   const { from_year_id, to_year_id } = req.body;

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, GraduationCap, BookOpen, BookPlus,
   Building2, Settings, LogOut, MessageSquare, Notebook,
   DollarSign, Wallet, TrendingDown,
-  ShieldAlert, BarChart3, Upload, Megaphone, UserPlus,
+  ShieldAlert, ShieldCheck, BarChart3, Upload, Megaphone, UserPlus,
   Bus, BedDouble, BookOpen as BookIcon, FileText, CalendarClock, ClipboardList,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -35,6 +35,7 @@ const navItems = {
     { to: "/tax-settings", label: "Tax Brackets", icon: FileText },
     { to: "/leave-management", label: "Leave Mgmt", icon: CalendarClock },
     { to: "/payroll-audit", label: "Payroll Audit", icon: ClipboardList },
+    { to: "/roles", label: "Roles & Permissions", icon: ShieldCheck },
     { to: "/backup", label: "Backup", icon: FileText },
     { to: "/announcements", label: "Announcements", icon: Megaphone },
     { to: "/chat", label: "Chat", icon: MessageSquare },
@@ -62,6 +63,7 @@ const navItems = {
     { to: "/tax-settings", label: "Tax Brackets", icon: FileText },
     { to: "/leave-management", label: "Leave Mgmt", icon: CalendarClock },
     { to: "/payroll-audit", label: "Payroll Audit", icon: ClipboardList },
+    { to: "/roles", label: "Roles & Permissions", icon: ShieldCheck },
     { to: "/announcements", label: "Announcements", icon: Megaphone },
     { to: "/reports", label: "Reports", icon: BarChart3 },
     { to: "/audit-logs", label: "Audit Logs", icon: ShieldAlert },
@@ -120,7 +122,7 @@ export default function Sidebar() {
         </p>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
         {items.map((item) => (
           <NavLink
             key={item.to}

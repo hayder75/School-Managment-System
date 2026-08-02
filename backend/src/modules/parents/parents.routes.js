@@ -3,6 +3,7 @@ const controller = require('./parents.controller');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const rbac = require('../../middleware/rbac');
+const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
 const { linkParentSchema, updateLinkSchema } = require('./parents.validation');
 
@@ -13,10 +14,10 @@ router.use(tenant);
 
 router.get('/my-children', rbac('parent'), controller.myChildren);
 
-router.get('/', rbac('admin', 'owner'), controller.list);
-router.get('/:id', rbac('admin', 'owner', 'teacher'), controller.getById);
-router.post('/link', rbac('admin', 'owner'), validate(linkParentSchema), controller.link);
-router.put('/link/:id', rbac('admin', 'owner'), validate(updateLinkSchema), controller.updateLink);
-router.delete('/link/:id', rbac('admin', 'owner'), controller.unlink);
+router.get('/', requireAccess(['admin', 'owner'], ['parents.manage']), controller.list);
+router.get('/:id', requireAccess(['admin', 'owner', 'teacher'], ['parents.manage']), controller.getById);
+router.post('/link', requireAccess(['admin', 'owner'], ['parents.manage']), validate(linkParentSchema), controller.link);
+router.put('/link/:id', requireAccess(['admin', 'owner'], ['parents.manage']), validate(updateLinkSchema), controller.updateLink);
+router.delete('/link/:id', requireAccess(['admin', 'owner'], ['parents.manage']), controller.unlink);
 
 module.exports = router;
