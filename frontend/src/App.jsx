@@ -74,11 +74,18 @@ function AppContent() {
             <Route path="/admin/tenants/:id" element={<TenantDetailPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "hr"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "hr"]} permissions={["users.manage"]} />}>
             <Route path="/users" element={<UsersPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner"]} />}>
+          <Route
+            element={
+              <RoleRoute
+                roles={["admin", "owner"]}
+                permissions={["classes.manage", "subjects.manage", "teachers.manage", "parents.manage", "import.manage", "backup.manage", "tax-settings.manage", "operations.manage", "roles.manage", "settings.manage"]}
+              />
+            }
+          >
             <Route path="/classes" element={<ClassesPage />} />
             <Route path="/subjects" element={<SubjectsPage />} />
             <Route path="/teachers" element={<TeachersPage />} />
@@ -107,23 +114,23 @@ function AppContent() {
             <Route path="/chat" element={<ChatPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance"]} permissions={["fees.manage", "payments.manage"]} />}>
             <Route path="/fees" element={<FeeStructuresPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr"]} permissions={["payroll.view", "reports.view"]} />}>
             <Route path="/payroll" element={<PayrollPage />} />
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "hr"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "hr"]} permissions={["leave-management.manage", "payroll-audit.view"]} />}>
             <Route path="/leave-management" element={<LeaveManagementPage />} />
             <Route path="/payroll-audit" element={<PayrollAuditPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "super_admin"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "super_admin"]} permissions={["audit.view"]} />}>
             <Route path="/audit-logs" element={<AuditLogsPage />} />
           </Route>
 

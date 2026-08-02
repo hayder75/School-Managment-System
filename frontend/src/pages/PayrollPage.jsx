@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useSalaryGrades, useCreateSalaryGrade, useDeleteSalaryGrade, usePayroll, useCreatePayroll, usePayrollSummary } from "../hooks/usePayroll";
@@ -12,7 +12,45 @@ import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Plus, Trash2, Wallet, Download } from "lucide-react";
+import { Plus, Trash2, Wallet, Download, ChevronDown, ChevronRight } from "lucide-react";
+
+const ALLOWANCE_FIELDS = [
+  { key: "transport_allowance", label: "Transport Allowance" },
+  { key: "overtime", label: "Overtime" },
+  { key: "back_pay", label: "Back Pay" },
+  { key: "unit_leader_allowance", label: "Unit Leader Allowance" },
+  { key: "department_head_allowance", label: "Department Head Allowance" },
+  { key: "housing_allowance", label: "Housing Allowance" },
+  { key: "account_allowance", label: "Account Allowance" },
+  { key: "phone_allowance", label: "Phone Allowance" },
+];
+
+const DEDUCTION_FIELDS = [
+  { key: "income_tax", label: "Income Tax" },
+  { key: "eder", label: "Eder" },
+  { key: "office_loan", label: "Office Loan" },
+  { key: "cafe_loan", label: "Cafe Loan" },
+  { key: "school_pay", label: "School Pay" },
+  { key: "pension_employee", label: "Pension (Employee)" },
+  { key: "pension_employer", label: "Pension (Employer)" },
+  { key: "ne_starving", label: "N.E. Starving" },
+];
+
+const EMPTY_BREAKDOWN = Object.fromEntries([
+  ...ALLOWANCE_FIELDS.map((f) => [f.key, ""]),
+  ...DEDUCTION_FIELDS.map((f) => [f.key, ""]),
+]);
+
+function computeTotals(form) {
+  const basic = parseFloat(form.basic_pay) || 0;
+  const allowances = ALLOWANCE_FIELDS.reduce((s, f) => s + (parseFloat(form[f.key]) || 0), 0);
+  const deductions = DEDUCTION_FIELDS.reduce((s, f) => s + (parseFloat(form[f.key]) || 0), 0);
+  return {
+    allowances_total: allowances.toFixed(2),
+    deductions_total: deductions.toFixed(2),
+    net_pay: (basic + allowances - deductions).toFixed(2),
+  };
+}
 
 function SalaryGradesTab() {
   const { data: gradesData, isLoading } = useSalaryGrades();
@@ -112,7 +150,8 @@ function PayrollEntriesTab() {
   const { data: gradesData } = useSalaryGrades();
   const createPayroll = useCreatePayroll();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ user_id: "", basic_pay: "", allowances_total: "0", deductions_total: "0", net_pay: "" });
+  const [expandedId, setExpandedId] = useState(null);
+  const [form, setForm] = useState({ user_id: "", basic_pay: "", allowances_total: "0", deductions_total: "0", net_pay: "", ...EMPTY_BREAKDOWN, bank_account: "", bank_name: "", work_days: "", absent_days: "" });
   const [fieldErrors, setFieldErrors] = useState({});
 
   const entries = data?.data || [];
@@ -131,12 +170,17 @@ function PayrollEntriesTab() {
         month,
         year,
         basic_pay: basicPay,
-        allowances_total: parseFloat(form.allowances_total),
-        deductions_total: parseFloat(form.deductions_total),
-        net_pay: parseFloat(form.net_pay) || basicPay,
+        ...Object.fromEntries(
+          [...ALLOWANCE_FIELDS, ...DEDUCTION_FIELDS]
+            .map((f) => [f.key, form[f.key] !== "" ? parseFloat(form[f.key]) : undefined])
+        ),
+        work_days: form.work_days !== "" ? parseInt(form.work_days, 10) : undefined,
+        absent_days: form.absent_days !== "" ? parseInt(form.absent_days, 10) : undefined,
+        bank_account: form.bank_account || undefined,
+        bank_name: form.bank_name || undefined,
       });
       setOpen(false);
-      setForm({ user_id: "", basic_pay: "", allowances_total: "0", deductions_total: "0", net_pay: "" });
+      setForm({ user_id: "", basic_pay: "", allowances_total: "0", deductions_total: "0", net_pay: "", ...EMPTY_BREAKDOWN, bank_account: "", bank_name: "", work_days: "", absent_days: "" });
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -146,8 +190,15 @@ function PayrollEntriesTab() {
     const grade = grades.find((g) => g.id === gradeId);
     if (grade) {
       const basic = parseFloat(grade.basic_salary);
-      setForm({ ...form, basic_pay: basic.toString(), net_pay: basic.toString() });
+      const totals = computeTotals({ ...form, basic_pay: basic });
+      setForm({ ...form, basic_pay: basic.toString(), ...totals });
     }
+  }
+
+  function handleFormField(key, value) {
+    const next = { ...form, [key]: value };
+    const totals = computeTotals(next);
+    setForm({ ...next, ...totals });
   }
 
   return (
@@ -199,28 +250,67 @@ function PayrollEntriesTab() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Basic Pay</Label>
-                  <Input required type="number" value={form.basic_pay} onChange={(e) => setForm({ ...form, basic_pay: e.target.value })} />
+                  <Input required type="number" value={form.basic_pay} onChange={(e) => handleFormField("basic_pay", e.target.value)} />
                 </div>
                 <FieldError errors={fieldErrors} field="basic_pay" />
                 <div className="space-y-2">
-                  <Label>Allowances</Label>
-                  <Input type="number" value={form.allowances_total} onChange={(e) => setForm({ ...form, allowances_total: e.target.value })} />
+                  <Label>Work Days</Label>
+                  <Input type="number" value={form.work_days} onChange={(e) => handleFormField("work_days", e.target.value)} />
                 </div>
-                <FieldError errors={fieldErrors} field="allowances_total" />
                 <div className="space-y-2">
-                  <Label>Deductions</Label>
-                  <Input type="number" value={form.deductions_total} onChange={(e) => setForm({ ...form, deductions_total: e.target.value })} />
+                  <Label>Absent Days</Label>
+                  <Input type="number" value={form.absent_days} onChange={(e) => handleFormField("absent_days", e.target.value)} />
                 </div>
-                <FieldError errors={fieldErrors} field="deductions_total" />
               </div>
-              <div className="space-y-2">
-                <Label>Net Pay</Label>
-                <Input required type="number" value={form.net_pay} onChange={(e) => setForm({ ...form, net_pay: e.target.value })} />
+              <div className="border-t pt-4">
+                <Label className="text-sm font-semibold">Allowances</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  {ALLOWANCE_FIELDS.map((f) => (
+                    <div key={f.key} className="space-y-1">
+                      <Label className="text-xs">{f.label}</Label>
+                      <Input type="number" value={form[f.key]} onChange={(e) => handleFormField(f.key, e.target.value)} />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <FieldError errors={fieldErrors} field="net_pay" />
+              <div className="border-t pt-4">
+                <Label className="text-sm font-semibold">Deductions</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  {DEDUCTION_FIELDS.map((f) => (
+                    <div key={f.key} className="space-y-1">
+                      <Label className="text-xs">{f.label}</Label>
+                      <Input type="number" value={form[f.key]} onChange={(e) => handleFormField(f.key, e.target.value)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Bank Account</Label>
+                  <Input value={form.bank_account} onChange={(e) => setForm({ ...form, bank_account: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bank Name</Label>
+                  <Input value={form.bank_name} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 bg-muted rounded-md p-3">
+                <div>
+                  <Label className="text-xs">Allowances Total</Label>
+                  <p className="text-lg font-semibold">{parseFloat(form.allowances_total || 0).toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Deductions Total</Label>
+                  <p className="text-lg font-semibold">{parseFloat(form.deductions_total || 0).toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Net Pay</Label>
+                  <p className="text-lg font-bold">{parseFloat(form.net_pay || 0).toLocaleString()}</p>
+                </div>
+              </div>
               <Button type="submit" className="w-full">Add Entry</Button>
             </form>
           </DialogContent>
@@ -257,6 +347,7 @@ function PayrollEntriesTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead></TableHead>
                     <TableHead>Employee</TableHead>
                     <TableHead>Basic Pay</TableHead>
                     <TableHead>Allowances</TableHead>
@@ -268,22 +359,56 @@ function PayrollEntriesTab() {
                 </TableHeader>
                 <TableBody>
                   {entries.map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell className="font-medium">{e.first_name} {e.last_name}</TableCell>
-                      <TableCell>{parseFloat(e.basic_pay).toLocaleString()}</TableCell>
-                      <TableCell>{parseFloat(e.allowances_total || 0).toLocaleString()}</TableCell>
-                      <TableCell>{parseFloat(e.deductions_total || 0).toLocaleString()}</TableCell>
-                      <TableCell className="font-semibold">{parseFloat(e.net_pay).toLocaleString()}</TableCell>
-                      <TableCell><Badge variant={e.status === "paid" ? "success" : e.status === "cancelled" ? "destructive" : "secondary"}>{e.status}</Badge></TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => window.open(`/api/pdf/payslip/${e.id}`, "_blank")}>
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                    <Fragment key={e.id}>
+                      <TableRow>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}>
+                            {expandedId === e.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-medium">{e.first_name} {e.last_name}</TableCell>
+                        <TableCell>{parseFloat(e.basic_pay).toLocaleString()}</TableCell>
+                        <TableCell>{parseFloat(e.allowances_total || 0).toLocaleString()}</TableCell>
+                        <TableCell>{parseFloat(e.deductions_total || 0).toLocaleString()}</TableCell>
+                        <TableCell className="font-semibold">{parseFloat(e.net_pay).toLocaleString()}</TableCell>
+                        <TableCell><Badge variant={e.status === "paid" ? "success" : e.status === "cancelled" ? "destructive" : "secondary"}>{e.status}</Badge></TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => window.open(`/api/pdf/payslip/${e.id}`, "_blank")}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {expandedId === e.id && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="bg-muted/30 p-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="space-y-1">
+                                <p className="font-medium text-xs uppercase text-muted-foreground">Allowances</p>
+                                {ALLOWANCE_FIELDS.map((f) => (
+                                  <p key={f.key} className="flex justify-between gap-4"><span>{f.label}</span><span>{(parseFloat(e[f.key]) || 0).toLocaleString()}</span></p>
+                                ))}
+                                {e.work_days != null && <p className="flex justify-between gap-4"><span>Work Days</span><span>{e.work_days}</span></p>}
+                                {e.absent_days != null && <p className="flex justify-between gap-4"><span>Absent Days</span><span>{e.absent_days}</span></p>}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="font-medium text-xs uppercase text-muted-foreground">Deductions</p>
+                                {DEDUCTION_FIELDS.map((f) => (
+                                  <p key={f.key} className="flex justify-between gap-4"><span>{f.label}</span><span>{(parseFloat(e[f.key]) || 0).toLocaleString()}</span></p>
+                                ))}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="font-medium text-xs uppercase text-muted-foreground">Bank</p>
+                                <p>Account: {e.bank_account || "—"}</p>
+                                <p>Bank: {e.bank_name || "—"}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
                   ))}
                   {entries.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No entries for this period</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No entries for this period</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

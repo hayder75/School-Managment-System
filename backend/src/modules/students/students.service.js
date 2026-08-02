@@ -7,7 +7,7 @@ async function create(tenantId, data) {
 }
 
 async function enroll(tenantId, userId, data) {
-  const { guardians, ...studentData } = data;
+  const { guardians, enrollment, ...studentData } = data;
 
   return db.transaction(async (trx) => {
     const [student] = await trx('students').insert({ ...studentData, tenant_id: tenantId }).returning('*');
@@ -27,10 +27,32 @@ async function enroll(tenantId, userId, data) {
         parent_id: g.parent_id,
         relationship: g.relationship || null,
         is_primary: g.is_primary || false,
+        education_level: g.education_level || null,
       }));
       if (links.length > 0) {
         await trx('student_parents').insert(links);
       }
+    }
+
+    if (enrollment && Object.keys(enrollment).length > 0) {
+      await trx('enrollments').insert({
+        tenant_id: tenantId,
+        student_id: student.id,
+        academic_year_id: enrollment.academic_year_id || null,
+        class_id: enrollment.class_id || studentData.class_id || null,
+        grade_level: enrollment.grade_level ?? null,
+        section: enrollment.section || null,
+        admission_category: enrollment.admission_category || null,
+        admission_modality: enrollment.admission_modality || null,
+        education_stream: enrollment.education_stream || null,
+        cte_field_1: enrollment.cte_field_1 || null,
+        cte_field_2: enrollment.cte_field_2 || null,
+        num_textbooks: enrollment.num_textbooks ?? null,
+        instructional_language: enrollment.instructional_language || null,
+        school_feeding: enrollment.school_feeding || false,
+        food_ration_home: enrollment.food_ration_home || false,
+        meals_per_week: enrollment.meals_per_week ?? null,
+      });
     }
 
     await trx('student_status_history').insert({
@@ -135,9 +157,44 @@ async function findById(tenantId, id) {
       .where({ student_id: id })
       .leftJoin('users', 'student_parents.parent_id', 'users.id')
       .select('student_parents.*', 'users.first_name', 'users.last_name', 'users.email', 'users.phone');
+    student.enrollments = await getEnrollments(tenantId, id);
   }
 
   return student;
+}
+
+async function getEnrollments(tenantId, studentId) {
+  return db('enrollments')
+    .where({ 'enrollments.tenant_id': tenantId, 'enrollments.student_id': studentId })
+    .leftJoin('academic_years', 'enrollments.academic_year_id', 'academic_years.id')
+    .leftJoin('classes', 'enrollments.class_id', 'classes.id')
+    .select(
+      'enrollments.*',
+      'academic_years.name as academic_year_name',
+      'classes.name as class_name'
+    )
+    .orderBy('academic_years.start_date', 'desc');
+}
+
+async function addEnrollment(tenantId, studentId, data) {
+  const [enr] = await db('enrollments')
+    .insert({ ...data, tenant_id: tenantId, student_id: studentId })
+    .onConflict(['tenant_id', 'student_id', 'academic_year_id'])
+    .merge()
+    .returning('*');
+  return enr;
+}
+
+async function updateEnrollment(tenantId, studentId, enrollmentId, data) {
+  const [enr] = await db('enrollments')
+    .where({ tenant_id: tenantId, student_id: studentId, id: enrollmentId })
+    .update(data)
+    .returning('*');
+  return enr;
+}
+
+async function removeEnrollment(tenantId, studentId, enrollmentId) {
+  return db('enrollments').where({ tenant_id: tenantId, student_id: studentId, id: enrollmentId }).del();
 }
 
 async function update(tenantId, id, data) {
@@ -401,4 +458,5 @@ module.exports = {
   getDiscipline, addDiscipline, updateDisciplineStatus, removeDiscipline,
   getAchievements, addAchievement, removeAchievement,
   getStatusHistory, addStatusHistory, getEnrollmentStats,
+  getEnrollments, addEnrollment, updateEnrollment, removeEnrollment,
 };

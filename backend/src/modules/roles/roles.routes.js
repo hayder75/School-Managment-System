@@ -2,7 +2,7 @@ const { Router } = require('express');
 const controller = require('./roles.controller');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
-const rbac = require('../../middleware/rbac');
+const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
 const { createRoleSchema, updateRoleSchema, setUserAccessSchema } = require('./roles.validation');
 
@@ -13,7 +13,7 @@ router.use(tenant);
 
 router.get('/my', controller.myPermissions);
 
-router.use(rbac('admin', 'owner'));
+router.use(requireAccess(['admin', 'owner'], ['roles.manage']));
 
 router.get('/', controller.listRoles);
 router.get('/permissions', controller.listPermissions);

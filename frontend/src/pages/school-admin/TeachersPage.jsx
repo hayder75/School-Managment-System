@@ -144,6 +144,9 @@ export default function TeachersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Job Title</TableHead>
+                  <TableHead>Qualification</TableHead>
+                  <TableHead>Field of Study</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
@@ -153,6 +156,9 @@ export default function TeachersPage() {
                   <TableRow key={teacher.id}>
                     <TableCell className="font-medium">{teacher.first_name} {teacher.last_name}</TableCell>
                     <TableCell>{teacher.email}</TableCell>
+                    <TableCell>{teacher.job_title || "—"}</TableCell>
+                    <TableCell>{teacher.qualification || "—"}</TableCell>
+                    <TableCell>{teacher.field_of_study || "—"}</TableCell>
                     <TableCell>
                       <Badge variant={teacher.status === "active" ? "success" : "warning"}>{teacher.status}</Badge>
                     </TableCell>
@@ -164,7 +170,7 @@ export default function TeachersPage() {
                   </TableRow>
                 ))}
                 {teachers.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No teachers found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No teachers found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

@@ -9,6 +9,7 @@ const createClassSchema = z.object({
     capacity: z.number().int().positive().optional(),
     academic_year_id: z.string().uuid().optional(),
     class_teacher_id: z.string().uuid().optional(),
+    level_group: z.enum(['nursery', 'kg', 'primary', 'secondary']).optional(),
   }),
 });
 
@@ -20,6 +21,7 @@ const updateClassSchema = z.object({
     room: z.string().max(50).optional(),
     capacity: z.number().int().positive().optional(),
     class_teacher_id: z.string().uuid().optional().nullable(),
+    level_group: z.enum(['nursery', 'kg', 'primary', 'secondary']).optional(),
   }),
 });
 

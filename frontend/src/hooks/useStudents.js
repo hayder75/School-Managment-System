@@ -66,3 +66,44 @@ export function useEnrollmentStats() {
     queryFn: () => api.get("/students/enrollment-stats"),
   });
 }
+
+export function useStudentEnrollments(studentId) {
+  return useQuery({
+    queryKey: ["students", studentId, "enrollments"],
+    queryFn: () => api.get(`/students/${studentId}/enrollments`),
+    enabled: !!studentId,
+  });
+}
+
+export function useCreateStudentEnrollment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, data }) => api.post(`/students/${studentId}/enrollments`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["enrollment-stats"] });
+    },
+  });
+}
+
+export function useUpdateStudentEnrollment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, enrollmentId, data }) => api.put(`/students/${studentId}/enrollments/${enrollmentId}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["enrollment-stats"] });
+    },
+  });
+}
+
+export function useDeleteStudentEnrollment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, enrollmentId }) => api.delete(`/students/${studentId}/enrollments/${enrollmentId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["enrollment-stats"] });
+    },
+  });
+}

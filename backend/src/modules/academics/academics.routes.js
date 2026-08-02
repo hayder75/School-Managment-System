@@ -67,4 +67,9 @@ async function graduateStudents(req, res) {
 router.post('/rollover', rollover);
 router.post('/graduate', graduateStudents);
 
+router.get('/academic-years', async (req, res) => {
+  const years = await db('academic_years').where({ tenant_id: req.tenant.id }).orderBy('start_date', 'desc');
+  res.json({ success: true, data: years });
+});
+
 module.exports = router;

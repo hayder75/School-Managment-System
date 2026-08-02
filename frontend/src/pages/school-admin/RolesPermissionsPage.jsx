@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRoles, useRolePermissions, useCreateRole, useUpdateRole, useDeleteRole, useUserRoles, useSetUserRoles } from "../../hooks/useRoles";
 import { useUsers } from "../../hooks/useUsers";
 import { Button } from "../../components/ui/button";
@@ -228,6 +228,11 @@ function UserOverridesTab({ permissions, customRoles }) {
     };
   }, [access]);
 
+  useEffect(() => {
+    setSelectedRoles(new Set(access?.roles.map((r) => r.id) || []));
+    setSelectedPerms(new Set(access?.permissions.map((p) => p.key) || []));
+  }, [access]);
+
   const isDirty =
     userId &&
     (selectedRoles.size !== applied.roles.size ||
@@ -286,7 +291,7 @@ function UserOverridesTab({ permissions, customRoles }) {
                 <Label>Extra roles</Label>
                 <div className="grid gap-2 mt-2 sm:grid-cols-2">
                   {customRoles.map((r) => {
-                    const checked = applied.roles.has(r.id);
+                    const checked = selectedRoles.has(r.id);
                     return (
                       <PermissionCheckbox
                         key={r.id}
@@ -312,7 +317,7 @@ function UserOverridesTab({ permissions, customRoles }) {
                 <Label>Direct permissions</Label>
                 <div className="grid gap-2 mt-2 sm:grid-cols-2">
                   {permissions.map((p) => {
-                    const checked = applied.perms.has(p.key);
+                    const checked = selectedPerms.has(p.key);
                     return (
                       <PermissionCheckbox
                         key={p.key}

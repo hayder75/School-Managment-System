@@ -8,6 +8,9 @@ const createUserSchema = z.object({
     phone: z.string().optional(),
     role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'support']),
     send_invite: z.boolean().optional().default(true),
+    job_title: z.string().max(150).optional(),
+    qualification: z.string().max(150).optional(),
+    field_of_study: z.string().max(150).optional(),
   }),
 });
 
@@ -18,6 +21,9 @@ const updateUserSchema = z.object({
     phone: z.string().optional(),
     role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'support']).optional(),
     status: z.enum(['active', 'invited', 'suspended']).optional(),
+    job_title: z.string().max(150).optional().nullable(),
+    qualification: z.string().max(150).optional().nullable(),
+    field_of_study: z.string().max(150).optional().nullable(),
   }),
 });
 

@@ -19,7 +19,7 @@ export default function ClassesPage() {
   const createClass = useCreateClass();
   const deleteClass = useDeleteClass();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", grade_level: "", section: "", capacity: "", class_teacher_id: "" });
+  const [form, setForm] = useState({ name: "", grade_level: "", section: "", capacity: "", class_teacher_id: "", level_group: "primary" });
   const [fieldErrors, setFieldErrors] = useState({});
 
   const classes = data?.data || [];
@@ -36,9 +36,10 @@ export default function ClassesPage() {
         section: form.section || undefined,
         capacity: form.capacity ? parseInt(form.capacity) : undefined,
         class_teacher_id: form.class_teacher_id || undefined,
+        level_group: form.level_group || "primary",
       });
       setOpen(false);
-      setForm({ name: "", grade_level: "", section: "", capacity: "", class_teacher_id: "" });
+      setForm({ name: "", grade_level: "", section: "", capacity: "", class_teacher_id: "", level_group: "primary" });
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -65,6 +66,19 @@ export default function ClassesPage() {
               </div>
               <FieldError errors={fieldErrors} field="name" />
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Level Group</Label>
+                  <Select value={form.level_group} onValueChange={(v) => setForm({ ...form, level_group: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nursery">Nursery</SelectItem>
+                      <SelectItem value="kg">KG</SelectItem>
+                      <SelectItem value="primary">Primary</SelectItem>
+                      <SelectItem value="secondary">Secondary</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <FieldError errors={fieldErrors} field="level_group" />
                 <div className="space-y-2">
                   <Label>Grade Level</Label>
                   <Input type="number" value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: e.target.value })} />
@@ -112,6 +126,7 @@ export default function ClassesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Level</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>Section</TableHead>
                     <TableHead>Teacher</TableHead>
@@ -123,6 +138,7 @@ export default function ClassesPage() {
                   {classes.map((cls) => (
                     <TableRow key={cls.id}>
                       <TableCell className="font-medium">{cls.name}</TableCell>
+                      <TableCell><span className="capitalize">{cls.level_group || "primary"}</span></TableCell>
                       <TableCell>{cls.grade_level}</TableCell>
                       <TableCell>{cls.section || "—"}</TableCell>
                       <TableCell>{cls.teacher_first_name ? `${cls.teacher_first_name} ${cls.teacher_last_name}` : "—"}</TableCell>
@@ -135,7 +151,7 @@ export default function ClassesPage() {
                     </TableRow>
                   ))}
                   {classes.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No classes yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No classes yet</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

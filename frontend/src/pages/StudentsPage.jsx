@@ -23,7 +23,14 @@ export default function StudentsPage() {
   const [editing, setEditing] = useState(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [promoteForm, setPromoteForm] = useState({ from_class_id: "", to_class_id: "" });
-  const [form, setForm] = useState({ user_id: "", class_id: "", student_number: "", emergency_contact: "" });
+  const [form, setForm] = useState({
+    user_id: "", class_id: "", student_number: "", emergency_contact: "",
+    father_name: "", grandfather_name: "", mother_name: "", date_of_birth: "", gender: "",
+    nationality: "", country_of_birth: "", region_of_residence: "", zone_of_residence: "", woreda_of_residence: "",
+    region_of_birth: "", zone_of_birth: "", woreda_of_birth: "", kebele: "", location_type: "",
+    disability: false, disability_type: "", economic_status: "", national_id: "", parent_status: "",
+    family_head_gender: "", home_address: "",
+  });
   const [fieldErrors, setFieldErrors] = useState({});
 
   const { data, isLoading } = useStudents({ page, limit: 20, search: search || undefined, class_id: classFilter || undefined, status: statusFilter || undefined });
@@ -42,8 +49,26 @@ export default function StudentsPage() {
   const stats = statsData?.data || {};
 
   function resetForm() {
-    setForm({ user_id: "", class_id: "", student_number: "", emergency_contact: "" });
+    setForm({
+      user_id: "", class_id: "", student_number: "", emergency_contact: "",
+      father_name: "", grandfather_name: "", mother_name: "", date_of_birth: "", gender: "",
+      nationality: "", country_of_birth: "", region_of_residence: "", zone_of_residence: "", woreda_of_residence: "",
+      region_of_birth: "", zone_of_birth: "", woreda_of_birth: "", kebele: "", location_type: "",
+      disability: false, disability_type: "", economic_status: "", national_id: "", parent_status: "",
+      family_head_gender: "", home_address: "",
+    });
     setEditing(null);
+  }
+
+  function buildPayload() {
+    const p = {};
+    for (const [k, v] of Object.entries(form)) {
+      if (v === "" || v === null || v === undefined) continue;
+      p[k] = v;
+    }
+    if (!p.disability) { delete p.disability; delete p.disability_type; }
+    if (form.date_of_birth) p.date_of_birth = new Date(form.date_of_birth).toISOString();
+    return p;
   }
 
   async function handleSubmit(e) {
@@ -51,9 +76,9 @@ export default function StudentsPage() {
     setFieldErrors({});
     try {
       if (editing) {
-        await updateStudent.mutateAsync({ id: editing.id, data: form });
+        await updateStudent.mutateAsync({ id: editing.id, data: buildPayload() });
       } else {
-        await createStudent.mutateAsync(form);
+        await createStudent.mutateAsync(buildPayload());
       }
       setOpen(false);
       resetForm();
@@ -64,7 +89,21 @@ export default function StudentsPage() {
 
   function handleEdit(student) {
     setEditing(student);
-    setForm({ user_id: student.user_id, class_id: student.class_id, student_number: student.student_number || "", emergency_contact: student.emergency_contact || "" });
+    setForm({
+      user_id: student.user_id, class_id: student.class_id, student_number: student.student_number || "",
+      emergency_contact: student.emergency_contact || "",
+      father_name: student.father_name || "", grandfather_name: student.grandfather_name || "",
+      mother_name: student.mother_name || "", date_of_birth: (student.date_of_birth || "").slice(0, 10) || "", gender: student.gender || "",
+      nationality: student.nationality || "", country_of_birth: student.country_of_birth || "",
+      region_of_residence: student.region_of_residence || "", zone_of_residence: student.zone_of_residence || "",
+      woreda_of_residence: student.woreda_of_residence || "", region_of_birth: student.region_of_birth || "",
+      zone_of_birth: student.zone_of_birth || "", woreda_of_birth: student.woreda_of_birth || "",
+      kebele: student.kebele || "", location_type: student.location_type || "",
+      disability: !!student.disability, disability_type: student.disability_type || "",
+      economic_status: student.economic_status || "", national_id: student.national_id || "",
+      parent_status: student.parent_status || "", family_head_gender: student.family_head_gender || "",
+      home_address: student.home_address || "",
+    });
     setOpen(true);
   }
 
@@ -160,6 +199,133 @@ export default function StudentsPage() {
                   <Input value={form.emergency_contact} onChange={(e) => setForm({ ...form, emergency_contact: e.target.value })} />
                 </div>
                 <FieldError errors={fieldErrors} field="emergency_contact" />
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-semibold">Personal / Demographics</Label>
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div className="space-y-2">
+                      <Label>Father's Name</Label>
+                      <Input value={form.father_name} onChange={(e) => setForm({ ...form, father_name: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Grandfather's Name</Label>
+                      <Input value={form.grandfather_name} onChange={(e) => setForm({ ...form, grandfather_name: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Mother's Name</Label>
+                      <Input value={form.mother_name} onChange={(e) => setForm({ ...form, mother_name: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Date of Birth</Label>
+                      <Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Gender</Label>
+                      <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Nationality</Label>
+                      <Input value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })} placeholder="Ethiopian" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Country of Birth</Label>
+                      <Input value={form.country_of_birth} onChange={(e) => setForm({ ...form, country_of_birth: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Economic Status</Label>
+                      <Select value={form.economic_status} onValueChange={(v) => setForm({ ...form, economic_status: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>National ID</Label>
+                      <Input value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Parent Status</Label>
+                      <Input value={form.parent_status} onChange={(e) => setForm({ ...form, parent_status: e.target.value })} placeholder="e.g. both_alive" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Family Head Gender</Label>
+                      <Select value={form.family_head_gender} onValueChange={(v) => setForm({ ...form, family_head_gender: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Location Type</Label>
+                      <Select value={form.location_type} onValueChange={(v) => setForm({ ...form, location_type: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="urban">Urban</SelectItem>
+                          <SelectItem value="rural">Rural</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Kebele</Label>
+                      <Input value={form.kebele} onChange={(e) => setForm({ ...form, kebele: e.target.value })} />
+                    </div>
+                    <div className="flex items-center gap-2 pt-6">
+                      <input type="checkbox" checked={form.disability} onChange={(e) => setForm({ ...form, disability: e.target.checked })} className="h-4 w-4" />
+                      <Label className="cursor-pointer">Has Disability</Label>
+                    </div>
+                    {form.disability && (
+                      <div className="space-y-2">
+                        <Label>Disability Type</Label>
+                        <Input value={form.disability_type} onChange={(e) => setForm({ ...form, disability_type: e.target.value })} />
+                      </div>
+                    )}
+                  </div>
+                  <Label className="text-sm font-semibold mt-4 block">Address of Residence</Label>
+                  <div className="grid grid-cols-3 gap-4 mt-2">
+                    <div className="space-y-2">
+                      <Label>Region</Label>
+                      <Input value={form.region_of_residence} onChange={(e) => setForm({ ...form, region_of_residence: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Zone</Label>
+                      <Input value={form.zone_of_residence} onChange={(e) => setForm({ ...form, zone_of_residence: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Woreda</Label>
+                      <Input value={form.woreda_of_residence} onChange={(e) => setForm({ ...form, woreda_of_residence: e.target.value })} />
+                    </div>
+                  </div>
+                  <Label className="text-sm font-semibold mt-4 block">Address of Birth</Label>
+                  <div className="grid grid-cols-3 gap-4 mt-2">
+                    <div className="space-y-2">
+                      <Label>Region</Label>
+                      <Input value={form.region_of_birth} onChange={(e) => setForm({ ...form, region_of_birth: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Zone</Label>
+                      <Input value={form.zone_of_birth} onChange={(e) => setForm({ ...form, zone_of_birth: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Woreda</Label>
+                      <Input value={form.woreda_of_birth} onChange={(e) => setForm({ ...form, woreda_of_birth: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label>Home Address</Label>
+                    <Input value={form.home_address} onChange={(e) => setForm({ ...form, home_address: e.target.value })} />
+                  </div>
+                </div>
                 <Button type="submit" className="w-full">{editing ? "Update" : "Create"}</Button>
               </form>
             </DialogContent>

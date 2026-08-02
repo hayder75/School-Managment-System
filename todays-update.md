@@ -195,3 +195,65 @@ Notes:
 | `DELETE /api/roles/:id` system role | 400 `ROLE_IS_SYSTEM` |
 | Frontend `npm run build` | success |
 | Frontend `oxlint` (new files) | clean |
+
+### Verification round 2 + fixes (2026-08-02)
+
+Re-verified the whole feature end-to-end (backend 49/49 checks passed) and found/fixed four issues:
+
+1. **`createRole` did not reject unknown permission keys** (create with `permission_keys:["nope.nope"]` returned 201 and silently dropped it; `updateRole`/`setUserAccess` already rejected them). Fixed in `roles.service.js` — now 400 `INVALID_PERMISSIONS`, consistent across all three.
+2. **Seeded `owner` role had only 2 permissions** in the DB (migration seed is idempotent-add so it was wiped by an earlier test `updateRole`). Re-ran `seedTenant` → owner restored to all 32 keys.
+3. **Roles admin routes were hard-gated by `rbac('admin','owner')`** while every other admin capability uses permission fallback — so granting `roles.manage` was meaningless. Converted `roles.routes.js` to `requireAccess(['admin','owner'], ['roles.manage'])`: a user granted `roles.manage` can now manage roles; otherwise 403. Verified grant→200/revoke→403.
+4. **Frontend `UserOverridesTab` checkbox bug**: checkboxes rendered server (`applied`) state instead of the local edit state, so toggling a role/permission never visually changed. Now `selectedRoles`/`selectedPerms` are seeded from `access` via `useEffect` and are the `checked` source; dirty-check + save unchanged.
+
+Frontend made **permission-aware** so enabling/disabling for a user type is visible in the UI (matches the requested model — add admin-only things to a teacher, e.g.):
+
+- `RoleRoute` accepts an optional `permissions` prop; route is allowed if the role matches **or** the user holds any listed permission. `App.jsx` route groups now pass the relevant permission keys (users.manage, classes.manage, fees.manage, reports.view, roles.manage, etc.).
+- `Sidebar.jsx` gained a `permissionGated` list (Users, Teachers, Parents, Classes, Subjects, Fees, Payments, Expenses, Payroll, Operations, Tax Brackets, Leave Mgmt, Payroll Audit, Reports, Audit Logs, Import, Backup, Roles & Permissions, Settings). Items appear for a user when they hold the matching permission and the path isn't already in their default role list (dedup keeps admin/owner unchanged).
+
+**Toggle verification (the core scenario — enable then disable for a user type):**
+
+| Step | Result |
+|------|--------|
+| Teacher baseline `GET /users` | 403 |
+| Owner grants teacher `users.manage` (+ a "Teacher Leader" custom role with `reports.view`, + direct `fees.manage`) | PUT 200 |
+| Teacher re-login effective permissions | base 8 + `users.manage`, `reports.view`, `fees.manage` |
+| Teacher `GET /users` / `/fees/structures` / `/reports/enrollment` while enabled | 200 / 200 / 200 |
+| Sidebar simulation for that teacher | base items + Users, Fee Structures, Reports |
+| Owner revokes (empty PUT) | 200 |
+| Teacher re-login | back to base 8 only, no admin keys leaked |
+| Teacher routes while disabled | 403 / 403 / 403 |
+| `roles.manage` grant → teacher `/api/roles` | 403 → 200 (granted) → 403 (revoked) |
+
+**Remaining verification surface (not covered by automated runs):** clicking through the UI in a real browser (dialog save flow, user-overrides checkbox toggling, sidebar re-render after a grant + refresh). The API calls the page/hooks make, and the exact request/response shapes, were exercised directly against the running backend.
+
+### Round 3 — Excel data-model backend/frontend plumbing (2026-08-02)
+
+Mapped the five `data/*.xlsx` workbooks into the schema (migration `031_add_import_data_fields.js`, knex Batch 10) and wired fields through backend + frontend so a later seed/import fits cleanly. Nothing seeded yet.
+
+**Backend (migration 031, already applied):**
+- `students`: + father_name, grandfather_name, mother_name, nationality, country_of_birth, region/zone/woreda_of_residence + of_birth, kebele, location_type, disability(+type), economic_status, national_id, parent_status, family_head_gender.
+- `users`: + job_title, qualification, field_of_study. `student_parents`: + education_level.
+- `classes`: + level_group (enum nursery|kg|primary|secondary, default primary).
+- `payroll`: + work_days, absent_days, 8 allowance columns (transport, overtime, back_pay, unit_leader, department_head, housing, account, phone), 8 deduction columns (income_tax, eder, office_loan, cafe_loan, school_pay, pension_employee, pension_employer, ne_starving), bank_account, bank_name.
+- New `enrollments` table keyed (tenant_id, student_id, academic_year_id) — one row per student per year, class_id indexed.
+
+**Backend services/validation:**
+- `students`: create/update schemas accept all new fields (optional). `enroll()` handles `{guardians[], enrollment{}}` (guardian education_level + enrollments row + status history) in a transaction. `findById` attaches guardians + enrollments (left-joined academic_years/classes, ordered by year start desc). New exported `getEnrollments`/`addEnrollment` (upsert via onConflict merge)/`updateEnrollment`/`removeEnrollment`.
+- `students.routes.js`: GET `/:studentId/enrollments` (admin/owner/teacher/student/parent + students.view), POST/PUT/DELETE (admin/owner + students.manage).
+- `academics.routes.js`: added GET `/academics/academic-years` (needed by enrollment UI).
+- `payroll`: `payrollBreakdownFields` in create/update schemas; service `computeTotals()` derives allowances_total/deductions_total/net_pay server-side (create merges them; update reads existing row, merges, recomputes). createPayrollSchema `net_pay` now optional (server computes).
+- `classes`: validation accepts level_group; findAll orders by level_group (nursery→kg→primary→secondary) then grade_level.
+- `users`/`teachers`: userFields+create() carry job_title/qualification/field_of_study; teachers.findTeachers selects them.
+
+**Frontend:**
+- `StudentsPage`: Add/Edit dialog now has full demographics + residence/birth addresses + disability + parent status + family head gender.
+- `StudentDetailPage`: new Demographics + Addresses cards; guardian education level shown; new Enrollments tab (list + add form w/ year, class, grade, section, category, modality, stream, CTE fields, textbooks, instructional language, feeding, meals).
+- `ClassesPage`: level_group select on create + Level column.
+- `UsersPage`: staff fields (job title, qualification, field of study) shown when role is staff, + Job Title column. `TeachersPage`: job title/qualification/field-of-study columns.
+- `PayrollPage`: Add Entry dialog has allowances + deductions breakdown grids, work/absent days, bank account/name, and live-computed totals; entries table has a collapsible per-row breakdown.
+
+**Verification:**
+- Enrollment CRUD smoke-tested via API (POST/GET/PUT/DELETE on `/api/students/:id/enrollments`), student detail includes enrollments.
+- Payroll breakdown create (no net_pay sent) → server computed allowances 350 / deductions 315 / net 1535; update recomputes from merged row (overtime 100 → allowances 400 / net 1585). Test rows deleted afterward.
+- `/api/academics/academic-years` returns years.
+- Backend roles regression: 49/49 checks still pass. Frontend `npm run build` + `oxlint` clean (only pre-existing warnings).

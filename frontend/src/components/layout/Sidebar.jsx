@@ -107,11 +107,37 @@ const navItems = {
   ],
 };
 
+const permissionGated = [
+  { to: "/users", label: "Users", icon: Users, permission: "users.manage" },
+  { to: "/teachers", label: "Teachers", icon: Users, permission: "teachers.manage" },
+  { to: "/parents", label: "Parents", icon: UserPlus, permission: "parents.manage" },
+  { to: "/classes", label: "Classes", icon: Notebook, permission: "classes.manage" },
+  { to: "/subjects", label: "Subjects", icon: BookOpen, permission: "subjects.manage" },
+  { to: "/fees", label: "Fee Structures", icon: DollarSign, permission: "fees.manage" },
+  { to: "/payments", label: "Payments", icon: Wallet, permission: "payments.manage" },
+  { to: "/expenses", label: "Expenses", icon: TrendingDown, permission: "expenses.manage" },
+  { to: "/payroll", label: "Payroll", icon: Users, permission: "payroll.view" },
+  { to: "/operations", label: "Operations", icon: Bus, permission: "operations.manage" },
+  { to: "/tax-settings", label: "Tax Brackets", icon: FileText, permission: "tax-settings.manage" },
+  { to: "/leave-management", label: "Leave Mgmt", icon: CalendarClock, permission: "leave-management.manage" },
+  { to: "/payroll-audit", label: "Payroll Audit", icon: ClipboardList, permission: "payroll-audit.view" },
+  { to: "/reports", label: "Reports", icon: BarChart3, permission: "reports.view" },
+  { to: "/audit-logs", label: "Audit Logs", icon: ShieldAlert, permission: "audit.view" },
+  { to: "/import", label: "Import", icon: Upload, permission: "import.manage" },
+  { to: "/backup", label: "Backup", icon: FileText, permission: "backup.manage" },
+  { to: "/roles", label: "Roles & Permissions", icon: ShieldCheck, permission: "roles.manage" },
+  { to: "/settings", label: "Settings", icon: Settings, permission: "settings.manage" },
+];
+
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
 
   const role = user?.role || "admin";
-  const items = navItems[role] || navItems.admin;
+  const baseItems = navItems[role] || navItems.admin;
+  const perms = user?.permissions || [];
+  const seen = new Set(baseItems.map((i) => i.to));
+  const extra = permissionGated.filter((i) => perms.includes(i.permission) && !seen.has(i.to));
+  const items = [...baseItems, ...extra];
 
   return (
     <aside className="w-64 border-r bg-card flex flex-col h-screen">

@@ -9,7 +9,7 @@ const {
   promoteSchema, graduateSchema, transferSchema,
   documentSchema, medicalSchema,
   disciplineSchema, disciplineUpdateSchema,
-  achievementSchema,
+  achievementSchema, enrollmentSchema,
 } = require('./students.validation');
 
 const router = Router();
@@ -42,6 +42,11 @@ router.post('/:studentId/achievements', requireAccess(['admin', 'owner', 'teache
 router.delete('/:studentId/achievements/:achievementId', requireAccess(['admin', 'owner'], ['students.manage']), controller.removeAchievement);
 
 router.get('/:studentId/status-history', requireAccess(['admin', 'owner', 'teacher', 'parent'], ['students.view']), controller.statusHistory);
+
+router.get('/:studentId/enrollments', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['students.view']), controller.listEnrollments);
+router.post('/:studentId/enrollments', requireAccess(['admin', 'owner'], ['students.manage']), validate(enrollmentSchema), controller.addEnrollment);
+router.put('/:studentId/enrollments/:enrollmentId', requireAccess(['admin', 'owner'], ['students.manage']), validate(enrollmentSchema), controller.updateEnrollment);
+router.delete('/:studentId/enrollments/:enrollmentId', requireAccess(['admin', 'owner'], ['students.manage']), controller.removeEnrollment);
 
 router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['students.view']), controller.list);
 router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['students.view']), controller.getById);

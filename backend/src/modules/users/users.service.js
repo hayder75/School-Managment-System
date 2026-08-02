@@ -6,6 +6,7 @@ const { paginatedResult } = require('../../shared/pagination');
 const userFields = [
   'id', 'tenant_id', 'email', 'first_name', 'last_name',
   'phone', 'avatar', 'role', 'status', 'last_login', 'created_at', 'updated_at',
+  'job_title', 'qualification', 'field_of_study',
 ];
 
 async function create(tenantId, data) {
@@ -18,6 +19,9 @@ async function create(tenantId, data) {
       phone: data.phone || null,
       role: data.role,
       status: 'invited',
+      job_title: data.job_title || null,
+      qualification: data.qualification || null,
+      field_of_study: data.field_of_study || null,
     })
     .returning(userFields);
 

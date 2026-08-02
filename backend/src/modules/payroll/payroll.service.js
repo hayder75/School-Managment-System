@@ -19,8 +19,30 @@ async function removeSalaryGrade(tenantId, id) {
   return db('salary_grades').where({ tenant_id: tenantId, id }).del();
 }
 
+const ALLOWANCE_FIELDS = ['transport_allowance', 'overtime', 'back_pay', 'unit_leader_allowance', 'department_head_allowance', 'housing_allowance', 'account_allowance', 'phone_allowance'];
+const DEDUCTION_FIELDS = ['income_tax', 'eder', 'office_loan', 'cafe_loan', 'school_pay', 'pension_employee', 'pension_employer', 'ne_starving'];
+
+function num(v) {
+  return parseFloat(v || 0) || 0;
+}
+
+function computeTotals(data) {
+  const totals = {};
+  if (ALLOWANCE_FIELDS.some((f) => data[f] != null)) {
+    totals.allowances_total = ALLOWANCE_FIELDS.reduce((sum, f) => sum + num(data[f]), 0);
+  }
+  if (DEDUCTION_FIELDS.some((f) => data[f] != null)) {
+    totals.deductions_total = DEDUCTION_FIELDS.reduce((sum, f) => sum + num(data[f]), 0);
+  }
+  if (data.basic_pay != null || totals.allowances_total != null || totals.deductions_total != null) {
+    totals.net_pay = num(data.basic_pay ?? 0) + (totals.allowances_total ?? num(data.allowances_total)) - (totals.deductions_total ?? num(data.deductions_total));
+  }
+  return totals;
+}
+
 async function createPayroll(tenantId, data) {
-  const [entry] = await db('payroll').insert({ ...data, tenant_id: tenantId }).returning('*');
+  const totals = computeTotals(data);
+  const [entry] = await db('payroll').insert({ ...data, ...totals, tenant_id: tenantId }).returning('*');
   return entry;
 }
 
@@ -39,7 +61,10 @@ async function findAllPayroll(tenantId, { page = 1, limit = 20, month, year, sta
 }
 
 async function updatePayroll(tenantId, id, data) {
-  const [entry] = await db('payroll').where({ tenant_id: tenantId, id }).update(data).returning('*');
+  const existing = await db('payroll').where({ tenant_id: tenantId, id }).first();
+  if (!existing) return undefined;
+  const totals = computeTotals({ ...existing, ...data });
+  const [entry] = await db('payroll').where({ tenant_id: tenantId, id }).update({ ...data, ...totals }).returning('*');
   return entry;
 }
 

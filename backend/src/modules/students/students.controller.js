@@ -170,6 +170,29 @@ async function enrollmentStats(req, res) {
   res.json({ success: true, data: stats });
 }
 
+async function listEnrollments(req, res) {
+  const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
+  if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
+  const enrollments = await studentsService.getEnrollments(req.tenant.id, req.params.studentId);
+  res.json({ success: true, data: enrollments });
+}
+
+async function addEnrollment(req, res) {
+  const enrollment = await studentsService.addEnrollment(req.tenant.id, req.params.studentId, req.validated.body);
+  res.status(201).json({ success: true, data: enrollment });
+}
+
+async function updateEnrollment(req, res) {
+  const enrollment = await studentsService.updateEnrollment(req.tenant.id, req.params.studentId, req.params.enrollmentId, req.validated.body);
+  if (!enrollment) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Enrollment not found' } });
+  res.json({ success: true, data: enrollment });
+}
+
+async function removeEnrollment(req, res) {
+  await studentsService.removeEnrollment(req.tenant.id, req.params.studentId, req.params.enrollmentId);
+  res.json({ success: true, data: null });
+}
+
 module.exports = {
   create, enroll, list, getById, update, remove, listByClass,
   promote, graduate, transfer,
@@ -178,4 +201,5 @@ module.exports = {
   listDiscipline, addDiscipline, updateDiscipline, removeDiscipline,
   listAchievements, addAchievement, removeAchievement,
   statusHistory, enrollmentStats,
+  listEnrollments, addEnrollment, updateEnrollment, removeEnrollment,
 };

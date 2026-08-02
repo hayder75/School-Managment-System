@@ -22,8 +22,10 @@ export default function UsersPage() {
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher" });
+  const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "" });
   const [fieldErrors, setFieldErrors] = useState({});
+
+  const isStaffRole = ["admin", "teacher", "hr", "finance", "support"].includes(form.role);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -31,7 +33,7 @@ export default function UsersPage() {
     try {
       await createUser.mutateAsync(form);
       setOpen(false);
-      setForm({ email: "", first_name: "", last_name: "", role: "teacher" });
+      setForm({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "" });
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -90,6 +92,24 @@ export default function UsersPage() {
                 </Select>
               </div>
               <FieldError errors={fieldErrors} field="role" />
+              {isStaffRole && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Job Title</Label>
+                    <Input value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} placeholder="e.g. Teacher, Director" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Qualification</Label>
+                      <Input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. BA, MA" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Field of Study</Label>
+                      <Input value={form.field_of_study} onChange={(e) => setForm({ ...form, field_of_study: e.target.value })} placeholder="e.g. Mathematics" />
+                    </div>
+                  </div>
+                </>
+              )}
               <Button type="submit" className="w-full" disabled={createUser.isPending}>
                 {createUser.isPending ? "Creating..." : "Create User"}
               </Button>
@@ -137,6 +157,7 @@ export default function UsersPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Job Title</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
@@ -149,6 +170,7 @@ export default function UsersPage() {
                       <TableCell>
                         <Badge variant="outline">{user.role}</Badge>
                       </TableCell>
+                      <TableCell>{user.job_title || "—"}</TableCell>
                       <TableCell>
                         <Badge variant={user.status === "active" ? "success" : user.status === "invited" ? "warning" : "destructive"}>
                           {user.status}
@@ -163,7 +185,7 @@ export default function UsersPage() {
                   ))}
                   {users.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">No users found</TableCell>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">No users found</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

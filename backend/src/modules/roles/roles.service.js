@@ -57,11 +57,19 @@ function systemRole() {
 }
 
 async function createRole(tenantId, { name, description, permission_keys }) {
+  const keys = permission_keys || [];
+  const { ids, found } = await resolvePermissionIds(tenantId, keys);
+  const invalid = keys.filter((k) => !found.has(k));
+  if (invalid.length) {
+    const err = new Error(`Unknown permission key(s): ${invalid.join(', ')}`);
+    err.code = 'INVALID_PERMISSIONS';
+    throw err;
+  }
+
   const [role] = await db('roles')
     .insert({ tenant_id: tenantId, name, description: description || null })
     .returning('*');
 
-  const { ids } = await resolvePermissionIds(tenantId, permission_keys || []);
   if (ids.length) {
     await db('role_permissions')
       .insert(ids.map((permission_id) => ({ tenant_id: tenantId, role_id: role.id, permission_id })));

@@ -15,6 +15,7 @@ async function findAll(tenantId, { page = 1, limit = 20, academic_year_id } = {}
       'users.first_name as teacher_first_name',
       'users.last_name as teacher_last_name'
     )
+    .orderBy(db.raw("CASE classes.level_group WHEN 'nursery' THEN 0 WHEN 'kg' THEN 1 WHEN 'primary' THEN 2 WHEN 'secondary' THEN 3 ELSE 4 END"), 'asc')
     .orderBy('classes.grade_level', 'asc')
     .orderBy('classes.name', 'asc');
 

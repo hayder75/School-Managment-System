@@ -20,6 +20,29 @@ const updateSalaryGradeSchema = z.object({
   }),
 });
 
+const payrollBreakdownFields = {
+  work_days: z.number().int().optional(),
+  absent_days: z.number().int().optional(),
+  transport_allowance: z.number().min(0).optional(),
+  overtime: z.number().min(0).optional(),
+  back_pay: z.number().min(0).optional(),
+  unit_leader_allowance: z.number().min(0).optional(),
+  department_head_allowance: z.number().min(0).optional(),
+  housing_allowance: z.number().min(0).optional(),
+  account_allowance: z.number().min(0).optional(),
+  phone_allowance: z.number().min(0).optional(),
+  income_tax: z.number().min(0).optional(),
+  eder: z.number().min(0).optional(),
+  office_loan: z.number().min(0).optional(),
+  cafe_loan: z.number().min(0).optional(),
+  school_pay: z.number().min(0).optional(),
+  pension_employee: z.number().min(0).optional(),
+  pension_employer: z.number().min(0).optional(),
+  ne_starving: z.number().min(0).optional(),
+  bank_account: z.string().max(50).optional().nullable(),
+  bank_name: z.string().max(150).optional().nullable(),
+};
+
 const createPayrollSchema = z.object({
   body: z.object({
     user_id: z.string().uuid(),
@@ -29,10 +52,11 @@ const createPayrollSchema = z.object({
     basic_pay: z.number().positive(),
     allowances_total: z.number().min(0).default(0),
     deductions_total: z.number().min(0).default(0),
-    net_pay: z.number().positive(),
+    net_pay: z.number().positive().optional(),
     status: z.enum(['pending', 'paid', 'cancelled']).default('pending'),
     paid_date: z.string().optional(),
     remarks: z.string().optional(),
+    ...payrollBreakdownFields,
   }),
 });
 
@@ -41,6 +65,7 @@ const updatePayrollSchema = z.object({
     status: z.enum(['pending', 'paid', 'cancelled']).optional(),
     paid_date: z.string().optional(),
     remarks: z.string().optional(),
+    ...payrollBreakdownFields,
   }),
 });
 
