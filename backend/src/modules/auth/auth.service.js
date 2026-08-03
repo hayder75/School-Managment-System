@@ -116,21 +116,18 @@ async function setPassword(token, password) {
 }
 
 async function getDevUsers() {
-  const demoIds = [
-    '00000000-0000-0000-0000-000000000010',
-    '00000000-0000-0000-0000-000000000011',
-    '00000000-0000-0000-0000-000000000012',
-    '00000000-0000-0000-0000-000000000013',
-    '00000000-0000-0000-0000-000000000014',
-    '00000000-0000-0000-0000-000000000015',
-    '00000000-0000-0000-0000-000000000016',
-  ];
-  const rows = await db('users')
-    .whereIn('id', demoIds)
-    .where('status', 'active')
-    .whereNot('role', 'super_admin')
-    .select('id', 'email', 'first_name', 'last_name', 'role')
-    .orderBy('role');
+  const roles = ['owner', 'admin', 'teacher', 'finance', 'hr', 'support', 'parent', 'student'];
+  const selected = [];
+  for (const role of roles) {
+    const rows = await db('users')
+      .where({ role, status: 'active' })
+      .whereNot('role', 'super_admin')
+      .select('id', 'email', 'first_name', 'last_name', 'role')
+      .orderBy('created_at')
+      .limit(role === 'student' ? 3 : role === 'parent' ? 3 : 5);
+    selected.push(...rows);
+  }
+  const rows = selected;
   const grouped = {};
   for (const r of rows) {
     if (!grouped[r.role]) grouped[r.role] = [];
