@@ -79,10 +79,16 @@ function computeTotals(data) {
   return totals;
 }
 
-async function createPayroll(tenantId, data) {
+async function createPayroll(tenantId, data, performedBy) {
   const enriched = await applyAutoCalculations(tenantId, data);
   const totals = computeTotals(enriched);
   const [entry] = await db('payroll').insert({ ...enriched, ...totals, tenant_id: tenantId }).returning('*');
+  await createPayrollAudit(tenantId, {
+    payroll_id: entry.id,
+    action: 'created',
+    performed_by: performedBy,
+    details: { month: entry.month, year: entry.year, basic_pay: entry.basic_pay, net_pay: entry.net_pay },
+  });
   return entry;
 }
 
@@ -112,7 +118,7 @@ async function findAllPayroll(tenantId, { page = 1, limit = 20, month, year, sta
   return paginatedResult(query, page, limit);
 }
 
-async function updatePayroll(tenantId, id, data) {
+async function updatePayroll(tenantId, id, data, performedBy) {
   const existing = await db('payroll').where({ tenant_id: tenantId, id }).first();
   if (!existing) return undefined;
   const merged = { ...existing, ...data };
@@ -128,6 +134,12 @@ async function updatePayroll(tenantId, id, data) {
   }
   const totals = computeTotals({ ...merged, ...derived });
   const [entry] = await db('payroll').where({ tenant_id: tenantId, id }).update({ ...data, ...derived, ...totals }).returning('*');
+  await createPayrollAudit(tenantId, {
+    payroll_id: entry.id,
+    action: 'updated',
+    performed_by: performedBy,
+    details: { month: entry.month, year: entry.year, basic_pay: entry.basic_pay, net_pay: entry.net_pay, status: entry.status },
+  });
   return entry;
 }
 
@@ -183,10 +195,10 @@ async function rejectLeave(tenantId, id, reason) {
 
 // === PAYROLL AUDIT ===
 async function listPayrollAudits(tenantId) {
-  return db('payroll_audits').where({ tenant_id: tenantId })
+  return db('payroll_audits').where({ 'payroll_audits.tenant_id': tenantId })
     .leftJoin('users', 'payroll_audits.performed_by', 'users.id')
     .select('payroll_audits.*', db.raw("concat(users.first_name, ' ', users.last_name) as performed_by_name"))
-    .orderBy('created_at', 'desc');
+    .orderBy('payroll_audits.created_at', 'desc');
 }
 async function createPayrollAudit(tenantId, data) {
   const [audit] = await db('payroll_audits').insert({ ...data, tenant_id: tenantId }).returning('*');

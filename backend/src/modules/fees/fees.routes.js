@@ -14,9 +14,10 @@ router.use(tenant);
 
 router.get('/my', rbac('student', 'parent'), controller.getMyFees);
 
-router.use(requireAccess(['admin', 'owner', 'finance'], ['fees.manage', 'payments.manage']));
+router.use(requireAccess(['admin', 'owner', 'finance', 'cashier'], ['fees.manage', 'payments.manage']));
 
 router.get('/summary', controller.getSummary);
+router.get('/collection-report', controller.getCollectionReport);
 router.get('/ledger/:studentId', controller.getStudentLedger);
 router.post('/structures', validate(createFeeStructureSchema), controller.createFeeStructure);
 router.get('/structures', controller.listFeeStructures);

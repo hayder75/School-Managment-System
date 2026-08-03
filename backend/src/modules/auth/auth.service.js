@@ -116,7 +116,7 @@ async function setPassword(token, password) {
 }
 
 async function getDevUsers() {
-  const roles = ['owner', 'admin', 'teacher', 'finance', 'hr', 'support', 'parent', 'student'];
+  const roles = ['owner', 'admin', 'teacher', 'finance', 'cashier', 'hr', 'support', 'parent', 'student'];
   const selected = [];
   for (const role of roles) {
     const rows = await db('users')

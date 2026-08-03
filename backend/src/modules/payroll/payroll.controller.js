@@ -22,7 +22,7 @@ async function removeSalaryGrade(req, res) {
 }
 
 async function createPayroll(req, res) {
-  const entry = await payrollService.createPayroll(req.tenant.id, req.validated.body);
+  const entry = await payrollService.createPayroll(req.tenant.id, req.validated.body, req.user.userId);
   res.status(201).json({ success: true, data: entry });
 }
 
@@ -33,7 +33,7 @@ async function listPayroll(req, res) {
 }
 
 async function updatePayroll(req, res) {
-  const entry = await payrollService.updatePayroll(req.tenant.id, req.params.id, req.validated.body);
+  const entry = await payrollService.updatePayroll(req.tenant.id, req.params.id, req.validated.body, req.user.userId);
   if (!entry) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Payroll entry not found' } });
   res.json({ success: true, data: entry });
 }

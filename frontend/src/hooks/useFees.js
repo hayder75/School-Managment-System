@@ -89,3 +89,10 @@ export function useStudentLedger(studentId) {
     enabled: !!studentId,
   });
 }
+
+export function useCollectionReport(params = {}) {
+  return useQuery({
+    queryKey: ["fee-collection-report", params],
+    queryFn: () => api.get("/fees/collection-report", { params }),
+  });
+}

@@ -3,7 +3,7 @@ import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { usePayments, useCreatePayment, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
-import { useUsers } from "../hooks/useUsers";
+import { useStudents } from "../hooks/useStudents";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -12,16 +12,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2, Search, X } from "lucide-react";
 
 export default function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [filterStudentId, setFilterStudentId] = useState("");
+  const [filterCollectorId, setFilterCollectorId] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterFeeId, setFilterFeeId] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const { data, isLoading } = usePayments(
-    filterStudentId ? { page, limit: 20, student_id: filterStudentId } : { page, limit: 20 }
+    {
+      page,
+      limit: 20,
+      ...(filterStudentId ? { student_id: filterStudentId } : {}),
+      ...(filterCollectorId ? { collected_by: filterCollectorId } : {}),
+      ...(filterMonth ? { month: filterMonth, year: new Date().getFullYear() } : {}),
+      ...(filterFeeId ? { fee_structure_id: filterFeeId } : {}),
+      ...(filterStatus ? { status: filterStatus } : {}),
+    }
   );
   const { data: summaryData } = usePaymentSummary();
-  const { data: studentsData } = useUsers({ role: "student", limit: 500 });
   const { data: feesData } = useFeeStructures({ limit: 200 });
   const { data: ledgerData } = useStudentLedger(filterStudentId);
   const createPayment = useCreatePayment();
@@ -31,13 +42,23 @@ export default function PaymentsPage() {
   const [editPayment, setEditPayment] = useState(null);
   const [form, setForm] = useState({ student_id: "", fee_structure_id: "", amount_paid: "", payment_method: "cash", remarks: "" });
   const [fieldErrors, setFieldErrors] = useState({});
+  const [studentSearch, setStudentSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const { data: searchData, isLoading: searching } = useStudents(
+    { search: studentSearch || filterSearch, limit: 20 },
+    { enabled: (studentSearch || filterSearch).trim().length > 0 }
+  );
 
   const payments = data?.data || [];
   const meta = data?.meta || {};
-  const students = studentsData?.data || [];
   const fees = feesData?.data || [];
   const summary = summaryData?.data || {};
   const ledger = ledgerData?.data || {};
+  const searchResults = searchData?.data || [];
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -64,8 +85,18 @@ export default function PaymentsPage() {
       payment_method: p.payment_method || "cash",
       remarks: p.remarks || "",
     });
+    setSelectedStudent({ user_id: p.student_id, first_name: p.first_name, last_name: p.last_name });
+    setStudentSearch("");
     setFieldErrors({});
     setOpen(true);
+  }
+
+  function selectStudent(s) {
+    setSelectedStudent(s);
+    setForm({ ...form, student_id: s.user_id });
+    setStudentSearch("");
+    setSearchOpen(false);
+    setFieldErrors((e) => ({ ...e, student_id: undefined }));
   }
 
   async function handleEdit(e) {
@@ -111,22 +142,71 @@ export default function PaymentsPage() {
           <h1 className="text-3xl font-bold">Payments</h1>
           <p className="text-muted-foreground">Record and track student payments</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditPayment(null); }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditPayment(null); setSelectedStudent(null); setStudentSearch(""); setSearchOpen(false); } }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Record Payment</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader><DialogTitle>{editPayment ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
             <form onSubmit={editPayment ? handleEdit : handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
                 <Label>Student</Label>
-                <Select value={form.student_id} onValueChange={(v) => setForm({ ...form, student_id: v })} disabled={!!editPayment}>
-                  <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
-                  <SelectContent>
-                    {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {editPayment ? (
+                  <Input value={`${selectedStudent?.first_name || ""} ${selectedStudent?.last_name || ""}`} disabled />
+                ) : (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : studentSearch}
+                      onChange={(e) => {
+                        setStudentSearch(e.target.value);
+                        setSelectedStudent(null);
+                        setForm({ ...form, student_id: "" });
+                        setSearchOpen(true);
+                        setFieldErrors((err) => ({ ...err, student_id: undefined }));
+                      }}
+                      onFocus={() => setSearchOpen(true)}
+                      onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                      placeholder="Search by name, student number, or guardian phone…"
+                      className="pl-9 pr-9"
+                    />
+                    {studentSearch && (
+                      <button
+                        type="button"
+                        onClick={() => { setStudentSearch(""); setSearchOpen(true); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                    {searchOpen && !selectedStudent && (
+                      <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-md border bg-background shadow-lg">
+                        {searching ? (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                        ) : studentSearch.trim() === "" ? (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">Type to search by name, number, or guardian phone</p>
+                        ) : searchResults.length === 0 ? (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">No students found</p>
+                        ) : (
+                          searchResults.map((s) => (
+                            <button
+                              type="button"
+                              key={s.user_id}
+                              onMouseDown={(e) => { e.preventDefault(); selectStudent(s); }}
+                              className="w-full text-left px-3 py-2 hover:bg-muted flex flex-col gap-0.5"
+                            >
+                              <span className="text-sm font-medium">{s.first_name} {s.last_name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {[s.student_number, s.class_name, s.phone].filter(Boolean).join(" · ")}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <FieldError errors={fieldErrors} field="student_id" />
               <div className="space-y-2">
@@ -190,6 +270,50 @@ export default function PaymentsPage() {
         </Card>
       </div>
 
+      {summary.by_collector?.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Collected By</CardTitle>
+            {filterCollectorId && (
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => { setFilterCollectorId(""); setPage(1); }}>
+                <X className="h-3 w-3 mr-1" /> Clear collector filter
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Collector</TableHead>
+                  <TableHead>Transactions</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Period</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {summary.by_collector.map((c) => (
+                  <TableRow
+                    key={c.collected_by || "unassigned"}
+                    className={filterCollectorId === c.collected_by ? "bg-muted cursor-pointer" : "cursor-pointer"}
+                    onClick={() => { setFilterCollectorId(c.collected_by); setPage(1); }}
+                  >
+                    <TableCell className="font-medium">
+                      {c.collector_name}
+                      {filterCollectorId === c.collected_by && <span className="ml-2 text-xs text-muted-foreground">(filtered)</span>}
+                    </TableCell>
+                    <TableCell>{c.transaction_count}</TableCell>
+                    <TableCell>{c.total.toLocaleString()}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {c.first_paid_date ? `${new Date(c.first_paid_date).toLocaleDateString()} – ${new Date(c.last_paid_date).toLocaleDateString()}` : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {ledger.structures?.length > 0 && (
         <Card>
           <CardHeader>
@@ -240,14 +364,79 @@ export default function PaymentsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <CardTitle>Payment History</CardTitle>
-            <Select value={filterStudentId} onValueChange={(v) => { setFilterStudentId(v); setPage(1); }}>
-              <SelectTrigger className="w-64"><SelectValue placeholder="All students" /></SelectTrigger>
-              <SelectContent>
-                {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={filterMonth} onValueChange={(v) => { setFilterMonth(v === "all" ? "" : v); setPage(1); }}>
+                <SelectTrigger className="w-32"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All months</SelectItem>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>{new Date(0, i).toLocaleString("en", { month: "long" })}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterFeeId} onValueChange={(v) => { setFilterFeeId(v === "all" ? "" : v); setPage(1); }}>
+                <SelectTrigger className="w-44"><SelectValue placeholder="Fee" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All fees</SelectItem>
+                  {fees.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v === "all" ? "" : v); setPage(1); }}>
+                <SelectTrigger className="w-32"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+              {(filterStudentId || filterCollectorId || filterMonth || filterFeeId || filterStatus) && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  setFilterStudentId(""); setFilterCollectorId(""); setFilterMonth("");
+                  setFilterFeeId(""); setFilterStatus(""); setFilterSearch(""); setPage(1);
+                }}>
+                  <X className="h-3 w-3 mr-1" /> Clear filters
+                </Button>
+              )}
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={filterSearch}
+                  onChange={(e) => { setFilterSearch(e.target.value); setFilterOpen(true); }}
+                  onFocus={() => setFilterOpen(true)}
+                  onBlur={() => setTimeout(() => setFilterOpen(false), 150)}
+                  placeholder="Filter by student, number, or guardian phone…"
+                  className="pl-9"
+                />
+                {filterOpen && filterSearch.trim() !== "" && (
+                  <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-md border bg-background shadow-lg">
+                    {searching ? (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                    ) : searchResults.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">No students found</p>
+                    ) : (
+                      searchResults.map((s) => (
+                        <button
+                          type="button"
+                          key={s.user_id}
+                          onMouseDown={(e) => { e.preventDefault(); setFilterStudentId(s.user_id); setPage(1); setFilterSearch(`${s.first_name} ${s.last_name}`); setFilterOpen(false); }}
+                          className="w-full text-left px-3 py-2 hover:bg-muted flex flex-col gap-0.5"
+                        >
+                          <span className="text-sm font-medium">{s.first_name} {s.last_name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {[s.student_number, s.class_name, s.phone].filter(Boolean).join(" · ")}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -261,6 +450,7 @@ export default function PaymentsPage() {
                     <TableHead>Student</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Method</TableHead>
+                    <TableHead>Collected By</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="w-32">Actions</TableHead>
@@ -272,6 +462,7 @@ export default function PaymentsPage() {
                       <TableCell className="font-medium">{p.first_name} {p.last_name}</TableCell>
                       <TableCell>{parseFloat(p.amount_paid || 0).toLocaleString()}</TableCell>
                       <TableCell className="capitalize">{p.payment_method}</TableCell>
+                      <TableCell>{p.collector_first_name ? `${p.collector_first_name} ${p.collector_last_name}` : "—"}</TableCell>
                       <TableCell><Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge></TableCell>
                       <TableCell>{p.paid_date ? new Date(p.paid_date).toLocaleDateString() : "—"}</TableCell>
                       <TableCell>

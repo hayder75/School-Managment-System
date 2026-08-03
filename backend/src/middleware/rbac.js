@@ -1,5 +1,5 @@
 const rolesHierarchy = {
-  super_admin: ['super_admin', 'owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'support'],
+  super_admin: ['super_admin', 'owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'support'],
   owner: ['owner', 'admin'],
   admin: ['admin'],
   teacher: ['teacher'],
@@ -7,6 +7,7 @@ const rolesHierarchy = {
   parent: ['parent'],
   hr: ['hr'],
   finance: ['finance'],
+  cashier: ['cashier'],
 };
 
 function rbac(...allowedRoles) {

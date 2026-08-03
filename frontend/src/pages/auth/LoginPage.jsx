@@ -10,6 +10,7 @@ const ROLE_LABELS = {
   admin: "Administrator",
   teacher: "Teacher",
   finance: "Finance",
+  cashier: "Cashier",
   hr: "HR Officer",
   support: "Support Staff",
   parent: "Parent",

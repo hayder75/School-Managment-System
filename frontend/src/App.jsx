@@ -21,6 +21,7 @@ const TimetablePage = lazy(() => import("./pages/TimetablePage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const FeeStructuresPage = lazy(() => import("./pages/FeeStructuresPage"));
 const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
+const CollectionReportPage = lazy(() => import("./pages/CollectionReportPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
 const PayrollPage = lazy(() => import("./pages/PayrollPage"));
 const SalaryRegisterPage = lazy(() => import("./pages/SalaryRegisterPage"));
@@ -102,7 +103,7 @@ function AppContent() {
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "cashier"]} />}>
             <Route path="/students" element={<StudentsPage />} />
             <Route path="/students/:id" element={<StudentDetailPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
@@ -118,10 +119,14 @@ function AppContent() {
             <Route path="/chat" element={<ChatPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance"]} permissions={["fees.manage", "payments.manage"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier"]} permissions={["fees.manage", "payments.manage"]} />}>
             <Route path="/fees" element={<FeeStructuresPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier"]} permissions={["fees.manage", "payments.manage", "reports.view"]} />}>
+            <Route path="/reports/fee-collection" element={<CollectionReportPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr"]} permissions={["payroll.view", "reports.view"]} />}>

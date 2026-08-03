@@ -64,7 +64,7 @@ async function removeFeeStructure(req, res) {
 
 async function createPayment(req, res) {
   try {
-    const payment = await feeService.createPayment(req.tenant.id, req.validated.body);
+    const payment = await feeService.createPayment(req.tenant.id, req.validated.body, req.user.userId);
     res.status(201).json({ success: true, data: payment });
   } catch (err) {
     if (err.code === 'STUDENT_NOT_FOUND') {
@@ -78,8 +78,14 @@ async function createPayment(req, res) {
 }
 
 async function listPayments(req, res) {
-  const { page, limit, student_id, status } = req.query;
-  const result = await feeService.findAllPayments(req.tenant.id, { page, limit, student_id, status });
+  const { page, limit, student_id, status, collected_by, fee_structure_id, payment_method, month, year } = req.query;
+  const isCashier = req.user.role === 'cashier';
+  const scopedCollector = isCashier ? req.user.userId : collected_by;
+  const result = await feeService.findAllPayments(req.tenant.id, {
+    page, limit, student_id, status,
+    collected_by: scopedCollector,
+    fee_structure_id, payment_method, month, year,
+  });
   res.json({ success: true, ...result });
 }
 
@@ -108,8 +114,15 @@ async function removePayment(req, res) {
 }
 
 async function getSummary(req, res) {
-  const summary = await feeService.getPaymentSummary(req.tenant.id);
+  const isCashier = req.user.role === 'cashier';
+  const summary = await feeService.getPaymentSummary(req.tenant.id, isCashier ? req.user.userId : null);
   res.json({ success: true, data: summary });
+}
+
+async function getCollectionReport(req, res) {
+  const { month, year, fee_structure_id, class_id } = req.query;
+  const report = await feeService.getCollectionReport(req.tenant.id, { month, year, fee_structure_id, class_id });
+  res.json({ success: true, data: report });
 }
 
 async function getStudentLedger(req, res) {
@@ -121,6 +134,6 @@ async function getStudentLedger(req, res) {
 module.exports = {
   createFeeStructure, listFeeStructures, getFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, updatePayment, listPayments, getPaymentById, removePayment, getSummary,
-  getStudentLedger,
+  getStudentLedger, getCollectionReport,
   getMyFees,
 };

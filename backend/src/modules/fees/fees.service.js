@@ -28,7 +28,7 @@ async function removeFeeStructure(tenantId, id) {
   return db('fee_structures').where({ tenant_id: tenantId, id }).del();
 }
 
-async function createPayment(tenantId, data) {
+async function createPayment(tenantId, data, collectedBy) {
   const { student_id } = data;
   const student = await db('users')
     .join('students', 'students.user_id', 'users.id')
@@ -48,7 +48,9 @@ async function createPayment(tenantId, data) {
       throw err;
     }
   }
-  const [payment] = await db('payments').insert({ ...data, tenant_id: tenantId }).returning('*');
+  const [payment] = await db('payments')
+    .insert({ ...data, tenant_id: tenantId, collected_by: collectedBy || null })
+    .returning('*');
   await notifyPaymentRecorded(tenantId, payment);
   return payment;
 }
@@ -88,15 +90,25 @@ async function updatePayment(tenantId, id, data) {
   return payment;
 }
 
-async function findAllPayments(tenantId, { page = 1, limit = 20, student_id, status } = {}) {
+async function findAllPayments(tenantId, { page = 1, limit = 20, student_id, status, collected_by, fee_structure_id, payment_method, month, year } = {}) {
   let query = db('payments')
     .where({ 'payments.tenant_id': tenantId })
     .leftJoin('users', 'payments.student_id', 'users.id')
     .leftJoin('fee_structures', 'payments.fee_structure_id', 'fee_structures.id')
-    .select('payments.*', 'users.first_name', 'users.last_name', 'fee_structures.name as fee_name')
+    .leftJoin('users as collectors', 'payments.collected_by', 'collectors.id')
+    .select(
+      'payments.*', 'users.first_name', 'users.last_name',
+      'fee_structures.name as fee_name',
+      'collectors.first_name as collector_first_name', 'collectors.last_name as collector_last_name'
+    )
     .orderBy('payments.created_at', 'desc');
   if (student_id) query = query.where('payments.student_id', student_id);
   if (status) query = query.where('payments.status', status);
+  if (collected_by) query = query.where('payments.collected_by', collected_by);
+  if (fee_structure_id) query = query.where('payments.fee_structure_id', fee_structure_id);
+  if (payment_method) query = query.where('payments.payment_method', payment_method);
+  if (month) query = query.whereRaw('EXTRACT(MONTH FROM payments.paid_date) = ?', [parseInt(month, 10)]);
+  if (year) query = query.whereRaw('EXTRACT(YEAR FROM payments.paid_date) = ?', [parseInt(year, 10)]);
   return paginatedResult(query, page, limit);
 }
 
@@ -112,12 +124,48 @@ async function removePayment(tenantId, id) {
   return db('payments').where({ tenant_id: tenantId, id }).del();
 }
 
-async function getPaymentSummary(tenantId) {
-  const totalCollected = await db('payments').where({ tenant_id: tenantId }).sum('amount_paid as total').first();
-  const outstanding = await db('payments').where({ tenant_id: tenantId }).whereIn('status', ['pending', 'partial', 'overdue']).sum('balance as total').first();
+async function getPaymentSummary(tenantId, collectorUserId = null) {
+  let totalCollected = db('payments').where({ tenant_id: tenantId });
+  let outstanding = db('payments').where({ tenant_id: tenantId });
+  let byCollector = db('payments')
+    .where({ 'payments.tenant_id': tenantId, 'payments.status': 'paid' })
+    .leftJoin('users as collectors', 'payments.collected_by', 'collectors.id');
+
+  if (collectorUserId) {
+    totalCollected = totalCollected.where('payments.collected_by', collectorUserId);
+    outstanding = outstanding.where('payments.collected_by', collectorUserId);
+    byCollector = byCollector.where('payments.collected_by', collectorUserId);
+  }
+
+  const [totalCollectedRes] = await totalCollected.clone().sum('amount_paid as total');
+  const [outstandingRes] = await outstanding.clone().whereIn('status', ['pending', 'partial', 'overdue']).sum('balance as total');
+
+  byCollector = await byCollector
+    .groupBy('payments.collected_by', 'collectors.first_name', 'collectors.last_name')
+    .select(
+      'payments.collected_by',
+      'collectors.first_name as collector_first_name',
+      'collectors.last_name as collector_last_name',
+      db.raw('SUM(payments.amount_paid) as total'),
+      db.raw('COUNT(*) as transaction_count'),
+      db.raw('MIN(payments.paid_date) as first_paid_date'),
+      db.raw('MAX(payments.paid_date) as last_paid_date')
+    )
+    .orderByRaw('SUM(payments.amount_paid) DESC');
+
   return {
-    total_collected: parseFloat(totalCollected?.total || 0),
-    outstanding: parseFloat(outstanding?.total || 0),
+    total_collected: parseFloat(totalCollectedRes?.total || 0),
+    outstanding: parseFloat(outstandingRes?.total || 0),
+    by_collector: byCollector.map((c) => ({
+      collected_by: c.collected_by,
+      collector_name: c.collector_first_name
+        ? `${c.collector_first_name} ${c.collector_last_name}`
+        : 'Unassigned',
+      total: parseFloat(c.total || 0),
+      transaction_count: parseInt(c.transaction_count || 0, 10),
+      first_paid_date: c.first_paid_date || null,
+      last_paid_date: c.last_paid_date || null,
+    })),
   };
 }
 
@@ -187,8 +235,142 @@ async function getStudentLedger(tenantId, studentId) {
   };
 }
 
+async function getCollectionReport(tenantId, { month, year, fee_structure_id, class_id } = {}) {
+  const m = parseInt(month, 10) || new Date().getMonth() + 1;
+  const y = parseInt(year, 10) || new Date().getFullYear();
+
+  const activeFees = await db('fee_structures').where({ tenant_id: tenantId, is_active: true }).orderBy('name');
+  const selectedFees = fee_structure_id
+    ? activeFees.filter((f) => f.id === fee_structure_id)
+    : activeFees;
+  const feeName = selectedFees.length === 1 ? selectedFees[0].name : 'All Fees';
+
+  const classes = await db('classes')
+    .where({ tenant_id: tenantId })
+    .orderBy(['level_group', 'grade_level', 'section']);
+
+  const classIdList = classes.map((c) => c.id);
+  const applicableFeeIds = selectedFees.map((f) => f.id);
+
+  let studentsQuery = db('students')
+    .where({ 'students.tenant_id': tenantId, 'students.status': 'active' })
+    .leftJoin('users', 'students.user_id', 'users.id')
+    .select(
+      'students.id', 'students.user_id', 'students.student_number',
+      'students.class_id', 'students.father_name', 'students.mother_name',
+      'users.first_name', 'users.last_name', 'users.phone'
+    );
+  if (class_id) studentsQuery = studentsQuery.where('students.class_id', class_id);
+  const students = await studentsQuery;
+
+  const parentPhones = await db('student_parents')
+    .where({ 'student_parents.tenant_id': tenantId })
+    .leftJoin('users as parents', 'parents.id', 'student_parents.parent_id')
+    .where('parents.role', 'parent')
+    .select('student_parents.student_id', 'parents.phone');
+  const phoneByStudent = {};
+  for (const p of parentPhones) {
+    if (!phoneByStudent[p.student_id]) phoneByStudent[p.student_id] = p.phone;
+  }
+
+  let paymentsQuery = db('payments')
+    .where({ 'payments.tenant_id': tenantId, 'payments.status': 'paid' })
+    .whereRaw('EXTRACT(MONTH FROM payments.paid_date) = ?', [m])
+    .whereRaw('EXTRACT(YEAR FROM payments.paid_date) = ?', [y]);
+  if (fee_structure_id) paymentsQuery = paymentsQuery.where('payments.fee_structure_id', fee_structure_id);
+  const payments = await paymentsQuery;
+
+  const paidByStudent = {};
+  for (const p of payments) {
+    const key = p.student_id;
+    if (!paidByStudent[key]) paidByStudent[key] = { total: 0, count: 0, last_date: null, fee_ids: new Set() };
+    paidByStudent[key].total += parseFloat(p.amount_paid || 0);
+    paidByStudent[key].count += 1;
+    if (p.fee_structure_id) paidByStudent[key].fee_ids.add(p.fee_structure_id);
+    if (!paidByStudent[key].last_date || new Date(p.paid_date) > new Date(paidByStudent[key].last_date)) {
+      paidByStudent[key].last_date = p.paid_date;
+    }
+  }
+
+  const studentsByClass = {};
+  for (const c of classIdList) studentsByClass[c] = [];
+
+  const reportClasses = [];
+  let totals = { total_students: 0, collected: 0, unpaid: 0, partial: 0, expected: 0 };
+
+  for (const cls of classes) {
+    const clsStudents = students.filter((s) => s.class_id === cls.id);
+    const rows = [];
+    let classCollected = 0, classUnpaid = 0, classPartial = 0, classExpected = 0;
+
+    for (const s of clsStudents) {
+      let expected = 0;
+      for (const f of selectedFees) {
+        if (f.class_id && f.class_id !== cls.id) continue;
+        expected += parseFloat(f.amount || 0);
+      }
+      const paidInfo = paidByStudent[s.user_id] || { total: 0, count: 0, last_date: null };
+      const paid = paidInfo.total;
+      const balance = Math.max(0, expected - paid);
+      const status = expected === 0 ? 'n/a' : paid >= expected ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+      if (status === 'paid') classCollected += 1;
+      else if (status === 'unpaid') classUnpaid += 1;
+      else if (status === 'partial') classPartial += 1;
+      classExpected += expected;
+
+      rows.push({
+        user_id: s.user_id,
+        student_number: s.student_number,
+        first_name: s.first_name,
+        last_name: s.last_name,
+        guardian_phone: phoneByStudent[s.id] || s.phone || null,
+        expected: parseFloat(expected.toFixed(2)),
+        paid: parseFloat(paid.toFixed(2)),
+        balance: parseFloat(balance.toFixed(2)),
+        status,
+        last_paid_date: paidInfo.last_date,
+      });
+    }
+
+    const classTotal = rows.reduce((sum, r) => sum + r.paid, 0);
+    reportClasses.push({
+      class_id: cls.id,
+      class_name: cls.name,
+      level_group: cls.level_group,
+      student_count: rows.length,
+      collected_count: classCollected,
+      unpaid_count: classUnpaid,
+      partial_count: classPartial,
+      expected: parseFloat(classExpected.toFixed(2)),
+      collected: parseFloat(classTotal.toFixed(2)),
+      students: rows,
+    });
+
+    totals.total_students += rows.length;
+    totals.collected += classTotal;
+    totals.unpaid += classUnpaid;
+    totals.partial += classPartial;
+    totals.expected += classExpected;
+  }
+
+  return {
+    month: m,
+    year: y,
+    fee_name: feeName,
+    classes: reportClasses,
+    totals: {
+      total_students: totals.total_students,
+      collected: parseFloat(totals.collected.toFixed(2)),
+      unpaid_count: totals.unpaid,
+      partial_count: totals.partial,
+      paid_count: totals.total_students - totals.unpaid - totals.partial,
+      expected: parseFloat(totals.expected.toFixed(2)),
+    },
+  };
+}
+
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
-  getStudentLedger,
+  getStudentLedger, getCollectionReport,
 };

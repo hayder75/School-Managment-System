@@ -104,7 +104,21 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, status, searc
     query = query.where(function () {
       this.where('users.first_name', 'ilike', `%${search}%`)
         .orWhere('users.last_name', 'ilike', `%${search}%`)
-        .orWhere('students.student_number', 'ilike', `%${search}%`);
+        .orWhere('users.phone', 'ilike', `%${search}%`)
+        .orWhere('students.student_number', 'ilike', `%${search}%`)
+        .orWhere('students.father_name', 'ilike', `%${search}%`)
+        .orWhere('students.mother_name', 'ilike', `%${search}%`)
+        .orWhereExists(function () {
+          this.select(db.raw(1))
+            .from('student_parents')
+            .join('users as parents', 'parents.id', 'student_parents.parent_id')
+            .whereRaw('student_parents.student_id = students.id')
+            .where(function () {
+              this.where('parents.first_name', 'ilike', `%${search}%`)
+                .orWhere('parents.last_name', 'ilike', `%${search}%`)
+                .orWhere('parents.phone', 'ilike', `%${search}%`);
+            });
+        });
     });
   }
   return paginatedResult(query, page, limit);

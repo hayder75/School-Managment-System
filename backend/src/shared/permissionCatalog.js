@@ -48,6 +48,10 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'dashboard.view', 'fees.manage', 'payments.manage', 'expenses.manage',
     'payroll.view', 'reports.view', 'announcements.view',
   ],
+  cashier: [
+    'dashboard.view', 'students.view', 'students.manage', 'fees.manage',
+    'payments.manage', 'reports.view', 'announcements.view',
+  ],
   hr: [
     'dashboard.view', 'users.manage', 'payroll.view', 'reports.view',
     'tax-settings.manage', 'leave-management.manage', 'payroll-audit.view', 'announcements.view',

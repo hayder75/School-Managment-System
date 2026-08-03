@@ -7,7 +7,7 @@
  *  - students (2,128 primary + 759 KG) as user accounts + student records
  *  - enrollments (2025/2026), classes, subjects, teacher_subjects
  *  - parents (deduped by guardian phone) + student_parents links
- *  - fee structures, salary grades, tax brackets, June 2018 payroll
+ *  - fee structures, salary grades, tax brackets, payroll (all 12 months of 2026)
  *
  * Usage: node scripts/seed-mount-olive.js
  */
@@ -27,6 +27,43 @@ function uid(seed) {
 
 function norm(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function levenshtein(a, b) {
+  a = String(a || '').toLowerCase();
+  b = String(b || '').toLowerCase();
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const dp = Array.from({ length: m + 1 }, (_, i) => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+function nameParts(name) {
+  const parts = String(name || '').split(' ');
+  return { first: norm(parts[0] || ''), last: norm(parts.slice(1).join('') || '') };
+}
+
+function namesFuzzyMatch(a, b) {
+  if (!a || !b) return false;
+  if (norm(a) === norm(b)) return true;
+  const pa = nameParts(a), pb = nameParts(b);
+  if (!pa.first || !pb.first || !pa.last || !pb.last) return false;
+  const dFirst = levenshtein(pa.first, pb.first);
+  const dLast = levenshtein(pa.last, pb.last);
+  return Math.min(dFirst, dLast) <= 1 && Math.max(dFirst, dLast) <= 2;
 }
 
 function load(name) {
@@ -201,6 +238,13 @@ async function main() {
       if (opts.classes) existing.classes = existing.classes || opts.classes;
       return existing;
     }
+    for (const [k, existing] of staffByNorm) {
+      if (!namesFuzzyMatch(name, existing.name)) continue;
+      if (!existing.role || existing.role === 'support') existing.role = opts.role || existing.role;
+      if (opts.subject) existing.subject = existing.subject || opts.subject;
+      if (opts.classes) existing.classes = existing.classes || opts.classes;
+      return existing;
+    }
     const rec = {
       name,
       first: name.split(' ')[0] || name,
@@ -252,7 +296,7 @@ async function main() {
 
   // Supportive
   const supportRoleByPosition = {
-    'Finance head': 'finance', 'Ass finance head': 'finance', 'cashier': 'finance', 'Accountant': 'finance',
+    'Finance head': 'finance', 'Ass finance head': 'finance', 'cashier': 'cashier', 'Accountant': 'finance',
     'Human resource': 'hr', 'Librerian': 'support', 'store keeper': 'support', 'Secretary': 'support',
     'Guard': 'support', 'Janitor': 'support', 'copier': 'support', 'Ass/ teacher': 'teacher',
   };
@@ -290,6 +334,15 @@ async function main() {
   const staffUserIdByNorm = new Map(staffUsers.map((u) => [norm(u.first_name + ' ' + u.last_name), u.id]));
   // Also map staff records to their user id
   for (const s of staffRows) s.user_id = staffUserIdByNorm.get(norm(s.name));
+  function resolveStaffUser(name) {
+    if (!name) return null;
+    const exact = staffUserIdByNorm.get(norm(name));
+    if (exact) return exact;
+    for (const s of staffRows) {
+      if (namesFuzzyMatch(name, s.name)) return s.user_id;
+    }
+    return null;
+  }
   console.log(`  staff users created: ${staffUsers.length}`);
 
   // ── 6. Salary grades + tax brackets ──
@@ -531,9 +584,10 @@ async function main() {
   await knex.batchInsert('fee_structures', feeRows, 20);
   console.log(`  fee structures created: ${feeRows.length}`);
 
-  // ── 11. Payroll (June 2018) ──
-  console.log('Seeding payroll (June 2018)…');
+  // ── 11. Payroll (replicated across all 12 months of 2026) ──
+  console.log('Seeding payroll (all months, 2026)…');
   const salaryGradeIdByBasic = new Map(salaryGradeRows.map((g) => [g.basic_salary, g.id]));
+  const PAYROLL_YEAR = 2026;
   const payrollRows = [];
   let paySeq = 0;
   const payrollByUser = new Map();
@@ -541,8 +595,7 @@ async function main() {
     for (const p of payrollJson[sheet]) {
       if (!p.name) continue;
       paySeq += 1;
-      const staff = staffByNorm.get(norm(p.name));
-      const userId = staff ? staff.user_id : staffUserIdByNorm.get(norm(p.name));
+      const userId = resolveStaffUser(p.name);
       if (!userId) {
         console.warn(`  !! no user for payroll name: ${p.name} (${sheet})`);
         continue;
@@ -562,43 +615,59 @@ async function main() {
       const netPay = p.net_pay != null ? p.net_pay : gross - deductions;
       const allowances = (p.transport_allowance || 0) + (p.housing_allowance || 0) + (p.account_allowance || 0) + (p.phone_allowance || 0);
 
-      const row = {
-        id: uid(`payroll-${p.name}-${sheet}`), tenant_id: TID,
-        user_id: userId,
-        salary_grade_id: salaryGradeIdByBasic.get(salaryGradeRows.reduce((a, b) =>
-          Math.abs(a.basic_salary - basic) < Math.abs(b.basic_salary - basic) ? a : b).basic_salary) || null,
-        month: 6, year: 2018,
-        basic_pay: basic,
-        allowances_total: Math.round(allowances * 100) / 100,
-        deductions_total: Math.round(deductions * 100) / 100,
-        net_pay: Math.round(netPay * 100) / 100,
-        income_tax: Math.round(incomeTax * 100) / 100,
-        eder: p.eder || 0,
-        office_loan: p.office_loan || 0,
-        cafe_loan: p.cafe_loan || 0,
-        school_pay: p.school_pay || 0,
-        pension_employee: Math.round(pensionEmp * 100) / 100,
-        pension_employer: Math.round(pensionEmp2 * 100) / 100,
-        ne_starving: p.ne_starving || 0,
-        transport_allowance: p.transport_allowance || 0,
-        overtime: p.overtime || 0,
-        back_pay: p.back_pay || 0,
-        unit_leader_allowance: p.unit_leader_allowance || 0,
-        department_head_allowance: p.department_head_allowance || 0,
-        housing_allowance: p.housing_allowance || 0,
-        account_allowance: p.account_allowance || 0,
-        phone_allowance: p.phone_allowance || 0,
-        work_days: p.work_days != null ? Math.round(p.work_days) : null,
-        absent_days: p.absent_days != null ? Math.round(p.absent_days) : null,
-        status: 'paid',
-        paid_date: '2018-06-30',
-      };
-      payrollRows.push(row);
-      payrollByUser.set(userId, row);
+      for (let month = 1; month <= 12; month += 1) {
+        const row = {
+          id: uid(`payroll-${p.name}-${sheet}-${month}`), tenant_id: TID,
+          user_id: userId,
+          salary_grade_id: salaryGradeIdByBasic.get(salaryGradeRows.reduce((a, b) =>
+            Math.abs(a.basic_salary - basic) < Math.abs(b.basic_salary - basic) ? a : b).basic_salary) || null,
+          month, year: PAYROLL_YEAR,
+          basic_pay: basic,
+          allowances_total: Math.round(allowances * 100) / 100,
+          deductions_total: Math.round(deductions * 100) / 100,
+          net_pay: Math.round(netPay * 100) / 100,
+          income_tax: Math.round(incomeTax * 100) / 100,
+          eder: p.eder || 0,
+          office_loan: p.office_loan || 0,
+          cafe_loan: p.cafe_loan || 0,
+          school_pay: p.school_pay || 0,
+          pension_employee: Math.round(pensionEmp * 100) / 100,
+          pension_employer: Math.round(pensionEmp2 * 100) / 100,
+          ne_starving: p.ne_starving || 0,
+          transport_allowance: p.transport_allowance || 0,
+          overtime: p.overtime || 0,
+          back_pay: p.back_pay || 0,
+          unit_leader_allowance: p.unit_leader_allowance || 0,
+          department_head_allowance: p.department_head_allowance || 0,
+          housing_allowance: p.housing_allowance || 0,
+          account_allowance: p.account_allowance || 0,
+          phone_allowance: p.phone_allowance || 0,
+          work_days: p.work_days != null ? Math.round(p.work_days) : null,
+          absent_days: p.absent_days != null ? Math.round(p.absent_days) : null,
+          status: 'paid',
+          paid_date: `${PAYROLL_YEAR}-${String(month).padStart(2, '0')}-28`,
+        };
+        payrollRows.push(row);
+      }
+      payrollByUser.set(userId, true);
     }
   }
   await knex.batchInsert('payroll', payrollRows, 100);
   console.log(`  payroll rows created: ${payrollRows.length}`);
+
+  // ── 11b. Payroll audit trail (one row per month, performed by head director) ──
+  const headDirector = staffUserIdByNorm.get('gizawadem');
+  const auditRows = [];
+  const payrollSample = await knex('payroll').where({ tenant_id: TID }).select('id', 'month', 'year').limit(12);
+  for (const p of payrollSample) {
+    auditRows.push({
+      id: uid(`payroll-audit-${p.id}`), tenant_id: TID,
+      payroll_id: p.id, action: 'created', performed_by: headDirector || null,
+      details: { month: p.month, year: p.year },
+    });
+  }
+  await knex.batchInsert('payroll_audits', auditRows, 20);
+  console.log(`  payroll audit rows created: ${auditRows.length}`);
 
   // ── 12. Settings ──
   await knex('settings').insert({
