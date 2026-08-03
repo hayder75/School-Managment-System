@@ -471,4 +471,18 @@ Finished the remaining open Fix-Plan / LOW items. Items previously shipped (veri
 
 ---
 
+## Mount Olive School Reseed + Login Redesign (2026-08-03)
+
+Wiped the demo DB and reseeded a single tenant — **Mount Olive School** — with real data from the 5 Excel sources in `/home/hayder/sms/data/`, then restored the login quick-pick dropdown and redesigned the login page.
+
+- **Extraction** — `data/extract.py` (Python `openpyxl`, backend has no xlsx parser) normalizes the sources to JSON in `data/parsed/`: `students_primary.json` (2,128 primary records), `enroll_primary.json` (2,128, Grades 1–8 × A–G), `enroll_kg.json` (759, Nursery/LKG/UKG × A–F), `staff.json` (primary teachers 49, KG staff 40, supportive 53, management 9), `payroll.json` (6 JUNE SALARY 2018 sheets: Teachers 52, KG Supporting 22, SUPPORT 39, KG Teachers 22, Admin_1 2, Admin_2 18).
+- **Seed** — `backend/scripts/seed-mount-olive.js` TRUNCATEs all tables CASCADE (except `knex_*`), then loads tenant `00000000-0000-0000-0000-000000000001`/slug `mount-olive-school`, roles via `seedTenant`, AY 2025/2026 + 3 terms, 58 classes, 16 subjects, staff, 2,887 students, 1,352 parents + 1,664 links, 209 `teacher_subjects`, 7 fee structures, 5 salary grades, 6 tax brackets, 154 payroll rows (June 2018, all `paid`, net total 1,232,309.45), and settings keys `school_name` + `academic_year_id`.
+- **Seeding fixes** — non-integer `work_days` (0.5) rounded; payroll duplicate "Berhane Amanel (Admin_2)" skipped (first kept); student phones made synthetic `+251-91-000-XXXX` (guardian-phone collision made parent login resolve to the student); guardian phones stored raw (e.g. `0930368332`) because `auth.service.login` matches `phone = raw`; KG first names extracted from `enroll kg` and reseeded (source had IDs only).
+- **Login fix** — `getDevUsers` (`auth.service.js`) had a hardcoded list of demo UUIDs (`…010–016`) that no longer exist after the wipe → dropdown broke. Now it queries real active users per role (owner/admin/teacher/finance/hr/support up to 5, parent/student up to 3, excludes `super_admin`) and returns 27 users.
+- **Login page** — `frontend/src/pages/auth/LoginPage.jsx` redesigned as a split-panel card: left teal `#538a8d` gradient brand panel (Mount Olive School, `student_illustration.png`, stats 2,887/253/58, "Nurturing Minds, Building Futures"), right form with "Quick Login" `<select>` (role-labeled options, autofills email + `1234`), email/phone/username input, show-password toggle, remember me, forgot-password + contact-admin links.
+- **Verified** — logins (password `1234`) for `super@demo.com`, parent via phone `0930368332`, teacher `staff004`, student `stu0001`; `/auth/dev-users` returns 27 users; role counts via psql (student 2,887, parent 1,352, teacher 165, support 62, admin 20, finance 5, hr 1 + super_admin); frontend `npm run build` clean; seed script oxlint clean.
+- **Note** — old `roles_verify.sh`/`flexlogin_verify.sh` scripts reference the wiped demo accounts and will fail; role counts in the seed script's tail summary are a counting bug (they total all tenant users) — use psql `GROUP BY role` for accurate counts.
+
+---
+
 #### Recommended fix order (for follow-up 8)
