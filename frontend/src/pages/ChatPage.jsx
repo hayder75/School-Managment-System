@@ -22,6 +22,16 @@ export default function ChatPage() {
   const [typingUsers, setTypingUsers] = useState({});
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const selectedConvRef = useRef(null);
+  const userIdRef = useRef(user?.id);
+
+  useEffect(() => {
+    selectedConvRef.current = selectedConv;
+  }, [selectedConv]);
+
+  useEffect(() => {
+    userIdRef.current = user?.id;
+  }, [user?.id]);
 
   const { data: convsData } = useConversations();
   const { data: msgsData, refetch: refetchMsgs } = useMessages(selectedConv?.id);
@@ -38,13 +48,13 @@ export default function ChatPage() {
     const socket = connectSocket(token);
 
     socket.on("message:new", (msg) => {
-      if (msg.conversation_id === selectedConv?.id) {
+      if (msg.conversation_id === selectedConvRef.current?.id) {
         setMessages((prev) => [...prev, msg]);
       }
     });
 
     socket.on("typing", ({ conversationId, userId: typingUserId }) => {
-      if (typingUserId !== user?.id) {
+      if (typingUserId !== userIdRef.current) {
         setTypingUsers((prev) => ({ ...prev, [conversationId]: true }));
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {

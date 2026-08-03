@@ -112,7 +112,7 @@ export default function ExpensesPage() {
               {totals.slice(0, 5).map((t) => (
                 <div key={t.category} className="flex justify-between text-sm">
                   <span>{t.category}</span>
-                  <span className="font-medium">{parseFloat(t.total).toLocaleString()}</span>
+                  <span className="font-medium">{parseFloat(t.total || 0).toLocaleString()}</span>
                 </div>
               ))}
               {totals.length === 0 && <p className="text-sm text-muted-foreground">No expenses yet</p>}
@@ -144,7 +144,7 @@ export default function ExpensesPage() {
                     <TableRow key={exp.id}>
                       <TableCell><span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{exp.category}</span></TableCell>
                       <TableCell>{exp.description}</TableCell>
-                      <TableCell>{parseFloat(exp.amount).toLocaleString()}</TableCell>
+                      <TableCell>{parseFloat(exp.amount || 0).toLocaleString()}</TableCell>
                       <TableCell>{exp.paid_to || "—"}</TableCell>
                       <TableCell>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString() : "—"}</TableCell>
                       <TableCell>

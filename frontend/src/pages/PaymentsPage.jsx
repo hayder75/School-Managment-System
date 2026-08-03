@@ -134,7 +134,7 @@ export default function PaymentsPage() {
                 <Select value={form.fee_structure_id} onValueChange={(v) => setForm({ ...form, fee_structure_id: v })} disabled={!!editPayment}>
                   <SelectTrigger><SelectValue placeholder="Select fee" /></SelectTrigger>
                   <SelectContent>
-                    {fees.map((f) => <SelectItem key={f.id} value={f.id}>{f.name} ({parseFloat(f.amount).toLocaleString()})</SelectItem>)}
+                    {fees.map((f) => <SelectItem key={f.id} value={f.id}>{f.name} ({parseFloat(f.amount || 0).toLocaleString()})</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -270,7 +270,7 @@ export default function PaymentsPage() {
                   {payments.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.first_name} {p.last_name}</TableCell>
-                      <TableCell>{parseFloat(p.amount_paid).toLocaleString()}</TableCell>
+                      <TableCell>{parseFloat(p.amount_paid || 0).toLocaleString()}</TableCell>
                       <TableCell className="capitalize">{p.payment_method}</TableCell>
                       <TableCell><Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge></TableCell>
                       <TableCell>{p.paid_date ? new Date(p.paid_date).toLocaleDateString() : "—"}</TableCell>

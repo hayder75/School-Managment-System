@@ -121,7 +121,7 @@ function SalaryGradesTab() {
                 {grades.map((g) => (
                   <TableRow key={g.id}>
                     <TableCell className="font-medium">{g.name}</TableCell>
-                    <TableCell>{parseFloat(g.basic_salary).toLocaleString()}</TableCell>
+                    <TableCell>{parseFloat(g.basic_salary || 0).toLocaleString()}</TableCell>
                     <TableCell><Badge variant={g.is_active ? "success" : "secondary"}>{g.is_active ? "Active" : "Inactive"}</Badge></TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => deleteGrade.mutate(g.id)}>
@@ -194,7 +194,7 @@ function PayrollEntriesTab() {
   function handleGradeSelect(gradeId) {
     const grade = grades.find((g) => g.id === gradeId);
     if (grade) {
-      const basic = parseFloat(grade.basic_salary);
+      const basic = parseFloat(grade.basic_salary || 0);
       const totals = computeTotals({ ...form, basic_pay: basic });
       setForm({ ...form, basic_pay: basic.toString(), ...totals });
     }
@@ -406,10 +406,10 @@ function PayrollEntriesTab() {
                             {e.first_name} {e.last_name}
                           </Button>
                         </TableCell>
-                        <TableCell>{parseFloat(e.basic_pay).toLocaleString()}</TableCell>
+                        <TableCell>{parseFloat(e.basic_pay || 0).toLocaleString()}</TableCell>
                         <TableCell>{parseFloat(e.allowances_total || 0).toLocaleString()}</TableCell>
                         <TableCell>{parseFloat(e.deductions_total || 0).toLocaleString()}</TableCell>
-                        <TableCell className="font-semibold">{parseFloat(e.net_pay).toLocaleString()}</TableCell>
+                        <TableCell className="font-semibold">{parseFloat(e.net_pay || 0).toLocaleString()}</TableCell>
                         <TableCell><Badge variant={e.status === "paid" ? "success" : e.status === "cancelled" ? "destructive" : "secondary"}>{e.status}</Badge></TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" onClick={() => window.open(`/api/pdf/payslip/${e.id}`, "_blank")}>

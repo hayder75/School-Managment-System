@@ -304,10 +304,10 @@ function ParentDashboard() {
               </div>
             </div>
             <div className="space-y-2">
-              {myFees.payments.slice(0, 5).map((p) => (
+              {(myFees.payments || []).slice(0, 5).map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-2 border rounded text-sm">
                   <span>{p.fee_name || "Fee"} · {p.first_name} {p.last_name}</span>
-                  <span className="font-medium">${parseFloat(p.amount_paid).toFixed(2)}</span>
+                  <span className="font-medium">${parseFloat(p.amount_paid || 0).toFixed(2)}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     p.status === "paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                   }`}>{p.status}</span>
@@ -347,7 +347,7 @@ function FinanceDashboard() {
               {recentPayments.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-2 border rounded text-sm">
                   <span>{p.student_name || "Student"}</span>
-                  <span className="font-medium">${parseFloat(p.amount_paid).toFixed(2)}</span>
+                  <span className="font-medium">${parseFloat(p.amount_paid || 0).toFixed(2)}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     p.status === "paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                   }`}>{p.status}</span>
@@ -383,7 +383,7 @@ function HRDashboard() {
               {recentPayroll.slice(0, 5).map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-2 border rounded text-sm">
                   <span>{p.employee_name || `Staff #${p.user_id?.slice(0, 8)}`}</span>
-                  <span className="font-medium">${parseFloat(p.net_pay).toFixed(2)}</span>
+                  <span className="font-medium">${parseFloat(p.net_pay || 0).toFixed(2)}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     p.status === "paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                   }`}>{p.status}</span>

@@ -89,7 +89,7 @@ export default function TimetablePage() {
     ? assignments.filter((a) => a.class_id === classId).map((a) => a.subject_id)
     : null;
   const subjectOptions = isTeacher
-    ? subjects.filter((s) => teacherSubjectIds.includes(s.id))
+    ? subjects.filter((s) => (teacherSubjectIds ?? []).includes(s.id))
     : subjects;
 
   const timetableByDay = {};

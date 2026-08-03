@@ -70,7 +70,10 @@ export default function StudentsPage() {
       p[k] = v;
     }
     if (!p.disability) { delete p.disability; delete p.disability_type; }
-    if (form.date_of_birth) p.date_of_birth = new Date(form.date_of_birth).toISOString();
+    if (form.date_of_birth) {
+      const d = new Date(form.date_of_birth);
+      if (!isNaN(d.getTime())) p.date_of_birth = d.toISOString();
+    }
     return p;
   }
 

@@ -222,7 +222,7 @@ export default function ExamsPage() {
                       <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
                       <TableCell>{exam.class_name}</TableCell>
                       <TableCell>{exam.subject_name}</TableCell>
-                      <TableCell>{exam.date ? new Date(exam.date).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell>{exam.date ? (!isNaN(new Date(exam.date).getTime()) ? new Date(exam.date).toLocaleDateString() : "—") : "—"}</TableCell>
                       <TableCell>{exam.total_marks || "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">

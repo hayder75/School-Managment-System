@@ -22,6 +22,7 @@ export default function StudentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [student, setStudent] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [activeTab, setActiveTab] = useState("documents");
   const [loading, setLoading] = useState(true);
 
@@ -43,10 +44,13 @@ export default function StudentDetailPage() {
 
   async function loadStudent() {
     setLoading(true);
+    setLoadError("");
     try {
       const res = await api.get(`/students/${id}`);
       setStudent(res.data);
       loadTabData("documents");
+    } catch (err) {
+      setLoadError(err?.error?.message || err?.message || "Failed to load student");
     } finally {
       setLoading(false);
     }
@@ -83,6 +87,7 @@ export default function StudentDetailPage() {
   }
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (loadError) return <div className="p-8 text-red-500">{loadError}</div>;
   if (!student) return <div className="p-8 text-muted-foreground">Student not found</div>;
 
   return (
@@ -133,7 +138,7 @@ export default function StudentDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-sm">Enrollment</CardTitle></CardHeader>
           <CardContent className="space-y-1 text-sm">
-            <p><span className="text-muted-foreground">Enrolled:</span> {student.enrollment_date ? new Date(student.enrollment_date).toLocaleDateString() : "—"}</p>
+            <p><span className="text-muted-foreground">Enrolled:</span> {student.enrollment_date ? (!isNaN(new Date(student.enrollment_date).getTime()) ? new Date(student.enrollment_date).toLocaleDateString() : "—") : "—"}</p>
             <p><span className="text-muted-foreground">Student #:</span> {student.student_number || "—"}</p>
             <p><span className="text-muted-foreground">Phone:</span> {student.phone || student.emergency_contact || "—"}</p>
           </CardContent>
@@ -152,7 +157,7 @@ export default function StudentDetailPage() {
           <CardContent className="text-sm space-y-1">
             <p><span className="text-muted-foreground">Full Name:</span> {student.first_name} {student.father_name || ""} {student.grandfather_name || ""} {student.last_name}</p>
             <p><span className="text-muted-foreground">Mother's Name:</span> {student.mother_name || "—"}</p>
-            <p><span className="text-muted-foreground">DOB:</span> {student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : "—"}</p>
+            <p><span className="text-muted-foreground">DOB:</span> {student.date_of_birth ? (!isNaN(new Date(student.date_of_birth).getTime()) ? new Date(student.date_of_birth).toLocaleDateString() : "—") : "—"}</p>
             <p><span className="text-muted-foreground">Gender:</span> {student.gender || "—"}</p>
             <p><span className="text-muted-foreground">Nationality:</span> {student.nationality || "—"}</p>
             <p><span className="text-muted-foreground">Country of Birth:</span> {student.country_of_birth || "—"}</p>
@@ -412,7 +417,7 @@ function HistoryTab({ history }) {
                   <p className="text-sm">
                     {h.from_status || "—"} <span className="text-muted-foreground">→</span> {h.to_status}
                   </p>
-                  <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-muted-foreground">{!isNaN(new Date(h.created_at).getTime()) ? new Date(h.created_at).toLocaleDateString() : "—"}</p>
                 </div>
               </div>
             ))}

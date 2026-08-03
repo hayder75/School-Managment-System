@@ -138,7 +138,7 @@ export default function AnnouncementsPage() {
                 <div>
                   <CardTitle className="text-lg">{a.title}</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">
-                    By {a.first_name} {a.last_name} · {new Date(a.created_at).toLocaleDateString()} · Audience: <span className="capitalize">{a.audience}</span>
+                    By {a.first_name} {a.last_name} · {!isNaN(new Date(a.created_at).getTime()) ? new Date(a.created_at).toLocaleDateString() : "—"} · Audience: <span className="capitalize">{a.audience}</span>
                   </p>
                 </div>
                 {canManage && (

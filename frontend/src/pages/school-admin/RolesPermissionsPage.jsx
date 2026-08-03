@@ -152,13 +152,13 @@ function RolesTab({ permissions }) {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1 max-w-lg">
-                        {r.permissions.slice(0, 6).map((p) => (
+                        {(r.permissions || []).slice(0, 6).map((p) => (
                           <Badge key={p.key} variant="outline">{p.label}</Badge>
                         ))}
-                        {r.permissions.length > 6 && (
-                          <Badge variant="outline">+{r.permissions.length - 6} more</Badge>
+                        {(r.permissions || []).length > 6 && (
+                          <Badge variant="outline">+{(r.permissions || []).length - 6} more</Badge>
                         )}
-                        {r.permissions.length === 0 && (
+                        {(r.permissions || []).length === 0 && (
                           <span className="text-xs text-muted-foreground">No permissions</span>
                         )}
                       </div>
@@ -188,6 +188,7 @@ function RolesTab({ permissions }) {
         </CardContent>
       </Card>
       <RoleDialog
+        key={editing?.id ?? "new"}
         open={dialog}
         onOpenChange={setDialog}
         role={editing}
@@ -223,14 +224,14 @@ function UserOverridesTab({ permissions, customRoles }) {
   const applied = useMemo(() => {
     if (!access) return { roles: new Set(), perms: new Set() };
     return {
-      roles: new Set(access.roles.map((r) => r.id)),
-      perms: new Set(access.permissions.map((p) => p.key)),
+      roles: new Set((access.roles || []).map((r) => r.id)),
+      perms: new Set((access.permissions || []).map((p) => p.key)),
     };
   }, [access]);
 
   useEffect(() => {
-    setSelectedRoles(new Set(access?.roles.map((r) => r.id) || []));
-    setSelectedPerms(new Set(access?.permissions.map((p) => p.key) || []));
+    setSelectedRoles(new Set(access?.roles?.map((r) => r.id) || []));
+    setSelectedPerms(new Set(access?.permissions?.map((p) => p.key) || []));
   }, [access]);
 
   const isDirty =

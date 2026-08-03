@@ -152,7 +152,7 @@ export default function FeeStructuresPage() {
                   {fees.map((fee) => (
                     <TableRow key={fee.id}>
                       <TableCell className="font-medium">{fee.name}</TableCell>
-                      <TableCell>{parseFloat(fee.amount).toLocaleString()}</TableCell>
+                      <TableCell>{parseFloat(fee.amount || 0).toLocaleString()}</TableCell>
                       <TableCell className="capitalize">{fee.frequency}</TableCell>
                       <TableCell>{parseFloat(fee.late_fee || 0).toLocaleString()}</TableCell>
                       <TableCell><Badge variant={fee.is_active ? "success" : "secondary"}>{fee.is_active ? "Active" : "Inactive"}</Badge></TableCell>
