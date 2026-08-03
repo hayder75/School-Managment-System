@@ -110,7 +110,7 @@ function AppContent() {
             <Route path="/exams" element={<ExamsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "student", "parent"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "student", "parent", "cashier"]} />}>
             <Route path="/timetable" element={<TimetablePage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
           </Route>

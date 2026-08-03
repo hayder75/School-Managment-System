@@ -6,7 +6,7 @@ import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers, useTeacherAssignments } from "../hooks/useTeachers";
 import { useMyChildren } from "../hooks/useParents";
 import { useMyAnnouncements } from "../hooks/useAnnouncements";
-import { usePaymentSummary, usePayments, useMyFees } from "../hooks/useFees";
+import { usePaymentSummary, usePayments, useMyFees, useCollectionReport } from "../hooks/useFees";
 import { useExpenseTotals } from "../hooks/useExpenses";
 import { usePayroll } from "../hooks/usePayroll";
 import { useStudentGradeSummary, useStudentAttendanceSummary, useMyStudents, useStaffDirectory } from "../hooks/useReports";
@@ -361,6 +361,58 @@ function FinanceDashboard() {
   );
 }
 
+function CashierDashboard() {
+  const user = useAuthStore((s) => s.user);
+  const { data: paymentSummary } = usePaymentSummary();
+  const { data: paymentsData } = usePayments({ limit: 6 });
+  const { data: announcementsData } = useMyAnnouncements();
+  const { data: unpaidData } = useCollectionReport({
+    month: String(new Date().getMonth() + 1),
+    year: String(new Date().getFullYear()),
+  });
+
+  const summary = paymentSummary?.data || {};
+  const recentPayments = paymentsData?.data || [];
+  const totals = unpaidData?.data?.totals || {};
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Cashier Dashboard</h1>
+        <p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Collected Today" value={summary.today_collected ? `$${summary.today_collected.toLocaleString()}` : "$0"} icon={Wallet} color="text-green-600" sub={`${summary.today_transactions || 0} transactions`} />
+        <StatCard title="This Month" value={summary.month_collected ? `$${summary.month_collected.toLocaleString()}` : "$0"} icon={TrendingUp} color="text-blue-600" sub={`${summary.month_transactions || 0} transactions`} />
+        <StatCard title="Total Collected" value={summary.total_collected ? `$${summary.total_collected.toLocaleString()}` : "$0"} icon={DollarSign} color="text-green-600" />
+        <StatCard title="Uncollected Students" value={totals.unpaid_count ?? "—"} icon={AlertTriangle} color="text-yellow-600" sub={totals.total_students ? `${totals.total_students} enrolled` : "this month"} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">My Recent Collections</CardTitle></CardHeader>
+          <CardContent>
+            {recentPayments.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No payments recorded yet</p>
+            ) : (
+              <div className="space-y-2">
+                {recentPayments.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between p-2 border rounded text-sm">
+                    <span className="font-medium">{p.first_name} {p.last_name}</span>
+                    <span className="text-xs text-muted-foreground">{p.fee_name || ""}</span>
+                    <span className="font-medium">${parseFloat(p.amount_paid || 0).toFixed(2)}</span>
+                    <span className="text-xs text-muted-foreground">{p.paid_date ? new Date(p.paid_date).toLocaleDateString() : ""}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <AnnouncementsList data={announcementsData} />
+      </div>
+    </div>
+  );
+}
+
 function HRDashboard() {
   const { data: staffData } = useStaffDirectory();
   const { data: payrollData } = usePayroll({ limit: 5 });
@@ -407,6 +459,7 @@ export default function DashboardPage() {
   if (role === "student") return <StudentDashboard />;
   if (role === "parent") return <ParentDashboard />;
   if (role === "finance") return <FinanceDashboard />;
+  if (role === "cashier") return <CashierDashboard />;
   if (role === "hr") return <HRDashboard />;
 
   return <AdminDashboard />;

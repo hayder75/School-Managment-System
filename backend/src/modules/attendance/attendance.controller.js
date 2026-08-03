@@ -69,6 +69,12 @@ async function getByStudent(req, res) {
 async function getSummary(req, res) {
   const { classId } = req.params;
   const { start_date, end_date } = req.query;
+  if (!start_date || !end_date) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'start_date and end_date query params are required' },
+    });
+  }
   const summary = await attendanceService.getSummary(req.tenant.id, classId, start_date, end_date);
   res.json({ success: true, data: summary });
 }

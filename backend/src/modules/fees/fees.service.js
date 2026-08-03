@@ -140,6 +140,15 @@ async function getPaymentSummary(tenantId, collectorUserId = null) {
   const [totalCollectedRes] = await totalCollected.clone().sum('amount_paid as total');
   const [outstandingRes] = await outstanding.clone().whereIn('status', ['pending', 'partial', 'overdue']).sum('balance as total');
 
+  const today = new Date().toISOString().slice(0, 10);
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+  const [todayRes] = await totalCollected.clone()
+    .whereRaw('DATE(payments.paid_date) = ?', [today])
+    .sum('amount_paid as total').count('* as count');
+  const [monthRes] = await totalCollected.clone()
+    .whereRaw('DATE(payments.paid_date) >= ?', [monthStart])
+    .sum('amount_paid as total').count('* as count');
+
   byCollector = await byCollector
     .groupBy('payments.collected_by', 'collectors.first_name', 'collectors.last_name')
     .select(
@@ -156,6 +165,10 @@ async function getPaymentSummary(tenantId, collectorUserId = null) {
   return {
     total_collected: parseFloat(totalCollectedRes?.total || 0),
     outstanding: parseFloat(outstandingRes?.total || 0),
+    today_collected: parseFloat(todayRes?.total || 0),
+    today_transactions: parseInt(todayRes?.count || 0, 10),
+    month_collected: parseFloat(monthRes?.total || 0),
+    month_transactions: parseInt(monthRes?.count || 0, 10),
     by_collector: byCollector.map((c) => ({
       collected_by: c.collected_by,
       collector_name: c.collector_first_name
@@ -249,7 +262,8 @@ async function getCollectionReport(tenantId, { month, year, fee_structure_id, cl
     .where({ tenant_id: tenantId })
     .orderBy(['level_group', 'grade_level', 'section']);
 
-  const classIdList = classes.map((c) => c.id);
+  const classesFiltered = class_id ? classes.filter((c) => c.id === class_id) : classes;
+  const classIdList = classesFiltered.map((c) => c.id);
   const applicableFeeIds = selectedFees.map((f) => f.id);
 
   let studentsQuery = db('students')
@@ -298,7 +312,7 @@ async function getCollectionReport(tenantId, { month, year, fee_structure_id, cl
   const reportClasses = [];
   let totals = { total_students: 0, collected: 0, unpaid: 0, partial: 0, expected: 0 };
 
-  for (const cls of classes) {
+  for (const cls of classesFiltered) {
     const clsStudents = students.filter((s) => s.class_id === cls.id);
     const rows = [];
     let classCollected = 0, classUnpaid = 0, classPartial = 0, classExpected = 0;
