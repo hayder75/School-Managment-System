@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
@@ -6,6 +6,7 @@ import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { usePayments, useCreateBulkPayments, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
 import { useStudents } from "../hooks/useStudents";
+import { useToast } from "../store/toast";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -14,10 +15,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2, Search, X, Check, Users } from "lucide-react";
+import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2, Search, X, Check, Users, ChevronDown, ChevronRight } from "lucide-react";
 
 export default function PaymentsPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [page, setPage] = useState(1);
   const [filterStudentId, setFilterStudentId] = useState("");
   const [filterCollectorId, setFilterCollectorId] = useState("");
@@ -159,7 +161,7 @@ export default function PaymentsPage() {
       setOpen(false);
       setEditPayment(null);
       resetBulk();
-      alert(`Saved ${res?.data?.count || payments.length} payment(s), total ${Number(res?.data?.total || 0).toLocaleString()}`);
+      toast(`Saved ${res?.data?.count || payments.length} payment(s), total ${Number(res?.data?.total || 0).toLocaleString()}`);
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -203,6 +205,34 @@ export default function PaymentsPage() {
 
   const bulkPaymentsList = buildPayments();
   const bulkTotal = bulkPaymentsList.reduce((s, p) => s + p.amount_paid, 0);
+
+  const groupedPayments = useMemo(() => {
+    const map = new Map();
+    for (const p of payments) {
+      const dateKey = p.paid_date ? p.paid_date.slice(0, 10) : "unknown";
+      const key = `${p.student_id}::${dateKey}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(p);
+    }
+    return Array.from(map.values()).map((items) => ({
+      student_id: items[0].student_id,
+      first_name: items[0].first_name,
+      last_name: items[0].last_name,
+      dateKey: items[0].paid_date ? items[0].paid_date.slice(0, 10) : null,
+      total: items.reduce((s, x) => s + parseFloat(x.amount_paid || 0), 0),
+      items,
+    }));
+  }, [payments]);
+
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  function toggleGroup(key) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -640,60 +670,82 @@ export default function PaymentsPage() {
             <p className="text-muted-foreground">Loading...</p>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Collected By</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="w-32">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.map((p) => (
-                    <TableRow key={p.id}>
-                                            <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <StudentAvatar student={{ user_id: p.student_id, first_name: p.first_name, last_name: p.last_name }} className="w-8 h-8 text-xs" />
-                          <button className="hover:text-primary hover:underline text-left" onClick={() => navigate(`/students/${p.student_id}`)}>
-                            {p.first_name} {p.last_name}
-                          </button>
-                        </div>
-                      </TableCell>
-                      <TableCell>{parseFloat(p.amount_paid || 0).toLocaleString()}</TableCell>
-                      <TableCell className="capitalize">{p.payment_method}</TableCell>
-                      <TableCell>{p.collector_first_name ? `${p.collector_first_name} ${p.collector_last_name}` : "—"}</TableCell>
-                      <TableCell><Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge></TableCell>
-                      <TableCell>{p.paid_date ? new Date(p.paid_date).toLocaleDateString() : "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" title="Invoice" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => startEdit(p)} disabled={p.status === "refunded"}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {p.status !== "refunded" ? (
-                            <Button variant="ghost" size="icon" title="Refund" onClick={() => handleRefund(p)}>
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <Button variant="ghost" size="icon" title="Delete" className="text-red-500" onClick={() => handleDelete(p)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {payments.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No payments yet</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              {payments.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">No payments yet</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/40 text-left">
+                        <th className="p-3 font-medium">Student</th>
+                        <th className="p-3 font-medium">Day</th>
+                        <th className="p-3 font-medium">Payments</th>
+                        <th className="p-3 font-medium text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedPayments.map((g) => {
+                        const key = `${g.student_id}::${g.dateKey}`;
+                        const isCollapsed = collapsed.has(key);
+                        return (
+                          <Fragment key={key}>
+                            <tr className="border-b bg-muted/30 hover:bg-muted/50 cursor-pointer" onClick={() => toggleGroup(key)}>
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                                  <StudentAvatar student={{ user_id: g.student_id, first_name: g.first_name, last_name: g.last_name }} className="w-8 h-8" />
+                                  <button className="font-medium hover:text-primary hover:underline text-left" onClick={(e) => { e.stopPropagation(); navigate(`/students/${g.student_id}`); }}>
+                                    {g.first_name} {g.last_name}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="p-3 text-muted-foreground">{g.dateKey ? new Date(g.dateKey + "T00:00:00").toLocaleDateString() : "—"}</td>
+                              <td className="p-3">{g.items.length} payment{g.items.length > 1 ? "s" : ""}</td>
+                              <td className="p-3 text-right font-bold">{g.total.toLocaleString()}</td>
+                            </tr>
+                            {!isCollapsed &&
+                              g.items.map((p) => (
+                                <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+                                  <td className="p-3 pl-12">
+                                    <p>{p.fee_name || "—"}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {p.collector_first_name ? `${p.collector_first_name} ${p.collector_last_name}` : "—"}
+                                    </p>
+                                  </td>
+                                  <td className="p-3">{parseFloat(p.amount_paid || 0).toLocaleString()}</td>
+                                  <td className="p-3">
+                                    <span className="capitalize">{p.payment_method}</span>
+                                    {p.paid_date && <span className="block text-xs text-muted-foreground">{new Date(p.paid_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge>
+                                      <Button variant="ghost" size="icon" title="Invoice" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}>
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" title="Edit" onClick={() => startEdit(p)} disabled={p.status === "refunded"}>
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      {p.status !== "refunded" ? (
+                                        <Button variant="ghost" size="icon" title="Refund" onClick={() => handleRefund(p)}>
+                                          <RotateCcw className="h-4 w-4" />
+                                        </Button>
+                                      ) : (
+                                        <Button variant="ghost" size="icon" title="Delete" className="text-red-500" onClick={() => handleDelete(p)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               {meta.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</p>

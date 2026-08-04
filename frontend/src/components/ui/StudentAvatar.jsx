@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "../../lib/utils";
 
 const PALETTES = [
@@ -27,11 +28,33 @@ function initials(name = "") {
   return ((parts[0]?.[0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
 }
 
-export function StudentAvatar({ student, name, className, ring = true }) {
+export function StudentAvatar({ student, name, variant = "avataaars", className, ring = true }) {
+  const [err, setErr] = useState(false);
   const full = name || (student?.first_name && student?.last_name)
     ? `${student?.first_name || ""} ${student?.last_name || ""}`.trim()
-    : student?.student_number || "?";
+    : student?.student_number || "Avatar";
+  const seed = encodeURIComponent(student?.user_id || student?.id || full);
+  const src = `https://api.dicebear.com/9.x/${variant}/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
   const palette = PALETTES[hash(student?.user_id || student?.id || full) % PALETTES.length];
+  const title = `${full}${student?.student_number ? ` · ${student.student_number}` : ""}`;
+
+  if (!err) {
+    return (
+      <img
+        src={src}
+        alt={full}
+        loading="lazy"
+        onError={() => setErr(true)}
+        className={cn(
+          "rounded-full object-cover shrink-0 select-none bg-muted",
+          ring && "ring-2 ring-white shadow",
+          className || "w-10 h-10"
+        )}
+        title={title}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -40,7 +63,7 @@ export function StudentAvatar({ student, name, className, ring = true }) {
         ring && "ring-2 ring-white shadow",
         className || "w-10 h-10 text-sm"
       )}
-      title={`${full}${student?.student_number ? ` · ${student.student_number}` : ""}`}
+      title={title}
     >
       {initials(full)}
     </div>

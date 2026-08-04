@@ -6,6 +6,7 @@ import { I18nProvider } from "./i18n/I18nContext";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import RoleRoute from "./components/layout/RoleRoute";
 import AppLayout from "./components/layout/AppLayout";
+import { Toaster } from "./components/ui/toast";
 
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
@@ -64,6 +65,7 @@ function AppContent() {
 
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-screen"><p>Loading...</p></div>}>
+    <Toaster />
     <Routes>
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
