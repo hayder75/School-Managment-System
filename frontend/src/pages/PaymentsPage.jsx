@@ -679,13 +679,56 @@ export default function PaymentsPage() {
                       <tr className="border-b bg-muted/40 text-left">
                         <th className="p-3 font-medium">Student</th>
                         <th className="p-3 font-medium">Day</th>
-                        <th className="p-3 font-medium">Payments</th>
-                        <th className="p-3 font-medium text-right">Total</th>
+                        <th className="p-3 font-medium">Details</th>
+                        <th className="p-3 font-medium">Amount</th>
+                        <th className="p-3 font-medium">Status</th>
+                        <th className="p-3 font-medium text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {groupedPayments.map((g) => {
                         const key = `${g.student_id}::${g.dateKey}`;
+                        const day = g.dateKey ? new Date(g.dateKey + "T00:00:00").toLocaleDateString() : "—";
+                        const avatar = <StudentAvatar student={{ user_id: g.student_id, first_name: g.first_name, last_name: g.last_name }} className="w-8 h-8" />;
+                        const caption = (p) => p.collector_first_name ? `${p.collector_first_name} ${p.collector_last_name}` : "—";
+
+                        if (g.items.length === 1) {
+                          const p = g.items[0];
+                          return (
+                            <tr key={`single-${key}`} className="border-b last:border-0 hover:bg-muted/30">
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  {avatar}
+                                  <button className="font-medium hover:text-primary hover:underline text-left" onClick={() => navigate(`/students/${g.student_id}`)}>
+                                    {g.first_name} {g.last_name}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="p-3 text-muted-foreground">{day}</td>
+                              <td className="p-3">
+                                <p>{p.fee_name || "—"}</p>
+                                <p className="text-xs text-muted-foreground">{caption(p)}</p>
+                              </td>
+                              <td className="p-3">
+                                <span className="font-medium">{parseFloat(p.amount_paid || 0).toLocaleString()}</span>
+                                <span className="block text-xs text-muted-foreground capitalize">
+                                  {p.payment_method}{p.paid_date ? ` · ${new Date(p.paid_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+                                </span>
+                              </td>
+                              <td className="p-3"><Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge></td>
+                              <td className="p-3">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button variant="ghost" size="icon" title="Invoice" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}><Download className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" title="Edit" onClick={() => startEdit(p)} disabled={p.status === "refunded"}><Pencil className="h-4 w-4" /></Button>
+                                  {p.status !== "refunded"
+                                    ? <Button variant="ghost" size="icon" title="Refund" onClick={() => handleRefund(p)}><RotateCcw className="h-4 w-4" /></Button>
+                                    : <Button variant="ghost" size="icon" title="Delete" className="text-red-500" onClick={() => handleDelete(p)}><Trash2 className="h-4 w-4" /></Button>}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
                         const isCollapsed = collapsed.has(key);
                         return (
                           <Fragment key={key}>
@@ -693,48 +736,40 @@ export default function PaymentsPage() {
                               <td className="p-3">
                                 <div className="flex items-center gap-2">
                                   {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                                  <StudentAvatar student={{ user_id: g.student_id, first_name: g.first_name, last_name: g.last_name }} className="w-8 h-8" />
+                                  {avatar}
                                   <button className="font-medium hover:text-primary hover:underline text-left" onClick={(e) => { e.stopPropagation(); navigate(`/students/${g.student_id}`); }}>
                                     {g.first_name} {g.last_name}
+                                    <span className="block text-xs font-normal text-muted-foreground">{g.items.length} payments</span>
                                   </button>
                                 </div>
                               </td>
-                              <td className="p-3 text-muted-foreground">{g.dateKey ? new Date(g.dateKey + "T00:00:00").toLocaleDateString() : "—"}</td>
-                              <td className="p-3">{g.items.length} payment{g.items.length > 1 ? "s" : ""}</td>
-                              <td className="p-3 text-right font-bold">{g.total.toLocaleString()}</td>
+                              <td className="p-3 text-muted-foreground">{day}</td>
+                              <td className="p-3 text-muted-foreground">Day total</td>
+                              <td className="p-3 font-bold">{g.total.toLocaleString()}</td>
+                              <td className="p-3" />
+                              <td className="p-3" />
                             </tr>
                             {!isCollapsed &&
                               g.items.map((p) => (
                                 <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
                                   <td className="p-3 pl-12">
-                                    <p>{p.fee_name || "—"}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {p.collector_first_name ? `${p.collector_first_name} ${p.collector_last_name}` : "—"}
-                                    </p>
+                                    <p className="text-muted-foreground">{p.fee_name || "—"}</p>
+                                    <p className="text-xs text-muted-foreground/70">{caption(p)}</p>
                                   </td>
-                                  <td className="p-3">{parseFloat(p.amount_paid || 0).toLocaleString()}</td>
+                                  <td className="p-3" />
                                   <td className="p-3">
                                     <span className="capitalize">{p.payment_method}</span>
                                     {p.paid_date && <span className="block text-xs text-muted-foreground">{new Date(p.paid_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
                                   </td>
+                                  <td className="p-3">{parseFloat(p.amount_paid || 0).toLocaleString()}</td>
+                                  <td className="p-3"><Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge></td>
                                   <td className="p-3">
                                     <div className="flex items-center justify-end gap-1">
-                                      <Badge variant={p.status === "paid" ? "success" : p.status === "partial" ? "warning" : "secondary"}>{p.status}</Badge>
-                                      <Button variant="ghost" size="icon" title="Invoice" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}>
-                                        <Download className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" title="Edit" onClick={() => startEdit(p)} disabled={p.status === "refunded"}>
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      {p.status !== "refunded" ? (
-                                        <Button variant="ghost" size="icon" title="Refund" onClick={() => handleRefund(p)}>
-                                          <RotateCcw className="h-4 w-4" />
-                                        </Button>
-                                      ) : (
-                                        <Button variant="ghost" size="icon" title="Delete" className="text-red-500" onClick={() => handleDelete(p)}>
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      )}
+                                      <Button variant="ghost" size="icon" title="Invoice" onClick={() => window.open(`/api/pdf/invoice/${p.student_id}`, "_blank")}><Download className="h-4 w-4" /></Button>
+                                      <Button variant="ghost" size="icon" title="Edit" onClick={() => startEdit(p)} disabled={p.status === "refunded"}><Pencil className="h-4 w-4" /></Button>
+                                      {p.status !== "refunded"
+                                        ? <Button variant="ghost" size="icon" title="Refund" onClick={() => handleRefund(p)}><RotateCcw className="h-4 w-4" /></Button>
+                                        : <Button variant="ghost" size="icon" title="Delete" className="text-red-500" onClick={() => handleDelete(p)}><Trash2 className="h-4 w-4" /></Button>}
                                     </div>
                                   </td>
                                 </tr>
