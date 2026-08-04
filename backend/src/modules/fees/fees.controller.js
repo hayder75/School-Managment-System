@@ -125,6 +125,12 @@ async function getCollectionReport(req, res) {
   res.json({ success: true, data: report });
 }
 
+async function getPaymentTrends(req, res) {
+  const isCashier = req.user.role === 'cashier';
+  const trends = await feeService.getPaymentTrends(req.tenant.id, req.query.year, isCashier ? req.user.userId : null);
+  res.json({ success: true, data: trends });
+}
+
 async function getStudentLedger(req, res) {
   const ledger = await feeService.getStudentLedger(req.tenant.id, req.params.studentId);
   if (!ledger) return res.status(404).json({ success: false, error: { code: 'STUDENT_NOT_FOUND', message: 'Student not found in this school' } });
@@ -134,6 +140,6 @@ async function getStudentLedger(req, res) {
 module.exports = {
   createFeeStructure, listFeeStructures, getFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, updatePayment, listPayments, getPaymentById, removePayment, getSummary,
-  getStudentLedger, getCollectionReport,
+  getStudentLedger, getCollectionReport, getPaymentTrends,
   getMyFees,
 };

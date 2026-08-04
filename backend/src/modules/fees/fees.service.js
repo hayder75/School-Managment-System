@@ -383,8 +383,34 @@ async function getCollectionReport(tenantId, { month, year, fee_structure_id, cl
   };
 }
 
+async function getPaymentTrends(tenantId, year, collectorUserId = null) {
+  const y = parseInt(year, 10) || new Date().getFullYear();
+  let query = db('payments')
+    .where({ 'payments.tenant_id': tenantId })
+    .whereRaw('EXTRACT(YEAR FROM payments.paid_date) = ?', [y]);
+  if (collectorUserId) query = query.where('payments.collected_by', collectorUserId);
+
+  const rows = await query
+    .select(db.raw('EXTRACT(MONTH FROM payments.paid_date) as month'))
+    .sum('amount_paid as total')
+    .count('* as count')
+    .groupByRaw('EXTRACT(MONTH FROM payments.paid_date)')
+    .orderByRaw('EXTRACT(MONTH FROM payments.paid_date)');
+
+  const months = [];
+  for (let m = 1; m <= 12; m++) {
+    const r = rows.find((row) => parseInt(row.month, 10) === m);
+    months.push({
+      month: m,
+      total: parseFloat(r?.total || 0),
+      count: parseInt(r?.count || 0, 10),
+    });
+  }
+  return { year: y, months };
+}
+
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
-  getStudentLedger, getCollectionReport,
+  getStudentLedger, getCollectionReport, getPaymentTrends,
 };

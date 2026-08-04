@@ -42,7 +42,7 @@ async function teacherClassUserIds(tenantId, teacherId) {
 }
 
 async function canViewStudentByUserId(tenantId, userId, role, studentUserId) {
-  if (role === 'admin' || role === 'owner' || role === 'super_admin') return true;
+  if (role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'cashier' || role === 'finance') return true;
   if (role === 'student') {
     const s = await getStudentForUser(tenantId, userId);
     return !!s && s.user_id === studentUserId;

@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { TableSkeleton, CardSkeleton } from "../components/ui/skeleton";
+import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { Plus, Search, GraduationCap, Users, BookOpen, ExternalLink } from "lucide-react";
 
 export default function StudentsPage() {
@@ -397,8 +398,9 @@ export default function StudentsPage() {
                   <tr key={s.id} className="border-b last:border-0">
                     <td className="p-3">{s.student_number || "—"}</td>
                     <td className="p-3 font-medium">
-                      <button className="hover:text-primary hover:underline text-left" onClick={() => navigate(`/students/${s.id}`)}>
-                        {s.first_name} {s.last_name}
+                      <button className="hover:text-primary flex items-center gap-2 text-left" onClick={() => navigate(`/students/${s.id}`)}>
+                        <StudentAvatar student={s} className="w-8 h-8 text-xs" />
+                        <span className="hover:underline">{s.first_name} {s.last_name}</span>
                       </button>
                     </td>
                     <td className="p-3">{s.email}</td>

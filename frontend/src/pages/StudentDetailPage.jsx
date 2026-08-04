@@ -1,3 +1,4 @@
+import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
@@ -7,7 +8,7 @@ import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, FileText, Stethoscope, AlertTriangle, Award, History, Download, BookOpen } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, FileText, Stethoscope, AlertTriangle, Award, History, Download, BookOpen, Phone, UserRound, Wallet } from "lucide-react";
 
 const TABS = [
   { key: "documents", label: "Documents", icon: FileText },
@@ -37,6 +38,8 @@ export default function StudentDetailPage() {
   const [newMed, setNewMed] = useState({ blood_group: "", allergies: "", chronic_conditions: "" });
   const [newDisc, setNewDisc] = useState({ incident_type: "misconduct", description: "" });
   const [newAch, setNewAch] = useState({ type: "academic", title: "", description: "", achieved_date: "" });
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [ledger, setLedger] = useState(null);
 
   useEffect(() => {
     loadStudent();
@@ -86,6 +89,16 @@ export default function StudentDetailPage() {
     loadTabData(tab);
   }
 
+  async function openProfile() {
+    setProfileOpen(true);
+    if (!ledger) {
+      try {
+        const res = await api.get(`/fees/ledger/${id}`);
+        setLedger(res.data);
+      } catch {}
+    }
+  }
+
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (loadError) return <div className="p-8 text-red-500">{loadError}</div>;
   if (!student) return <div className="p-8 text-muted-foreground">Student not found</div>;
@@ -96,6 +109,10 @@ export default function StudentDetailPage() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/students")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
+        <button type="button" onClick={openProfile} className="relative shrink-0 group cursor-pointer">
+          <StudentAvatar student={student} className="w-14 h-14 text-lg ring-4 ring-border" />
+          <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/10 transition-colors" />
+        </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{student.first_name} {student.last_name}</h1>
           <p className="text-sm text-muted-foreground">
@@ -112,6 +129,74 @@ export default function StudentDetailPage() {
           <Download className="h-4 w-4 mr-1" /> Invoice
         </Button>
       </div>
+
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Student Profile</DialogTitle></DialogHeader>
+          <div className="flex flex-col items-center text-center gap-3">
+            <StudentAvatar student={student} className="w-24 h-24 text-3xl ring-8 ring-muted" />
+            <div>
+              <p className="text-lg font-bold">{student.first_name} {student.last_name}</p>
+              <p className="text-sm text-muted-foreground">
+                {student.student_number} &middot; {student.class_name || "No class"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone size={12} /> Contact</p>
+              <p className="font-medium mt-0.5">{student.phone || student.emergency_contact || "—"}</p>
+            </div>
+            <div className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><BookOpen size={12} /> Class</p>
+              <p className="font-medium mt-0.5">{student.class_name || "—"}</p>
+            </div>
+            <div className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><UserRound size={12} /> Father</p>
+              <p className="font-medium mt-0.5">{student.father_name || "—"}</p>
+            </div>
+            <div className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground">Mother</p>
+              <p className="font-medium mt-0.5">{student.mother_name || "—"}</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border p-3">
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><UserRound size={12} /> Guardians</p>
+            <div className="mt-1 space-y-1">
+              {(!student.guardians || student.guardians.length === 0) && (
+                <p className="text-sm text-muted-foreground">No guardians linked</p>
+              )}
+              {(student.guardians || []).map((g) => (
+                <p key={g.id} className="text-sm">
+                  <span className="font-medium">{g.first_name} {g.last_name}</span>
+                  <span className="text-muted-foreground"> · {g.relationship}</span>
+                  {g.phone ? <span className="text-muted-foreground"> · {g.phone}</span> : null}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className={`rounded-xl border p-3 ${ledger && Number(ledger.total_balance) > 0 ? "border-red-200 bg-red-50" : ""}`}>
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Wallet size={12} /> Fee Status</p>
+            {!ledger ? (
+              <p className="text-sm text-muted-foreground mt-0.5">Loading fee status…</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 mt-1 text-center">
+                <div><p className="text-sm font-bold">{Number(ledger.total_owed).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Owed</p></div>
+                <div><p className="text-sm font-bold text-green-600">{Number(ledger.total_paid).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Paid</p></div>
+                <div>
+                  <p className={`text-sm font-bold ${Number(ledger.total_balance) > 0 ? "text-red-600" : "text-green-600"}`}>
+                    {Number(ledger.total_balance).toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Balance</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>

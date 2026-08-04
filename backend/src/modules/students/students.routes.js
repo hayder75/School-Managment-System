@@ -48,8 +48,8 @@ router.post('/:studentId/enrollments', requireAccess(['admin', 'owner'], ['stude
 router.put('/:studentId/enrollments/:enrollmentId', requireAccess(['admin', 'owner'], ['students.manage']), validate(enrollmentSchema), controller.updateEnrollment);
 router.delete('/:studentId/enrollments/:enrollmentId', requireAccess(['admin', 'owner'], ['students.manage']), controller.removeEnrollment);
 
-router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['students.view']), controller.list);
-router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['students.view']), controller.getById);
+router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'cashier', 'finance'], ['students.view']), controller.list);
+router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'cashier', 'finance'], ['students.view']), controller.getById);
 router.post('/', requireAccess(['admin', 'owner'], ['students.manage']), validate(createStudentSchema), controller.create);
 router.put('/:id', requireAccess(['admin', 'owner'], ['students.manage']), validate(updateStudentSchema), controller.update);
 router.delete('/:id', requireAccess(['admin', 'owner'], ['students.manage']), controller.remove);

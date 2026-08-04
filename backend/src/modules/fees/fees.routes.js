@@ -18,6 +18,7 @@ router.use(requireAccess(['admin', 'owner', 'finance', 'cashier'], ['fees.manage
 
 router.get('/summary', controller.getSummary);
 router.get('/collection-report', controller.getCollectionReport);
+router.get('/payment-trends', controller.getPaymentTrends);
 router.get('/ledger/:studentId', controller.getStudentLedger);
 router.post('/structures', validate(createFeeStructureSchema), controller.createFeeStructure);
 router.get('/structures', controller.listFeeStructures);

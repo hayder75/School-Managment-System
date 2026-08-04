@@ -6,14 +6,15 @@ import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers, useTeacherAssignments } from "../hooks/useTeachers";
 import { useMyChildren } from "../hooks/useParents";
 import { useMyAnnouncements } from "../hooks/useAnnouncements";
-import { usePaymentSummary, usePayments, useMyFees, useCollectionReport } from "../hooks/useFees";
+import { usePaymentSummary, usePayments, useMyFees, useCollectionReport, usePaymentTrends } from "../hooks/useFees";
 import { useExpenseTotals } from "../hooks/useExpenses";
 import { usePayroll } from "../hooks/usePayroll";
 import { useStudentGradeSummary, useStudentAttendanceSummary, useMyStudents, useStaffDirectory } from "../hooks/useReports";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { BarChart } from "../components/ui/charts";
 import {
   Users, GraduationCap, BookOpen, School, Megaphone, UserCheck, DollarSign,
-  TrendingDown, Wallet, Calendar, CheckCircle, XCircle, Clock, BarChart3,
+  TrendingDown, Wallet, CheckCircle, BarChart3,
   Building2, TrendingUp, CreditCard, AlertTriangle, ShieldAlert, Globe, Award,
 } from "lucide-react";
 
@@ -363,17 +364,21 @@ function FinanceDashboard() {
 
 function CashierDashboard() {
   const user = useAuthStore((s) => s.user);
+  const year = String(new Date().getFullYear());
   const { data: paymentSummary } = usePaymentSummary();
   const { data: paymentsData } = usePayments({ limit: 6 });
   const { data: announcementsData } = useMyAnnouncements();
   const { data: unpaidData } = useCollectionReport({
     month: String(new Date().getMonth() + 1),
-    year: String(new Date().getFullYear()),
+    year,
   });
+  const { data: trendData } = usePaymentTrends({ year });
 
   const summary = paymentSummary?.data || {};
   const recentPayments = paymentsData?.data || [];
   const totals = unpaidData?.data?.totals || {};
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const trendBars = (trendData?.data?.months || []).map((m) => ({ label: MONTHS[m.month - 1], value: m.total }));
 
   return (
     <div className="space-y-6">
@@ -407,8 +412,14 @@ function CashierDashboard() {
             )}
           </CardContent>
         </Card>
-        <AnnouncementsList data={announcementsData} />
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Monthly Collections</CardTitle></CardHeader>
+          <CardContent>
+            <BarChart data={trendBars} height={190} />
+          </CardContent>
+        </Card>
       </div>
+      <AnnouncementsList data={announcementsData} />
     </div>
   );
 }

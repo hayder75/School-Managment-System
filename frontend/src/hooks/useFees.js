@@ -96,3 +96,10 @@ export function useCollectionReport(params = {}) {
     queryFn: () => api.get("/fees/collection-report", { params }),
   });
 }
+
+export function usePaymentTrends(params = {}) {
+  return useQuery({
+    queryKey: ["fee-payment-trends", params],
+    queryFn: () => api.get("/fees/payment-trends", { params }),
+  });
+}

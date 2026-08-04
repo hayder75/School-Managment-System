@@ -103,7 +103,7 @@ function AppContent() {
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "cashier"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "cashier", "finance"]} />}>
             <Route path="/students" element={<StudentsPage />} />
             <Route path="/students/:id" element={<StudentDetailPage />} />
             <Route path="/attendance" element={<AttendancePage />} />

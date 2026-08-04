@@ -10,6 +10,7 @@ import {
   useStaffDirectory, usePayrollSummary, useHeadcount,
   useStudentGradeSummary, useStudentAttendanceSummary,
 } from "../hooks/useReports";
+import { usePaymentSummary, usePaymentTrends, useCollectionReport } from "../hooks/useFees";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
@@ -18,6 +19,9 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
+import { BarChart, DonutChart } from "../components/ui/charts";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function StatCard({ title, value, sub, color }) {
   return (
@@ -506,6 +510,92 @@ function FinanceReports() {
   );
 }
 
+// ── Cashier Tab ──
+
+function CashierReports() {
+  const year = String(new Date().getFullYear());
+  const month = String(new Date().getMonth() + 1);
+  const { data: trendData } = usePaymentTrends({ year });
+  const { data: summaryData } = usePaymentSummary();
+  const { data: reportData } = useCollectionReport({ month, year });
+
+  const summary = summaryData?.data || {};
+  const totals = reportData?.data?.totals || {};
+  const classes = reportData?.data?.classes || [];
+  const months = trendData?.data?.months || [];
+
+  const trendBars = months.map((m) => ({ label: MONTHS[m.month - 1], value: m.total }));
+
+  const donut = [
+    { label: "Paid", value: totals.paid_count, color: "#15803d" },
+    { label: "Partial", value: totals.partial_count, color: "#d97706" },
+    { label: "Unpaid", value: totals.unpaid_count, color: "#ef4444" },
+  ].filter((s) => s.value > 0);
+
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard title="Total Collected" value={`$${summary.total_collected?.toLocaleString() || 0}`} color="text-green-600" />
+        <StatCard title="This Month" value={`$${summary.month_collected?.toLocaleString() || 0}`} sub={`${summary.month_transactions || 0} transactions`} />
+        <StatCard title="Today" value={`$${summary.today_collected?.toLocaleString() || 0}`} sub={`${summary.today_transactions || 0} transactions`} />
+        <StatCard title="Uncollected" value={totals.unpaid_count ?? 0} sub={`this month · ${totals.total_students || 0} students`} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Monthly Collections — {year}</CardTitle></CardHeader>
+          <CardContent><BarChart data={trendBars} /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Collection Status — {MONTHS[(reportData?.data?.month || 1) - 1]} {year}</CardTitle></CardHeader>
+          <CardContent>
+            {donut.length > 0 ? (
+              <DonutChart total={totals.total_students || 0} segments={donut} />
+            ) : (
+              <p className="text-sm text-muted-foreground">No data</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-sm">Collected & Uncollected by Class — {MONTHS[(reportData?.data?.month || 1) - 1]} {year}</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Class</TableHead>
+                <TableHead>Students</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Partial</TableHead>
+                <TableHead>Unpaid</TableHead>
+                <TableHead className="text-right">Expected</TableHead>
+                <TableHead className="text-right">Collected</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {classes.map((c) => (
+                <TableRow key={c.class_id}>
+                  <TableCell className="font-medium">{c.class_name}</TableCell>
+                  <TableCell>{c.student_count}</TableCell>
+                  <TableCell className="text-green-600">{c.collected_count}</TableCell>
+                  <TableCell className="text-yellow-600">{c.partial_count}</TableCell>
+                  <TableCell className="text-red-600">{c.unpaid_count}</TableCell>
+                  <TableCell className="text-right">{Number(c.expected).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{Number(c.collected).toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+              {classes.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No data</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── HR Tab ──
 
 function StaffDirectoryReport() {
@@ -732,6 +822,7 @@ export default function ReportsPage() {
     if (["owner", "admin"].includes(role)) t.push({ value: "admin", label: "Admin Reports" });
     if (["teacher"].includes(role)) t.push({ value: "teacher", label: "My Reports" });
     if (["finance"].includes(role)) t.push({ value: "finance", label: "Finance Reports" });
+    if (["cashier"].includes(role)) t.push({ value: "cashier", label: "Collection Report" });
     if (["hr", "owner", "admin"].includes(role)) t.push({ value: "hr", label: "HR Reports" });
     if (["student"].includes(role)) t.push({ value: "student", label: "My Reports" });
     if (role === "owner" || role === "admin") {
@@ -753,6 +844,7 @@ export default function ReportsPage() {
         <TabsContent value="admin"><AdminReports /></TabsContent>
         <TabsContent value="teacher"><TeacherReports /></TabsContent>
         <TabsContent value="finance"><FinanceReports /></TabsContent>
+        <TabsContent value="cashier"><CashierReports /></TabsContent>
         <TabsContent value="hr"><HRReports /></TabsContent>
         <TabsContent value="student"><StudentReports /></TabsContent>
       </Tabs>

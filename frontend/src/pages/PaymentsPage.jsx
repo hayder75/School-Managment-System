@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
+import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { usePayments, useCreatePayment, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
 import { useStudents } from "../hooks/useStudents";
@@ -15,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2, Search, X } from "lucide-react";
 
 export default function PaymentsPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [filterStudentId, setFilterStudentId] = useState("");
   const [filterCollectorId, setFilterCollectorId] = useState("");
@@ -459,7 +462,14 @@ export default function PaymentsPage() {
                 <TableBody>
                   {payments.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.first_name} {p.last_name}</TableCell>
+                                            <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <StudentAvatar student={{ user_id: p.student_id, first_name: p.first_name, last_name: p.last_name }} className="w-8 h-8 text-xs" />
+                          <button className="hover:text-primary hover:underline text-left" onClick={() => navigate(`/students/${p.student_id}`)}>
+                            {p.first_name} {p.last_name}
+                          </button>
+                        </div>
+                      </TableCell>
                       <TableCell>{parseFloat(p.amount_paid || 0).toLocaleString()}</TableCell>
                       <TableCell className="capitalize">{p.payment_method}</TableCell>
                       <TableCell>{p.collector_first_name ? `${p.collector_first_name} ${p.collector_last_name}` : "—"}</TableCell>
