@@ -55,6 +55,53 @@ async function createPayment(tenantId, data, collectedBy) {
   return payment;
 }
 
+async function createBulkPayments(tenantId, payments, collectedBy) {
+  const studentIds = [...new Set(payments.map((p) => p.student_id))];
+  const feeIds = [...new Set(payments.map((p) => p.fee_structure_id).filter(Boolean))];
+
+  const students = await db('users')
+    .join('students', 'students.user_id', 'users.id')
+    .where({ 'users.role': 'student', 'users.tenant_id': tenantId })
+    .whereIn('users.id', studentIds)
+    .select('users.id');
+  const foundStudents = new Set(students.map((s) => s.id));
+  const missingStudents = studentIds.filter((id) => !foundStudents.has(id));
+  if (missingStudents.length > 0) {
+    const err = new Error('STUDENT_NOT_FOUND');
+    err.code = 'STUDENT_NOT_FOUND';
+    throw err;
+  }
+
+  if (feeIds.length > 0) {
+    const fees = await db('fee_structures').where({ tenant_id: tenantId }).whereIn('id', feeIds).select('id');
+    const foundFees = new Set(fees.map((f) => f.id));
+    const missingFees = feeIds.filter((id) => !foundFees.has(id));
+    if (missingFees.length > 0) {
+      const err = new Error('FEE_NOT_FOUND');
+      err.code = 'FEE_NOT_FOUND';
+      throw err;
+    }
+  }
+
+  const created = await db.transaction(async (trx) => {
+    const rows = [];
+    for (const p of payments) {
+      const [row] = await trx('payments')
+        .insert({ ...p, tenant_id: tenantId, collected_by: collectedBy || null })
+        .returning('*');
+      rows.push(row);
+    }
+    return rows;
+  });
+
+  for (const payment of created) {
+    await notifyPaymentRecorded(tenantId, payment);
+  }
+
+  const total = created.reduce((s, p) => s + parseFloat(p.amount_paid || 0), 0);
+  return { created, count: created.length, total };
+}
+
 async function notifyPaymentRecorded(tenantId, payment) {
   try {
     const recipients = [payment.student_id];
@@ -411,6 +458,6 @@ async function getPaymentTrends(tenantId, year, collectorUserId = null) {
 
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
-  createPayment, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
+  createPayment, createBulkPayments, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
   getStudentLedger, getCollectionReport, getPaymentTrends,
 };

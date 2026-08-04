@@ -5,7 +5,7 @@ const tenant = require('../../middleware/tenant');
 const rbac = require('../../middleware/rbac');
 const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
-const { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema } = require('./fees.validation');
+const { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema } = require('./fees.validation');
 
 const router = Router();
 
@@ -26,6 +26,7 @@ router.get('/structures/:id', controller.getFeeStructureById);
 router.put('/structures/:id', validate(updateFeeStructureSchema), controller.updateFeeStructure);
 router.delete('/structures/:id', controller.removeFeeStructure);
 router.post('/payments', validate(createPaymentSchema), controller.createPayment);
+router.post('/payments/bulk', validate(bulkCreatePaymentsSchema), controller.createBulkPayments);
 router.get('/payments', controller.listPayments);
 router.get('/payments/:id', controller.getPaymentById);
 router.put('/payments/:id', validate(updatePaymentSchema), controller.updatePayment);

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { StudentAvatar } from "../components/ui/StudentAvatar";
-import { usePayments, useCreatePayment, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
+import { usePayments, useCreateBulkPayments, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
 import { useStudents } from "../hooks/useStudents";
 import { Button } from "../components/ui/button";
@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2, Search, X } from "lucide-react";
+import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2, Search, X, Check, Users } from "lucide-react";
 
 export default function PaymentsPage() {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export default function PaymentsPage() {
   const { data: summaryData } = usePaymentSummary();
   const { data: feesData } = useFeeStructures({ limit: 200 });
   const { data: ledgerData } = useStudentLedger(filterStudentId);
-  const createPayment = useCreatePayment();
+  const createBulkPayments = useCreateBulkPayments();
   const updatePayment = useUpdatePayment();
   const deletePayment = useDeletePayment();
   const [open, setOpen] = useState(false);
@@ -50,6 +50,11 @@ export default function PaymentsPage() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [filterSearch, setFilterSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [bulkStudents, setBulkStudents] = useState([]);
+  const [bulkFeeIds, setBulkFeeIds] = useState([]);
+  const [bulkAmounts, setBulkAmounts] = useState({});
+  const [bulkMethod, setBulkMethod] = useState("cash");
+  const [bulkRemarks, setBulkRemarks] = useState("");
 
   const { data: searchData, isLoading: searching } = useStudents(
     { search: studentSearch || filterSearch, limit: 20 },
@@ -62,22 +67,6 @@ export default function PaymentsPage() {
   const summary = summaryData?.data || {};
   const ledger = ledgerData?.data || {};
   const searchResults = searchData?.data || [];
-
-  async function handleCreate(e) {
-    e.preventDefault();
-    setFieldErrors({});
-    try {
-      await createPayment.mutateAsync({
-        ...form,
-        amount_paid: parseFloat(form.amount_paid),
-        fee_structure_id: form.fee_structure_id || null,
-      });
-      setOpen(false);
-      setForm({ student_id: "", fee_structure_id: "", amount_paid: "", payment_method: "cash", remarks: "" });
-    } catch (err) {
-      setFieldErrors(extractApiErrors(err));
-    }
-  }
 
   function startEdit(p) {
     setEditPayment(p);
@@ -94,12 +83,86 @@ export default function PaymentsPage() {
     setOpen(true);
   }
 
-  function selectStudent(s) {
-    setSelectedStudent(s);
-    setForm({ ...form, student_id: s.user_id });
+  function gridKey(uid, feeId) {
+    return `${uid}::${feeId || "none"}`;
+  }
+
+  function addBulkStudent(s) {
+    if (bulkStudents.some((x) => x.user_id === s.user_id)) return;
+    setBulkStudents((prev) => [...prev, s]);
     setStudentSearch("");
     setSearchOpen(false);
-    setFieldErrors((e) => ({ ...e, student_id: undefined }));
+    setFieldErrors((e) => ({ ...e, students: undefined }));
+  }
+
+  function removeBulkStudent(uid) {
+    setBulkStudents((prev) => prev.filter((s) => s.user_id !== uid));
+    setBulkAmounts((a) => {
+      const next = { ...a };
+      for (const k of Object.keys(next)) {
+        if (k.startsWith(uid + "::")) delete next[k];
+      }
+      return next;
+    });
+  }
+
+  function toggleFee(fid) {
+    setBulkFeeIds((prev) => (prev.includes(fid) ? prev.filter((x) => x !== fid) : [...prev, fid]));
+  }
+
+  function setCellAmount(uid, feeId, value) {
+    setBulkAmounts((a) => ({ ...a, [gridKey(uid, feeId)]: value }));
+  }
+
+  function buildPayments() {
+    const payments = [];
+    for (const s of bulkStudents) {
+      const feeList = bulkFeeIds.length ? bulkFeeIds : [null];
+      for (const fid of feeList) {
+        const amt = parseFloat(bulkAmounts[gridKey(s.user_id, fid)] || "");
+        if (amt > 0) {
+          payments.push({
+            student_id: s.user_id,
+            fee_structure_id: fid,
+            amount_paid: amt,
+            payment_method: bulkMethod,
+            remarks: bulkRemarks?.trim() ? bulkRemarks.trim() : undefined,
+          });
+        }
+      }
+    }
+    return payments;
+  }
+
+  function resetBulk() {
+    setBulkStudents([]);
+    setBulkFeeIds([]);
+    setBulkAmounts({});
+    setBulkMethod("cash");
+    setBulkRemarks("");
+  }
+
+  async function handleBulkCreate(e) {
+    e.preventDefault();
+    setFieldErrors({});
+    if (bulkStudents.length === 0) {
+      setFieldErrors({ students: "Select at least one student" });
+      return;
+    }
+    const payments = buildPayments();
+    if (payments.length === 0) {
+      setFieldErrors({ amounts: "Enter an amount for at least one row" });
+      return;
+    }
+    try {
+      const res = await createBulkPayments.mutateAsync(payments);
+      setOpen(false);
+      setEditPayment(null);
+      resetBulk();
+      alert(`Saved ${res?.data?.count || payments.length} payment(s), total ${Number(res?.data?.total || 0).toLocaleString()}`);
+    } catch (err) {
+      setFieldErrors(extractApiErrors(err));
+    }
   }
 
   async function handleEdit(e) {
@@ -138,6 +201,9 @@ export default function PaymentsPage() {
     }
   }
 
+  const bulkPaymentsList = buildPayments();
+  const bulkTotal = bulkPaymentsList.reduce((s, p) => s + p.amount_paid, 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -145,108 +211,235 @@ export default function PaymentsPage() {
           <h1 className="text-3xl font-bold">Payments</h1>
           <p className="text-muted-foreground">Record and track student payments</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditPayment(null); setSelectedStudent(null); setStudentSearch(""); setSearchOpen(false); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditPayment(null); setSelectedStudent(null); setStudentSearch(""); setSearchOpen(false); resetBulk(); } }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Record Payment</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-3xl">
             <DialogHeader><DialogTitle>{editPayment ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
-            <form onSubmit={editPayment ? handleEdit : handleCreate} className="space-y-4">
+            <form onSubmit={editPayment ? handleEdit : handleBulkCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
-              <div className="space-y-2">
-                <Label>Student</Label>
-                {editPayment ? (
-                  <Input value={`${selectedStudent?.first_name || ""} ${selectedStudent?.last_name || ""}`} disabled />
-                ) : (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : studentSearch}
-                      onChange={(e) => {
-                        setStudentSearch(e.target.value);
-                        setSelectedStudent(null);
-                        setForm({ ...form, student_id: "" });
-                        setSearchOpen(true);
-                        setFieldErrors((err) => ({ ...err, student_id: undefined }));
-                      }}
-                      onFocus={() => setSearchOpen(true)}
-                      onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-                      placeholder="Search by name, student number, or guardian phone…"
-                      className="pl-9 pr-9"
-                    />
-                    {studentSearch && (
-                      <button
-                        type="button"
-                        onClick={() => { setStudentSearch(""); setSearchOpen(true); }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                    {searchOpen && !selectedStudent && (
-                      <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-md border bg-background shadow-lg">
-                        {searching ? (
-                          <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
-                        ) : studentSearch.trim() === "" ? (
-                          <p className="px-3 py-2 text-sm text-muted-foreground">Type to search by name, number, or guardian phone</p>
-                        ) : searchResults.length === 0 ? (
-                          <p className="px-3 py-2 text-sm text-muted-foreground">No students found</p>
-                        ) : (
-                          searchResults.map((s) => (
-                            <button
-                              type="button"
-                              key={s.user_id}
-                              onMouseDown={(e) => { e.preventDefault(); selectStudent(s); }}
-                              className="w-full text-left px-3 py-2 hover:bg-muted flex flex-col gap-0.5"
-                            >
-                              <span className="text-sm font-medium">{s.first_name} {s.last_name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {[s.student_number, s.class_name, s.phone].filter(Boolean).join(" · ")}
-                              </span>
+
+              {editPayment ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Student</Label>
+                    <Input value={`${selectedStudent?.first_name || ""} ${selectedStudent?.last_name || ""}`} disabled />
+                  </div>
+                  <FieldError errors={fieldErrors} field="student_id" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Amount Paid</Label>
+                      <Input required type="number" value={form.amount_paid} onChange={(e) => setForm({ ...form, amount_paid: e.target.value })} />
+                      <FieldError errors={fieldErrors} field="amount_paid" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Method</Label>
+                      <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank">Bank Transfer</SelectItem>
+                          <SelectItem value="card">Card</SelectItem>
+                          <SelectItem value="mobile">Mobile Money</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FieldError errors={fieldErrors} field="payment_method" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Remarks</Label>
+                    <Input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
+                  </div>
+                  <Button type="submit" className="w-full">Save Changes</Button>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> Students <span className="text-muted-foreground font-normal">(add one or more kids — e.g. siblings)</span></Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={studentSearch}
+                        onChange={(e) => {
+                          setStudentSearch(e.target.value);
+                          setSearchOpen(true);
+                          setFieldErrors((err) => ({ ...err, students: undefined }));
+                        }}
+                        onFocus={() => setSearchOpen(true)}
+                        onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                        placeholder="Search by name, student number, or guardian phone…"
+                        className="pl-9 pr-9"
+                      />
+                      {studentSearch && (
+                        <button
+                          type="button"
+                          onClick={() => { setStudentSearch(""); setSearchOpen(true); }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                      {searchOpen && (
+                        <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-md border bg-background shadow-lg">
+                          {searching ? (
+                            <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                          ) : studentSearch.trim() === "" ? (
+                            <p className="px-3 py-2 text-sm text-muted-foreground">Type to search by name, number, or guardian phone</p>
+                          ) : searchResults.length === 0 ? (
+                            <p className="px-3 py-2 text-sm text-muted-foreground">No students found</p>
+                          ) : (
+                            searchResults.map((s) => {
+                              const added = bulkStudents.some((x) => x.user_id === s.user_id);
+                              return (
+                                <button
+                                  type="button"
+                                  key={s.user_id}
+                                  onMouseDown={(e) => { e.preventDefault(); addBulkStudent(s); }}
+                                  className={`w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2 ${added ? "opacity-60" : ""}`}
+                                >
+                                  <StudentAvatar student={s} className="w-7 h-7 text-xs" />
+                                  <span className="flex-1 min-w-0">
+                                    <span className="block text-sm font-medium truncate">{s.first_name} {s.last_name}</span>
+                                    <span className="block text-xs text-muted-foreground truncate">
+                                      {[s.student_number, s.class_name, s.phone].filter(Boolean).join(" · ")}
+                                    </span>
+                                  </span>
+                                  {added && <Check className="h-4 w-4 text-primary shrink-0" />}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {bulkStudents.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {bulkStudents.map((s) => (
+                          <span key={s.user_id} className="inline-flex items-center gap-2 rounded-full border bg-muted/50 pl-1 pr-2 py-1 text-sm">
+                            <StudentAvatar student={s} className="w-6 h-6 text-[10px]" />
+                            <span className="font-medium">{s.first_name} {s.last_name}</span>
+                            <button type="button" onClick={() => removeBulkStudent(s.user_id)} className="text-muted-foreground hover:text-foreground" title="Remove">
+                              <X className="h-3.5 w-3.5" />
                             </button>
-                          ))
-                        )}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-              <FieldError errors={fieldErrors} field="student_id" />
-              <div className="space-y-2">
-                <Label>Fee Structure (optional)</Label>
-                <Select value={form.fee_structure_id} onValueChange={(v) => setForm({ ...form, fee_structure_id: v })} disabled={!!editPayment}>
-                  <SelectTrigger><SelectValue placeholder="Select fee" /></SelectTrigger>
-                  <SelectContent>
-                    {fees.map((f) => <SelectItem key={f.id} value={f.id}>{f.name} ({parseFloat(f.amount || 0).toLocaleString()})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <FieldError errors={fieldErrors} field="fee_structure_id" />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Amount Paid</Label>
-                  <Input required type="number" value={form.amount_paid} onChange={(e) => setForm({ ...form, amount_paid: e.target.value })} />
-                  <FieldError errors={fieldErrors} field="amount_paid" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Method</Label>
-                  <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="bank">Bank Transfer</SelectItem>
-                      <SelectItem value="card">Card</SelectItem>
-                      <SelectItem value="mobile">Mobile Money</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FieldError errors={fieldErrors} field="payment_method" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Remarks</Label>
-                <Input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
-              </div>
-              <Button type="submit" className="w-full">{editPayment ? "Save Changes" : "Record Payment"}</Button>
+                  <FieldError errors={fieldErrors} field="students" />
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" /> Fee Structures <span className="text-muted-foreground font-normal">(optional — select one or more)</span></Label>
+                    {fees.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No fee structures defined</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                        {fees.map((f) => {
+                          const active = bulkFeeIds.includes(f.id);
+                          return (
+                            <button
+                              type="button"
+                              key={f.id}
+                              onClick={() => toggleFee(f.id)}
+                              className={`px-3 py-1.5 rounded-full border text-sm flex items-center gap-1.5 transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                            >
+                              {active && <Check className="h-3 w-3" />}
+                              {f.name} <span className={`text-xs ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{parseFloat(f.amount || 0).toLocaleString()}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {bulkStudents.length > 0 ? (
+                    <div className="space-y-2">
+                      <Label>Amounts</Label>
+                      <div className="overflow-x-auto border rounded-lg">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="text-left p-2 font-medium">Student</th>
+                              {bulkFeeIds.length === 0 ? (
+                                <th className="text-left p-2 font-medium w-40">Amount</th>
+                              ) : (
+                                bulkFeeIds.map((fid) => {
+                                  const f = fees.find((x) => x.id === fid);
+                                  return (
+                                    <th key={fid} className="text-left p-2 font-medium min-w-36">
+                                      {f ? f.name : "Fee"}
+                                      {f && <span className="block text-xs font-normal text-muted-foreground">{parseFloat(f.amount).toLocaleString()}</span>}
+                                    </th>
+                                  );
+                                })
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {bulkStudents.map((s) => (
+                              <tr key={s.user_id} className="border-b last:border-0">
+                                <td className="p-2">
+                                  <div className="flex items-center gap-2">
+                                    <StudentAvatar student={s} className="w-7 h-7 text-xs" />
+                                    <div className="leading-tight">
+                                      <p className="font-medium">{s.first_name} {s.last_name}</p>
+                                      <p className="text-xs text-muted-foreground">{[s.student_number, s.class_name].filter(Boolean).join(" · ")}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                {bulkFeeIds.length === 0 ? (
+                                  <td className="p-2">
+                                    <Input type="number" min="0" placeholder="0.00" value={bulkAmounts[gridKey(s.user_id, null)] || ""} onChange={(e) => setCellAmount(s.user_id, null, e.target.value)} />
+                                  </td>
+                                ) : (
+                                  bulkFeeIds.map((fid) => (
+                                    <td key={fid} className="p-2">
+                                      <Input type="number" min="0" placeholder="0.00" value={bulkAmounts[gridKey(s.user_id, fid)] || ""} onChange={(e) => setCellAmount(s.user_id, fid, e.target.value)} />
+                                    </td>
+                                  ))
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <FieldError errors={fieldErrors} field="amounts" />
+                    </div>
+                  ) : (
+                    <FieldError errors={fieldErrors} field="amounts" />
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Method</Label>
+                      <Select value={bulkMethod} onValueChange={(v) => setBulkMethod(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank">Bank Transfer</SelectItem>
+                          <SelectItem value="card">Card</SelectItem>
+                          <SelectItem value="mobile">Mobile Money</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Remarks</Label>
+                      <Input value={bulkRemarks} onChange={(e) => setBulkRemarks(e.target.value)} placeholder="e.g. Semester 1" />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <p className="text-sm text-muted-foreground">
+                      {bulkStudents.length > 0 ? `${bulkPaymentsList.length} payment(s) · Total ` : "No payments yet"}
+                      {bulkPaymentsList.length > 0 && <span className="font-bold text-foreground">{bulkTotal.toLocaleString()}</span>}
+                    </p>
+                    <Button type="submit" disabled={bulkPaymentsList.length === 0}>
+                      {bulkPaymentsList.length > 0 ? `Save ${bulkPaymentsList.length} Payment${bulkPaymentsList.length > 1 ? "s" : ""}` : "Record Payments"}
+                    </Button>
+                  </div>
+                </>
+              )}
             </form>
           </DialogContent>
         </Dialog>

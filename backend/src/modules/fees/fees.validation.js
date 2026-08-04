@@ -37,6 +37,22 @@ const createPaymentSchema = z.object({
   }),
 });
 
+const bulkCreatePaymentsSchema = z.object({
+  body: z.object({
+    payments: z.array(z.object({
+      student_id: z.string().uuid(),
+      fee_structure_id: z.string().uuid().nullable().optional(),
+      amount_paid: z.number().positive(),
+      balance: z.number().min(0).default(0),
+      due_date: z.string().optional(),
+      paid_date: z.string().optional(),
+      status: z.enum(['pending', 'partial', 'paid', 'overdue', 'refunded']).default('paid'),
+      payment_method: z.enum(['cash', 'bank', 'card', 'mobile']).default('cash'),
+      remarks: z.string().optional(),
+    })).min(1, 'At least one payment is required'),
+  }),
+});
+
 const updatePaymentSchema = z.object({
   body: z.object({
     amount_paid: z.number().positive().optional(),
@@ -49,4 +65,4 @@ const updatePaymentSchema = z.object({
   }),
 });
 
-module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema };
+module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema };

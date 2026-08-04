@@ -77,6 +77,21 @@ async function createPayment(req, res) {
   }
 }
 
+async function createBulkPayments(req, res) {
+  try {
+    const result = await feeService.createBulkPayments(req.tenant.id, req.validated.body.payments, req.user.userId);
+    res.status(201).json({ success: true, data: result });
+  } catch (err) {
+    if (err.code === 'STUDENT_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'STUDENT_NOT_FOUND', message: 'One or more students not found in this school' } });
+    }
+    if (err.code === 'FEE_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'FEE_NOT_FOUND', message: 'One or more fee structures not found in this school' } });
+    }
+    throw err;
+  }
+}
+
 async function listPayments(req, res) {
   const { page, limit, student_id, status, collected_by, fee_structure_id, payment_method, month, year } = req.query;
   const isCashier = req.user.role === 'cashier';
@@ -139,7 +154,7 @@ async function getStudentLedger(req, res) {
 
 module.exports = {
   createFeeStructure, listFeeStructures, getFeeStructureById, updateFeeStructure, removeFeeStructure,
-  createPayment, updatePayment, listPayments, getPaymentById, removePayment, getSummary,
+  createPayment, createBulkPayments, updatePayment, listPayments, getPaymentById, removePayment, getSummary,
   getStudentLedger, getCollectionReport, getPaymentTrends,
   getMyFees,
 };

@@ -42,6 +42,20 @@ export function useCreatePayment() {
   });
 }
 
+export function useCreateBulkPayments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payments) => api.post("/fees/payments/bulk", { payments }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["fee-summary"] });
+      qc.invalidateQueries({ queryKey: ["fee-ledger"] });
+      qc.invalidateQueries({ queryKey: ["fee-trends"] });
+      qc.invalidateQueries({ queryKey: ["my-fees"] });
+    },
+  });
+}
+
 export function useUpdatePayment() {
   const qc = useQueryClient();
   return useMutation({
