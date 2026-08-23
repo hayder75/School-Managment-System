@@ -8,7 +8,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { CheckCircle2, ChevronLeft, ChevronRight, UserPlus, Search, FileUp, Trash2, PartyPopper } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, UserPlus, Search, FileUp, Trash2, PartyPopper, KeyRound } from "lucide-react";
 
 const STEPS = ["Student", "Class", "Guardian", "Medical & Docs", "Review"];
 const RELATIONSHIPS = ["father", "mother", "brother", "sister", "grandfather", "grandmother", "uncle", "aunt", "other"];
@@ -18,7 +18,7 @@ export default function EnrollmentWizardPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(null); // { ...student, __credentials }
 
   // Step 1 — student
   const [student, setStudent] = useState({
@@ -111,6 +111,7 @@ export default function EnrollmentWizardPage() {
   }
 
   if (result) {
+    const creds = result.__credentials || {};
     return (
       <div className="max-w-xl mx-auto py-12">
         <Card>
@@ -118,11 +119,31 @@ export default function EnrollmentWizardPage() {
             <PartyPopper className="h-14 w-14 mx-auto text-green-500" />
             <h1 className="text-2xl font-bold">Student enrolled successfully</h1>
             <div className="rounded-lg border bg-muted/40 p-4 text-left text-sm space-y-1.5 mx-auto max-w-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-semibold">{result.student_number ? `${student.first_name} ${student.last_name}` : ""}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Student ID</span><span className="font-mono font-bold">{result.student_number}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Class</span><span>{selectedClass?.name || "—"}</span></div>
             </div>
-            <div className="flex gap-3 justify-center pt-2">
+
+            {/* Login credentials handout */}
+            <div className="rounded-lg border-2 border-dashed border-neutral-300 p-4 text-left text-sm mx-auto max-w-sm">
+              <p className="font-semibold mb-2 flex items-center gap-2"><KeyRound size={15} /> Login accounts (hand these to the family)</p>
+              {creds.student && (
+                <div className="flex justify-between py-1 border-b">
+                  <span>Student login</span>
+                  <span className="font-mono">{creds.student.username} / 1234</span>
+                </div>
+              )}
+              {(creds.guardians || []).map((g, i) => (
+                <div key={i} className="flex justify-between py-1 border-b last:border-0">
+                  <span>{g.name}</span>
+                  <span className="font-mono">{g.username} / 1234</span>
+                </div>
+              ))}
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Default password is <strong>1234</strong> — they should change it after first login.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3 justify-center pt-2">
               <Button variant="outline" onClick={() => navigate(`/students/${result.id}`)}>Open student record</Button>
               <Button onClick={() => navigate(`/payments?student=${result.id}`)}>Record first payment</Button>
               <Button variant="ghost" onClick={() => { setResult(null); setStep(0); }}>Enroll another</Button>

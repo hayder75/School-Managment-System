@@ -99,6 +99,24 @@ export default function SettingsPage() {
                 <Input value={form.current_term || ""} onChange={(e) => handleChange("current_term", e.target.value)} />
               </div>
               <div className="space-y-2">
+                <Label>School Logo (report card header)</Label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="text-sm"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f || f.size > 200 * 1024) { alert("Please choose an image under 200KB."); return; }
+                    const fr = new FileReader();
+                    fr.onload = () => handleChange("branding.logo", fr.result);
+                    fr.readAsDataURL(f);
+                  }}
+                />
+                {form["branding.logo"] && typeof form["branding.logo"] === "string" && form["branding.logo"].startsWith("data:image") && (
+                  <img src={form["branding.logo"]} alt="logo preview" className="h-12 mt-1 border rounded p-0.5" />
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label>Passing Grade (%)</Label>
                 <Input type="number" value={form.passing_grade || "50"} onChange={(e) => handleChange("passing_grade", e.target.value)} />
               </div>

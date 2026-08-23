@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const bcrypt = require('bcrypt');
 const { paginatedResult } = require('../../shared/pagination');
 
 async function create(tenantId, data) {
@@ -6,34 +7,53 @@ async function create(tenantId, data) {
   return student;
 }
 
+async function uniqueUsername(trx, tenantId, base) {
+  let candidate = base;
+  let n = 1;
+  while (await trx('users').where({ tenant_id: tenantId, username: candidate }).first()) {
+    candidate = `${base}${n}`;
+    n += 1;
+    if (n > 50) { candidate = `${base}${Date.now().toString(36).slice(-4)}`; break; }
+  }
+  return candidate;
+}
+
+const DEFAULT_HASH = "$2b$10$wWA7YLyqHZS86hcYSnGIuuMMLEJOF5S17ly/2.BUvuZZOS1UUs6ia"; // "1234"
+
+
 async function enroll(tenantId, userId, data) {
+  const creds = { student: null, guardians: [] };
   const { guardians = [], new_guardians = [], enrollment, first_name, last_name, student_email, ...studentData } = data;
 
   return db.transaction(async (trx) => {
+    // Generate a student number when missing (also becomes the login username)
+    if (!studentData.student_number) {
+      const [{ c }] = await trx('students').where('tenant_id', tenantId).count('* as c');
+      const seq = String(Number(c) + 1).padStart(4, '0');
+      studentData.student_number = `ST-${new Date().getFullYear()}-${seq}`;
+    }
+
     // Auto-create the student's login account when not linked to an existing user
     let studentUserId = studentData.user_id;
     if (!studentUserId) {
       const email = student_email || `${(first_name || 'student').toLowerCase().replace(/\s+/g, '')}.${Date.now().toString(36)}@students.mountolive.edu.et`;
+      const username = await uniqueUsername(trx, tenantId, studentData.student_number);
       const [u] = await trx('users')
         .insert({
           tenant_id: tenantId,
           first_name: first_name || 'Student',
           last_name: last_name || '',
           email,
+          username,
           role: 'student',
           status: 'active',
           phone: studentData.emergency_contact || null,
           gender: studentData.gender || null,
+          password_hash: DEFAULT_HASH,
         })
         .returning('*');
       studentUserId = u.id;
-    }
-
-    // Generate a student number when missing
-    if (!studentData.student_number) {
-      const [{ c }] = await trx('students').where('tenant_id', tenantId).count('* as c');
-      const seq = String(Number(c) + 1).padStart(4, '0');
-      studentData.student_number = `ST-${new Date().getFullYear()}-${seq}`;
+      creds.student = { username };
     }
 
     const [student] = await trx('students')
@@ -44,18 +64,27 @@ async function enroll(tenantId, userId, data) {
     const allGuardians = [...guardians];
     for (const ng of new_guardians) {
       const email = ng.email || `${ng.first_name.toLowerCase().replace(/\s+/g, '')}.${ng.last_name.toLowerCase().replace(/\s+/g, '') || 'parent'}.${Date.now().toString(36)}@parents.mountolive.edu.et`;
+      const baseU = 'P' + String(ng.phone || '').replace(/\D/g, '').slice(-9);
+      const username = await uniqueUsername(trx, tenantId, baseU || `P${Date.now().toString(36)}`);
       const [parentUser] = await trx('users')
         .insert({
           tenant_id: tenantId,
           first_name: ng.first_name,
           last_name: ng.last_name,
           email,
+          username,
           phone: ng.phone,
           role: 'parent',
           status: 'active',
+          password_hash: DEFAULT_HASH,
         })
         .returning('*');
       allGuardians.push({ ...ng, parent_id: parentUser.id });
+      creds.guardians.push({
+        name: `${ng.first_name} ${ng.last_name}`,
+        username,
+        relationship: ng.relationship || null,
+      });
     }
 
     if (allGuardians.length > 0) {
@@ -125,7 +154,7 @@ async function enroll(tenantId, userId, data) {
       changed_by: userId,
     });
 
-    return student;
+    return { ...student, __credentials: creds };
   });
 }
 

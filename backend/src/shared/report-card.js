@@ -24,6 +24,11 @@ async function generateReportCard(student, grades, attendance, termInfo) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    // Logo (if provided via payload.__logo buffer)
+    if (student.__logo) {
+      try { doc.image(student.__logo, 40, 38, { fit: [52, 52] }); } catch (e) {}
+    }
+
     // Header
     doc.fontSize(18).font('Helvetica-Bold').text(schoolName.toUpperCase(), { align: 'center' });
     doc.moveDown(0.2);

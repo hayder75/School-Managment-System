@@ -819,6 +819,8 @@ function StudentReports() {
 // ── Main Page ──
 
 function SemesterResultsTab() {
+  const user = useAuthStore((s) => s.user);
+  const canPublish = ["admin", "owner", "principal", "vice_principal"].includes(user?.role);
   const { data: classesData } = useClasses({ limit: 300 });
   const classes = classesData?.data || [];
   const [classId, setClassId] = useState(classes[0]?.id || "");
@@ -839,6 +841,18 @@ function SemesterResultsTab() {
     setLoading(true);
     try {
       const res = await api.get("/reports/semester-results", { params: { term_id: termId, class_id: classId } });
+      // attach publish state per student
+      if (res.data?.students?.length) {
+        const enriched = await Promise.all(res.data.students.map(async (s) => {
+          try {
+            const m = await api.get("/reports/report-card-meta", { params: { student_id: s.student_id, term_id: termId } });
+            return { ...s, __published: !!m.data?.published, __remarks: m.data?.remarks || "" };
+          } catch {
+            return { ...s, __published: false, __remarks: "" };
+          }
+        }));
+        res.data.students = enriched;
+      }
       setResults(res.data);
     } finally {
       setLoading(false);
@@ -923,9 +937,47 @@ function SemesterResultsTab() {
                       <td className="p-3 text-center font-bold">{st.average}</td>
                       <td className="p-3 text-center">{st.letter}</td>
                       <td className="p-3 text-center"><Badge variant="outline">{st.rank}</Badge></td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
                         <a href={`/api/pdf/report-card/${st.student_id}?term_id=${termId}`} target="_blank" rel="noreferrer"
-                          className="text-primary underline text-xs font-medium">Print PDF</a>
+                          className="text-primary underline text-xs font-medium">Print</a>
+                        {canPublish && (
+                          <>
+                            <button
+                              className="text-xs underline text-muted-foreground hover:text-foreground"
+                              onClick={async () => {
+                                const remarks = window.prompt("Report card remarks:", st.__remarks || "");
+                                if (remarks === null) return;
+                                await api.put("/reports/report-card-meta", {
+                                  student_id: st.student_id, term_id: termId, remarks,
+                                });
+                                setResults((r) => ({
+                                  ...r,
+                                  students: r.students.map((x) => (x.student_id === st.student_id ? { ...x, __remarks: remarks } : x)),
+                                }));
+                              }}
+                            >
+                              Remark
+                            </button>
+                            <button
+                              className={`text-xs font-semibold underline ${st.__published ? "text-green-600" : "text-orange-600"}`}
+                              onClick={async () => {
+                                const res = await api.put("/reports/report-card-meta", {
+                                  student_id: st.student_id, term_id: termId,
+                                  published: !st.__published,
+                                });
+                                setResults((r) => ({
+                                  ...r,
+                                  students: r.students.map((x) => (x.student_id === st.student_id ? {
+                                    ...x, __published: res.data.published,
+                                    __remarks: res.data.remarks ?? x.__remarks,
+                                  } : x)),
+                                }));
+                              }}
+                            >
+                              {st.__published ? "Published ✓" : "Publish"}
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
