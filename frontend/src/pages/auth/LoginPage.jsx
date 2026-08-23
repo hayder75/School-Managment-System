@@ -109,22 +109,22 @@ export default function LoginPage() {
     (lang === "am" ? ROLE_LABELS_AM[role] : ROLE_LABELS[role]) || t.roles[role] || role;
 
   return (
-    <div className="min-h-screen w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col items-center justify-center p-4 sm:p-6">
+    <div className="relative min-h-screen w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col items-center justify-center p-4 sm:p-6">
       {/* faint background mark */}
       <div className="pointer-events-none fixed inset-0 flex items-center justify-center">
         <School size={520} strokeWidth={0.5} className="text-neutral-100 select-none" />
       </div>
 
       {/* Language switch — changes the whole system language */}
-      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-30">
+      <div className="absolute top-3 right-3 sm:top-6 sm:right-6 z-30">
         <div className="flex items-center rounded-full border border-neutral-200 bg-white shadow-sm p-0.5">
-          <Languages size={14} className="text-neutral-400 ml-2 mr-1" />
+          <Languages size={13} className="text-neutral-400 ml-1.5 mr-0.5 hidden sm:block" />
           {["en", "am"].map((l) => (
             <button
               key={l}
               type="button"
               onClick={() => switchLang(l)}
-              className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-[12px] font-semibold transition-colors cursor-pointer ${
                 lang === l
                   ? "bg-neutral-900 text-white"
                   : "text-neutral-500 hover:text-neutral-900"
@@ -136,7 +136,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="relative w-full max-w-[440px]">
+      <div className="relative w-full max-w-[440px] pt-10 sm:pt-0">
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-12 h-12 rounded-2xl border border-neutral-300 bg-white flex items-center justify-center shadow-sm">

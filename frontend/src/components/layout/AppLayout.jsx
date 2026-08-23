@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { Menu, KeyRound } from "lucide-react";
 import Sidebar from "./Sidebar";
@@ -9,9 +9,6 @@ import { Button } from "../ui/button";
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Keep document direction ready for future RTL needs and persist choice visually
-  useEffect(() => {}, []);
 
   return (
     <div className="flex h-screen">
@@ -37,8 +34,8 @@ export default function AppLayout() {
           </Button>
           <div className="flex-1 lg:hidden" />
           <div className="flex items-center">
-            <Link to="/change-password" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mr-2">
-              <KeyRound className="h-4 w-4" /> Change Password
+            <Link to="/change-password" title="Change password" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mr-1.5">
+              <KeyRound className="h-4 w-4" /><span className="hidden sm:inline">Change Password</span>
             </Link>
             <NotificationBell />
             <LanguageToggle />
