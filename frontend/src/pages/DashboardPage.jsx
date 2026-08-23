@@ -9,14 +9,22 @@ import { useMyAnnouncements } from "../hooks/useAnnouncements";
 import { usePaymentSummary, usePayments, useMyFees, useCollectionReport, usePaymentTrends } from "../hooks/useFees";
 import { useExpenseTotals } from "../hooks/useExpenses";
 import { usePayroll } from "../hooks/usePayroll";
-import { useStudentGradeSummary, useStudentAttendanceSummary, useMyStudents, useStaffDirectory } from "../hooks/useReports";
+import { useStudentGradeSummary, useStudentAttendanceSummary, useMyStudents, useMyClassSummary, useStaffDirectory, useEnrollmentReport, useHeadcount, usePayrollSummary, useRevenueVsExpenses, useTeacherWorkload } from "../hooks/useReports";
+import { useMaintenance, useMaintenanceSummary, usePurchases } from "../hooks/useRoleModules";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { BarChart } from "../components/ui/charts";
+import { BarChart, DonutChart, GroupedBarChart } from "../components/ui/charts";
 import {
   Users, GraduationCap, BookOpen, School, Megaphone, UserCheck, DollarSign,
   TrendingDown, Wallet, CheckCircle, BarChart3,
   Building2, TrendingUp, CreditCard, AlertTriangle, ShieldAlert, Globe, Award,
+  Wrench, Hammer, ShoppingCart,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import api from "../lib/api";
+
+function useAssetSummary() {
+  return useQuery({ queryKey: ["asset-summary"], queryFn: () => api.get("/assets/summary") });
+}
 
 function StatCard({ title, value, icon: Icon, sub, color }) {
   return (
@@ -115,28 +123,128 @@ function AdminDashboard() {
   const { data: classesData } = useClasses({ limit: 1 });
   const { data: subjectsData } = useSubjects({ limit: 1 });
   const { data: teachersData } = useTeachers({ limit: 1 });
-  const { data: enrollmentStats } = useEnrollmentStats();
   const { data: paymentSummary } = usePaymentSummary();
   const { data: expenseTotals } = useExpenseTotals();
   const { data: announcementsData } = useMyAnnouncements();
+  const year = String(new Date().getFullYear());
+
+  const { data: enrollmentData } = useEnrollmentReport();
+  const { data: headcountData } = useHeadcount();
+  const { data: payrollData } = usePayrollSummary({ year });
+  const { data: revenueData } = useRevenueVsExpenses({ year });
+  const { data: workloadData } = useTeacherWorkload();
 
   const totalExpenses = expenseTotals?.data?.reduce((s, e) => s + parseFloat(e.total || 0), 0) || 0;
   const totalCollected = paymentSummary?.data?.total_collected || 0;
+  const totalOutstanding = paymentSummary?.data?.outstanding || 0;
+
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const PALETTE = ["#2c5a5e", "#7fb3a0", "#c9a86a", "#8f9bb3", "#d47a6a", "#6a8fd4", "#a0b2c6", "#e0a458"];
+  const ROLE_LABELS = {
+    owner: "Owner", admin: "Admin", teacher: "Teacher", finance: "Finance", cashier: "Cashier",
+    hr: "HR", support: "Support", parent: "Parent", student: "Student",
+  };
+
+  const levelBars = (enrollmentData?.data?.level_breakdown || []).map((l) => ({ label: l.label, value: l.count }));
+  const genderSegments = (enrollmentData?.data?.gender_breakdown || []).map((g, i) => ({
+    label: g.gender === "unknown" ? "Unknown" : g.gender === "female" ? "Female" : "Male",
+    value: g.count,
+    color: PALETTE[i % PALETTE.length],
+  }));
+  const staffSegments = (headcountData?.data?.by_role || [])
+    .filter((r) => r.role !== "student" && r.role !== "parent")
+    .map((r, i) => ({
+      label: ROLE_LABELS[r.role] || r.role,
+      value: r.count,
+      color: PALETTE[i % PALETTE.length],
+    }));
+  const staffTotal = staffSegments.reduce((s, r) => s + r.value, 0);
+  const payrollBars = (payrollData?.data?.monthly || []).map((m) => ({
+    label: MONTHS[m.month - 1],
+    value: Math.round(parseFloat(m.total_net || 0)),
+  }));
+  const revenueMonths = (revenueData?.data?.months || []).map((m) => ({
+    label: m.month_name,
+    revenue: Math.round(parseFloat(m.revenue || 0)),
+    expenses: Math.round(parseFloat(m.expenses || 0)),
+  }));
+  const workloadTop = (workloadData?.data?.workload || [])
+    .slice()
+    .sort((a, b) => (b.total_assignments || 0) - (a.total_assignments || 0))
+    .slice(0, 6);
 
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Dashboard</h1><p className="text-muted-foreground">School overview</p></div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Students" value={studentsData?.meta?.total || "—"} icon={GraduationCap} sub={`${enrollmentStats?.data?.byClass?.length || 0} classes`} />
-        <StatCard title="Teachers" value={teachersData?.meta?.total || "—"} icon={Users} />
+        <StatCard title="Students" value={studentsData?.meta?.total || "—"} icon={GraduationCap} sub={`${enrollmentData?.data?.total_enrolled ?? "—"} enrolled`} />
+        <StatCard title="Teachers" value={teachersData?.meta?.total || "—"} icon={Users} sub={`${workloadData?.data?.workload?.length || 0} with assignments`} />
         <StatCard title="Classes" value={classesData?.meta?.total || "—"} icon={BookOpen} />
         <StatCard title="Subjects" value={subjectsData?.meta?.total || "—"} icon={School} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Fees Collected" value={totalCollected ? `$${totalCollected.toLocaleString()}` : "—"} icon={DollarSign} color="text-green-600" />
         <StatCard title="Total Expenses" value={totalExpenses ? `$${totalExpenses.toLocaleString()}` : "—"} icon={TrendingDown} color="text-red-600" />
         <StatCard title="Net Balance" value={totalCollected ? `$${(totalCollected - totalExpenses).toLocaleString()}` : "—"} icon={BarChart3} color={totalCollected >= totalExpenses ? "text-green-600" : "text-red-600"} />
+        <StatCard title="Outstanding Fees" value={totalOutstanding ? `$${totalOutstanding.toLocaleString()}` : "$0"} icon={AlertTriangle} color={totalOutstanding > 0 ? "text-yellow-600" : "text-green-600"} />
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Students by Level</CardTitle></CardHeader>
+          <CardContent><BarChart data={levelBars} height={200} /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> Gender Distribution</CardTitle></CardHeader>
+          <CardContent><DonutChart total={enrollmentData?.data?.total_enrolled || 0} segments={genderSegments} /></CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4" /> Staff by Role</CardTitle></CardHeader>
+          <CardContent><DonutChart total={staffTotal} segments={staffSegments} /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" /> Payroll by Month ({year})</CardTitle></CardHeader>
+          <CardContent><BarChart data={payrollBars} height={200} color="#6a8fd4" /></CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Revenue vs Expenses ({year})</span>
+              <span className="flex items-center gap-3 text-[11px] font-normal text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#2c5a5e" }} /> Revenue</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#d47a6a" }} /> Expenses</span>
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GroupedBarChart data={revenueMonths} series={[{ key: "revenue", label: "Revenue", color: "#2c5a5e" }, { key: "expenses", label: "Expenses", color: "#d47a6a" }]} height={200} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BookOpen className="h-4 w-4" /> Top Teacher Workload</CardTitle></CardHeader>
+          <CardContent>
+            {workloadTop.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No teaching assignments yet</p>
+            ) : (
+              <div className="space-y-2">
+                {workloadTop.map((w) => (
+                  <div key={w.teacher_id} className="flex items-center justify-between p-2 border rounded text-sm">
+                    <span className="font-medium">{w.first_name} {w.last_name}</span>
+                    <span className="text-xs text-muted-foreground">{w.total_assignments} class-subject assignments</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <AnnouncementsList data={announcementsData} />
     </div>
   );
@@ -147,10 +255,22 @@ function TeacherDashboard() {
   const { data: myStudentsData } = useMyStudents();
   const { data: announcementsData } = useMyAnnouncements();
   const { data: assignmentsData } = useTeacherAssignments(user?.id);
+  const { data: classSummaryData } = useMyClassSummary();
   const myStudents = myStudentsData?.data || [];
   const assignments = assignmentsData?.data || [];
+  const classSummary = classSummaryData?.data || {};
   const taughtClassCount = new Set(assignments.map((a) => a.class_id)).size;
   const taughtSubjectCount = new Set(assignments.map((a) => a.subject_id)).size;
+
+  const classBars = (classSummary.byClass || []).map((c) => ({
+    label: c.class_name.replace(/^Grade\s*/, ""),
+    value: c.students,
+  }));
+  const subjectSegments = (classSummary.subjects || []).map((s, i) => ({
+    label: s,
+    value: (classSummary.byClass || []).filter((c) => (c.subjects || []).includes(s)).length,
+    color: ["#2c5a5e", "#7fb3a0", "#c9a86a", "#8f9bb3", "#d47a6a", "#6a8fd4"][i % 6],
+  }));
 
   return (
     <div className="space-y-6">
@@ -158,22 +278,30 @@ function TeacherDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard title="My Classes" value={taughtClassCount || "—"} icon={BookOpen} sub="Classes taught" />
         <StatCard title="Subjects" value={taughtSubjectCount || "—"} icon={School} sub="Assigned to teach" />
-        <StatCard title="Students" value={myStudents.length || "—"} icon={GraduationCap} sub="Across all classes" />
+        <StatCard title="Students" value={myStudents.length || classSummary.totalStudents || "—"} icon={GraduationCap} sub="Across all classes" />
       </div>
-      {myStudents.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-sm">My Students</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {myStudents.slice(0, 10).map((s) => (
-                <div key={s.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                  <span className="font-medium">{s.first_name} {s.last_name}</span>
-                  <span className="text-muted-foreground">{s.class_name || "—"}</span>
-                </div>
-              ))}
-            </div>
+      {assignments.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="py-6 text-center text-sm text-muted-foreground">
+            No classes or subjects assigned yet. Contact the school administrator to set up your teaching assignments.
           </CardContent>
         </Card>
+      )}
+      {classBars.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BookOpen className="h-4 w-4" /> Students by Class</CardTitle></CardHeader>
+            <CardContent>
+              <BarChart data={classBars} height={190} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-sm flex items-center gap-2"><School className="h-4 w-4" /> Subjects Taught</CardTitle></CardHeader>
+            <CardContent>
+              <DonutChart total={classSummary.totalClasses || 0} segments={subjectSegments} />
+            </CardContent>
+          </Card>
+        </div>
       )}
       <AnnouncementsList data={announcementsData} />
     </div>
@@ -466,12 +594,117 @@ export default function DashboardPage() {
 
   if (role === "super_admin") return <SuperAdminDashboard />;
   if (role === "admin" || role === "owner") return <AdminDashboard />;
+  if (role === "general_manager" || role === "principal" || role === "vice_principal" || role === "quality_director") return <AdminDashboard />;
+  if (role === "accountant" || role === "finance") return <FinanceDashboard />;
   if (role === "teacher") return <TeacherDashboard />;
   if (role === "student") return <StudentDashboard />;
   if (role === "parent") return <ParentDashboard />;
-  if (role === "finance") return <FinanceDashboard />;
   if (role === "cashier") return <CashierDashboard />;
-  if (role === "hr") return <HRDashboard />;
+  if (role === "hr" || role === "shift_coordinator") return <HRDashboard />;
+  if (role === "general_services") return <GeneralServicesDashboard />;
+  if (role === "security_head" || role === "support") return <MinimalDashboard />;
 
   return <AdminDashboard />;
+}
+
+function GeneralServicesDashboard() {
+  const { data: sumData } = useMaintenanceSummary();
+  const { data: maintData } = useMaintenance({});
+  const { data: purData } = usePurchases({});
+  const { data: assetSum } = useAssetSummary();
+  const { data: ann } = useMyAnnouncements();
+
+  const s = sumData?.data || {};
+  const recentTickets = (maintData?.data || []).slice(0, 5);
+  const pendingPurchases = (purData?.data || []).filter((p) => p.status === "pending");
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">General Services Dashboard</h1>
+        <p className="text-muted-foreground">Campus facilities, maintenance and purchasing overview</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Open Tickets" value={s.open ?? 0} icon={Wrench} color="text-blue-600" sub="Repairs waiting to start" />
+        <StatCard title="In Progress" value={s.in_progress ?? 0} icon={Hammer} color="text-yellow-600" sub="Being fixed now" />
+        <StatCard title="Completed" value={s.completed ?? 0} icon={CheckCircle} color="text-green-600" sub={`Spent ${Number(s.total_spent || 0).toLocaleString()} ETB`} />
+        <StatCard title="Purchase Requests" value={pendingPurchases.length} icon={ShoppingCart} color="text-purple-600" sub="Pending approval" />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle>Recent maintenance tickets</CardTitle></CardHeader>
+          <CardContent>
+            {recentTickets.map((m) => (
+              <div key={m.id} className="flex items-center justify-between border-b py-2.5 last:border-0">
+                <div>
+                  <p className="text-sm font-medium">{m.title}</p>
+                  <p className="text-xs text-muted-foreground">{m.location} · {m.category}</p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  m.status === "open" ? "bg-blue-100 text-blue-700"
+                  : m.status === "in_progress" ? "bg-amber-100 text-amber-700"
+                  : m.status === "completed" ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"
+                }`}>{m.status.replace(/_/g, " ")}</span>
+              </div>
+            ))}
+            {!recentTickets.length && <p className="py-4 text-sm text-muted-foreground">No tickets yet — campus is running smooth.</p>}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle>School assets</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Total value</span><span className="font-semibold">{Number(assetSum?.totals?.total_value || 0).toLocaleString()} ETB</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Total units</span><span className="font-semibold">{assetSum?.totals?.total_quantity ?? "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Under maintenance</span><span className="font-semibold text-amber-600">{assetSum?.totals?.in_maintenance ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Broken / disposed</span><span className="font-semibold text-red-600">{(assetSum?.totals?.broken_items ?? 0) + (assetSum?.totals?.disposed_items ?? 0)}</span></div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Announcements</CardTitle></CardHeader>
+            <CardContent>
+              {(ann?.data || []).slice(0, 3).map((a) => (
+                <div key={a.id} className="border-b pb-2 mb-2 last:border-0 last:mb-0">
+                  <p className="text-sm font-medium">{a.title}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{a.body}</p>
+                </div>
+              ))}
+              {!(ann?.data || []).length && <p className="text-sm text-muted-foreground">No announcements.</p>}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MinimalDashboard() {
+  const { user } = useAuthStore();
+  const { data: ann } = useMyAnnouncements();
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Welcome, {user?.firstName || user?.first_name || ""}</h1>
+        <p className="text-muted-foreground">School announcements and updates</p>
+      </div>
+      <Card>
+        <CardHeader><CardTitle>Announcements</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {(ann?.data || []).map((a) => (
+            <div key={a.id} className="border-b pb-3 last:border-0 last:pb-0">
+              <p className="font-medium text-sm">{a.title}</p>
+              <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{a.body}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{a.created_at ? new Date(a.created_at).toLocaleDateString() : ""}</p>
+            </div>
+          ))}
+          {!(ann?.data || []).length && <p className="text-sm text-muted-foreground">No announcements yet.</p>}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

@@ -9,8 +9,19 @@ import { Input } from "../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import AdminAttendancePage from "./AdminAttendancePage";
 
 export default function AttendancePage() {
+  const user = useAuthStore((s) => s.user);
+
+  if (user?.role === "admin" || user?.role === "owner") {
+    return <AdminAttendancePage />;
+  }
+
+  return <TeacherAttendanceView />;
+}
+
+function TeacherAttendanceView() {
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "teacher";
   const today = new Date().toISOString().split("T")[0];

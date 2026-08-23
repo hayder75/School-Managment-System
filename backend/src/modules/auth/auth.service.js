@@ -115,19 +115,47 @@ async function setPassword(token, password) {
   return { userId: payload.userId };
 }
 
+const DEMO_ACCOUNTS = {
+  owner: ['staff176@mountolive.edu.et'],
+  general_manager: ['staff177@mountolive.edu.et'],
+  principal: ['staff178@mountolive.edu.et'],
+  vice_principal: ['staff179@mountolive.edu.et'],
+  quality_director: ['staff180@mountolive.edu.et'],
+  admin: ['staff001@mountolive.edu.et'],
+  teacher: [
+    'staff027@mountolive.edu.et',
+    'staff026@mountolive.edu.et',
+    'staff056@mountolive.edu.et',
+    'staff011@mountolive.edu.et',
+  ],
+  finance: ['staff007@mountolive.edu.et'],
+  hr: ['staff099@mountolive.edu.et'],
+  cashier: ['staff104@mountolive.edu.et'],
+  accountant: ['staff183@mountolive.edu.et'],
+  general_services: ['staff181@mountolive.edu.et'],
+  shift_coordinator: ['staff182@mountolive.edu.et'],
+  security_head: ['staff184@mountolive.edu.et'],
+  support: ['staff107@mountolive.edu.et'],
+  parent: ['parent0001@mountolive.edu.et'],
+  student: ['student0001@mountolive.edu.et'],
+};
+
 async function getDevUsers() {
-  const roles = ['owner', 'admin', 'teacher', 'finance', 'cashier', 'hr', 'support', 'parent', 'student'];
-  const selected = [];
-  for (const role of roles) {
-    const rows = await db('users')
-      .where({ role, status: 'active' })
-      .whereNot('role', 'super_admin')
-      .select('id', 'email', 'first_name', 'last_name', 'role')
-      .orderBy('created_at')
-      .limit(role === 'student' ? 3 : role === 'parent' ? 3 : 5);
-    selected.push(...rows);
+  const order = {};
+  const emails = [];
+  let i = 0;
+  for (const list of Object.values(DEMO_ACCOUNTS)) {
+    for (const email of list) {
+      order[email] = i;
+      emails.push(email);
+      i += 1;
+    }
   }
-  const rows = selected;
+  const rows = await db('users')
+    .whereIn('email', emails)
+    .where({ status: 'active' })
+    .select('id', 'email', 'first_name', 'last_name', 'role')
+    .then((r) => r.filter((u) => order[u.email] !== undefined).sort((a, b) => order[a.email] - order[b.email]));
   const grouped = {};
   for (const r of rows) {
     if (!grouped[r.role]) grouped[r.role] = [];

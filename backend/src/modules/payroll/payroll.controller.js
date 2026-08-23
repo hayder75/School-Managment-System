@@ -90,10 +90,18 @@ async function listAudits(req, res) {
   res.json({ success: true, data });
 }
 
+async function approvePayrollGM(req, res) {
+  const { month, year, id } = req.body;
+  const targetId = req.params.id || id;
+  const updated = await payrollService.approvePayrollGM(req.tenant.id, req.user.userId, { month, year, id: targetId });
+  res.json({ success: true, data: updated });
+}
+
 module.exports = {
   createSalaryGrade, listSalaryGrades, updateSalaryGrade, removeSalaryGrade,
   createPayroll, listPayroll, updatePayroll, getSummary, calculatePayroll,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,
   listLeaves, createLeave, approveLeave, rejectLeave,
   listAudits,
+  approvePayrollGM,
 };

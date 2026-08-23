@@ -22,7 +22,7 @@ async function resolveStudentUserId(tenantId, param) {
   return student?.user_id || null;
 }
 
-router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student', 'parent'), async (req, res) => {
+router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student', 'parent', 'principal', 'vice_principal', 'quality_director', 'general_manager'), async (req, res) => {
   try {
     const userId = await resolveStudentUserId(req.tenant.id, req.params.studentId);
     if (!userId) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
@@ -30,7 +30,7 @@ router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student
       const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, userId);
       if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
     }
-    const buf = await pdf.generateReportCard(req.tenant.id, userId, req.query.year);
+    const buf = await pdf.generateReportCard(req.tenant.id, userId, req.query.year, req.query.term_id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=report-card.pdf');
     res.send(buf);

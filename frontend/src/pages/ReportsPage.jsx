@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
 import { useExams } from "../hooks/useExams";
@@ -11,6 +12,10 @@ import {
   useStudentGradeSummary, useStudentAttendanceSummary,
 } from "../hooks/useReports";
 import { usePaymentSummary, usePaymentTrends, useCollectionReport } from "../hooks/useFees";
+import { useI18n } from "../i18n/I18nContext";
+import api from "../lib/api";
+import { useSubmissionSummary, useTeacherKpis, useVisitors, useGatePasses, useIncidents, useMaintenance, usePurchases, useMaintenanceSummary } from "../hooks/useRoleModules";
+import { useShiftReports, useSubstitutions } from "../hooks/useShiftHub";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
@@ -813,23 +818,290 @@ function StudentReports() {
 
 // ── Main Page ──
 
+function SemesterResultsTab() {
+  const { data: classesData } = useClasses({ limit: 300 });
+  const classes = classesData?.data || [];
+  const [classId, setClassId] = useState(classes[0]?.id || "");
+  const [termId, setTermId] = useState("");
+
+  const { data: termsData } = useQuery({
+    queryKey: ["terms-list"],
+    queryFn: () => api.get("/academics/terms"),
+  });
+  const terms = termsData?.data || [];
+  void termId;
+
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    if (!termId || !classId) return;
+    setLoading(true);
+    try {
+      const res = await api.get("/reports/semester-results", { params: { term_id: termId, class_id: classId } });
+      setResults(res.data);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label className="text-xs">Class</Label>
+          <Select value={classId} onValueChange={setClassId}>
+            <SelectTrigger className="w-56 mt-1"><SelectValue placeholder="Choose class…" /></SelectTrigger>
+            <SelectContent>
+              {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.section ? ` · ${c.section}` : ""}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Term</Label>
+          <Select value={termId} onValueChange={setTermId}>
+            <SelectTrigger className="w-48 mt-1"><SelectValue placeholder="Choose term…" /></SelectTrigger>
+            <SelectContent>
+              {terms.map((tm) => (
+                <SelectItem key={tm.id} value={tm.id}>{tm.name}{tm.year_name ? ` (${tm.year_name})` : ""}</SelectItem>
+              ))}
+              {!terms.length && <div className="px-3 py-2 text-xs text-muted-foreground">No terms configured</div>}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={load} disabled={!termId || !classId || loading}>Load results</Button>
+        {results && results.students?.length > 0 && (
+          <p className="text-sm text-muted-foreground ml-auto">
+            Weights: CA {results.weights?.ca_pct ?? 50}% + Exam {results.weights?.exam_pct ?? 50}% · Scale A≥90 B≥80 C≥60 D≥50
+          </p>
+        )}
+      </div>
+
+      {!results && (
+        <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">
+          Select a class and term to compute semester marks out of 100, with rank and printable report cards.
+        </CardContent></Card>
+      )}
+
+      {loading && <p className="text-sm text-muted-foreground">Computing semester marks…</p>}
+
+      {results && !loading && (
+        <>
+          {results.students.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">
+              No grades recorded for this class in this term yet.
+            </CardContent></Card>
+          ) : (
+            <Card><CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm min-w-[760px]">
+                <thead><tr className="border-b bg-muted/50 text-left">
+                  <th className="p-3 font-medium">#</th>
+                  <th className="p-3 font-medium">Student</th>
+                  {results.students[0]?.subjects.map((s, i) => (
+                    <th key={s.subject_id || i} className="p-3 font-medium text-center text-xs">{s.name}</th>
+                  ))}
+                  <th className="p-3 font-medium text-center">Total</th>
+                  <th className="p-3 font-medium text-center">Avg /100</th>
+                  <th className="p-3 font-medium text-center">Grade</th>
+                  <th className="p-3 font-medium text-center">Rank</th>
+                  <th className="p-3 font-medium text-right">Report Card</th>
+                </tr></thead>
+                <tbody>
+                  {results.students.map((st) => (
+                    <tr key={st.student_id} className="border-b hover:bg-muted/30">
+                      <td className="p-3">{st.rank}</td>
+                      <td className="p-3 font-medium">{st.student_name}<span className="block text-[11px] text-muted-foreground">{st.student_number || ""}</span></td>
+                      {results.students[0].subjects.map((s, i) => {
+                        const mine = st.subjects[i];
+                        return (
+                          <td key={i} className="p-3 text-center">
+                            {mine ? (<span>{mine.mark}<span className="text-xs text-muted-foreground"> ({mine.letter})</span></span>) : "—"}
+                          </td>
+                        );
+                      })}
+                      <td className="p-3 text-center font-semibold">{st.total}</td>
+                      <td className="p-3 text-center font-bold">{st.average}</td>
+                      <td className="p-3 text-center">{st.letter}</td>
+                      <td className="p-3 text-center"><Badge variant="outline">{st.rank}</Badge></td>
+                      <td className="p-3 text-right">
+                        <a href={`/api/pdf/report-card/${st.student_id}?term_id=${termId}`} target="_blank" rel="noreferrer"
+                          className="text-primary underline text-xs font-medium">Print PDF</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent></Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function QualityReportsTab() {
+  const { data: sumData } = useSubmissionSummary();
+  const { data: kpiData } = useTeacherKpis();
+
+  const s = sumData?.data || {};
+  const counts = s.counts || {};
+  const kpis = kpiData?.data || [];
+
+  // Merge submission stats + KPI averages per teacher
+  const teachers = {};
+  for (const r of s.byTeacher || []) {
+    teachers[r.teacher_id] = {
+      name: r.teacher_name, subs: Number(r.total), approved: Number(r.approved),
+      ratingSum: 0, ratingN: 0, syllabusSum: 0, feedbackSum: 0,
+    };
+  }
+  for (const k of kpis) {
+    if (!k.teacher_id) continue;
+    if (!teachers[k.teacher_id]) {
+      teachers[k.teacher_id] = { name: k.teacher_name, subs: 0, approved: 0, ratingSum: 0, ratingN: 0, syllabusSum: 0, feedbackSum: 0 };
+    }
+    const t = teachers[k.teacher_id];
+    t.ratingSum += Number(k.overall_rating || 0);
+    t.ratingN += 1;
+    t.syllabusSum += Number(k.syllabus_completion_rate || 0);
+    t.feedbackSum += Number(k.student_feedback_score || 0);
+  }
+  const rows = Object.values(teachers)
+    .map((t) => ({
+      ...t,
+      rate: t.subs ? Math.round((t.approved / t.subs) * 100) : null,
+      rating: t.ratingN ? (t.ratingSum / t.ratingN) : null,
+      syllabus: t.ratingN ? Math.round(t.syllabusSum / t.ratingN) : null,
+      feedback: t.ratingN ? (t.feedbackSum / t.ratingN) : null,
+    }))
+    .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+
+  const rated = rows.filter((r) => r.rating !== null);
+  const avgRating = rated.length ? (rated.reduce((a, r) => a + r.rating, 0) / rated.length).toFixed(2) : "—";
+  const avgSyllabus = rated.length ? Math.round(rated.reduce((a, r) => a + r.syllabus, 0) / rated.length) : "—";
+  const top = rated.slice(0, 3);
+  const needsSupport = [...rated].reverse().slice(0, 3);
+
+  const totalSubs = (counts.approved || 0) + (counts.needs_revision || 0) + (counts.submitted || 0) + (counts.rejected || 0);
+  const approvalRate = totalSubs ? Math.round(((counts.approved || 0) / totalSubs) * 100) : 0;
+  const rubric = [
+    ["rubAlignment", counts.avg_alignment], ["rubDifficulty", counts.avg_difficulty],
+    ["rubClarity", counts.avg_clarity], ["rubAnswerKey", counts.avg_answer_key],
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{totalSubs}</p><p className="text-xs text-muted-foreground">Content submissions reviewed</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-600">{approvalRate}%</p><p className="text-xs text-muted-foreground">First-pass approval rate</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-purple-600">{avgRating}</p><p className="text-xs text-muted-foreground">Avg teacher performance rating /5</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-blue-600">{avgSyllabus}%</p><p className="text-xs text-muted-foreground">Avg syllabus completion</p></CardContent></Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base text-green-700">Top performing teachers</CardTitle></CardHeader>
+          <CardContent>{top.length ? top.map((r, i) => (
+            <div key={i} className="flex items-center justify-between border-b py-2 last:border-0">
+              <span className="text-sm font-medium">{i + 1}. {r.name}</span>
+              <Badge className="bg-green-100 text-green-700">{r.rating.toFixed(2)} / 5</Badge>
+            </div>
+          )) : <p className="text-sm text-muted-foreground py-2">No KPI data yet</p>}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base text-amber-700">Needs support</CardTitle></CardHeader>
+          <CardContent>{needsSupport.length ? needsSupport.map((r, i) => (
+            <div key={i} className="flex items-center justify-between border-b py-2 last:border-0">
+              <span className="text-sm font-medium">{r.name}</span>
+              <span className="flex items-center gap-2">
+                {r.syllabus !== null && <span className="text-xs text-muted-foreground">syllabus {r.syllabus}%</span>}
+                <Badge className="bg-amber-100 text-amber-700">{r.rating !== null ? r.rating.toFixed(2) : "—"} / 5</Badge>
+              </span>
+            </div>
+          )) : <p className="text-sm text-muted-foreground py-2">No KPI data yet</p>}</CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Teacher quality overview — content reviews & appraisals</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
+            <thead><tr className="border-b bg-muted/50 text-left">
+              <th className="p-3 font-medium">Teacher</th>
+              <th className="p-3 font-medium">Submissions</th>
+              <th className="p-3 font-medium">Approved</th>
+              <th className="p-3 font-medium">Approval %</th>
+              <th className="p-3 font-medium">Avg rating /5</th>
+              <th className="p-3 font-medium">Syllabus %</th>
+              <th className="p-3 font-medium">Feedback /5</th>
+            </tr></thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i} className="border-b hover:bg-muted/30">
+                  <td className="p-3 font-medium">{r.name}</td>
+                  <td className="p-3">{r.subs}</td>
+                  <td className="p-3">{r.approved}</td>
+                  <td className="p-3">{r.rate === null ? "—" : `${r.rate}%`}</td>
+                  <td className="p-3 font-semibold">{r.rating !== null ? r.rating.toFixed(2) : "—"}</td>
+                  <td className="p-3">{r.syllabus ?? "—"}%</td>
+                  <td className="p-3">{r.feedback !== null ? r.feedback.toFixed(1) : "—"}</td>
+                </tr>
+              ))}
+              {!rows.length && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No data</td></tr>}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Rubric quality averages</CardTitle></CardHeader>
+        <CardContent className="space-y-3 max-w-xl">
+          {rubric.map(([key, val]) => (
+            <div key={key}>
+              <div className="flex justify-between text-xs mb-1"><span>{RUBRIC_LABELS[key]}</span><span className="font-medium">{Number(val || 0).toFixed(2)} / 5</span></div>
+              <div className="h-2 rounded bg-neutral-100"><div className="h-full rounded bg-neutral-900" style={{ width: `${(Number(val || 0) / 5) * 100}%` }} /></div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const RUBRIC_LABELS = {
+  rubAlignment: "Curriculum alignment",
+  rubDifficulty: "Cognitive rigor balance",
+  rubClarity: "Clarity & formatting",
+  rubAnswerKey: "Answer key completeness",
+};
+
 export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
+  const { t } = useI18n();
   const role = user?.role || "admin";
+  void role;
 
   const tabs = useMemo(() => {
-    const t = [];
-    if (["owner", "admin"].includes(role)) t.push({ value: "admin", label: "Admin Reports" });
-    if (["teacher"].includes(role)) t.push({ value: "teacher", label: "My Reports" });
-    if (["finance"].includes(role)) t.push({ value: "finance", label: "Finance Reports" });
-    if (["cashier"].includes(role)) t.push({ value: "cashier", label: "Collection Report" });
-    if (["hr", "owner", "admin"].includes(role)) t.push({ value: "hr", label: "HR Reports" });
-    if (["student"].includes(role)) t.push({ value: "student", label: "My Reports" });
-    if (role === "owner" || role === "admin") {
-      if (!t.find((x) => x.value === "finance")) t.push({ value: "finance", label: "Finance Reports" });
-    }
-    return t;
-  }, [role]);
+    const list = [];
+    if (role === "quality_director") list.push({ value: "quality", label: t.rep.quality });
+    if (["owner", "admin", "general_manager", "principal", "vice_principal"].includes(role))
+      list.push({ value: "admin", label: t.rep.school });
+    if (["quality_director", "principal", "vice_principal"].includes(role) && role !== "quality_director")
+      list.push({ value: "quality", label: t.rep.quality });
+    if (["owner", "admin", "general_manager", "principal", "vice_principal", "teacher"].includes(role))
+      list.push({ value: "semester", label: t.rep.semester });
+    if (["teacher"].includes(role)) list.push({ value: "teacher", label: t.rep.myReports });
+    if (["finance", "accountant", "general_manager", "owner", "admin"].includes(role)) list.push({ value: "finance", label: t.rep.finance });
+    if (["cashier"].includes(role)) list.push({ value: "cashier", label: t.rep.collection });
+    if (["hr", "owner", "admin", "general_manager"].includes(role)) list.push({ value: "hr", label: t.rep.hr });
+    if (role === "shift_coordinator") list.push({ value: "shifts", label: t.rep.shifts });
+    if (role === "security_head") list.push({ value: "security", label: t.rep.securityRep });
+    if (role === "general_services") list.push({ value: "facilities", label: t.rep.facilities });
+    if (["student"].includes(role)) list.push({ value: "student", label: t.rep.myReports });
+    return list;
+  }, [role, t]);
 
   return (
     <div className="space-y-6">
@@ -841,12 +1113,17 @@ export default function ReportsPage() {
         <TabsList>
           {tabs.map((t) => <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>)}
         </TabsList>
+        <TabsContent value="quality"><QualityReportsTab /></TabsContent>
+        <TabsContent value="semester"><SemesterResultsTab /></TabsContent>
         <TabsContent value="admin"><AdminReports /></TabsContent>
         <TabsContent value="teacher"><TeacherReports /></TabsContent>
         <TabsContent value="finance"><FinanceReports /></TabsContent>
         <TabsContent value="cashier"><CashierReports /></TabsContent>
         <TabsContent value="hr"><HRReports /></TabsContent>
         <TabsContent value="student"><StudentReports /></TabsContent>
+        <TabsContent value="shifts"><ShiftReportsTab /></TabsContent>
+        <TabsContent value="security"><SecurityReportsTab /></TabsContent>
+        <TabsContent value="facilities"><FacilitiesReportsTab /></TabsContent>
       </Tabs>
     </div>
   );

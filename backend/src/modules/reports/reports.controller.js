@@ -67,6 +67,11 @@ async function getTeacherClassStudents(req, res) {
   res.json({ success: true, data: report });
 }
 
+async function getTeacherClassSummary(req, res) {
+  const report = await reportService.getTeacherClassSummary(req.tenant.id, req.user.userId);
+  res.json({ success: true, data: report });
+}
+
 async function getTeacherAttendanceReport(req, res) {
   const { from_date, to_date } = req.query;
   const report = await reportService.getTeacherAttendanceReport(req.tenant.id, req.user.userId, { from_date, to_date });
@@ -132,10 +137,23 @@ async function getStudentAttendanceSummary(req, res) {
   res.json({ success: true, data: report });
 }
 
+async function getSemesterResults(req, res) {
+  try {
+    const data = await reportService.getSemesterResults(req.tenant.id, req.query);
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.code === 'TERM_REQUIRED') {
+      return res.status(400).json({ success: false, error: { code: err.code, message: 'term_id is required' } });
+    }
+    throw err;
+  }
+}
+
 module.exports = {
+  getSemesterResults,
   getStudentReport, getClassReport, getEnrollmentReport,
   getGradeDistribution, getClassPerformance, getAttendanceOverview, getTeacherWorkload,
-  getTeacherClassStudents, getTeacherAttendanceReport, getTeacherGradeReport,
+  getTeacherClassStudents, getTeacherClassSummary, getTeacherAttendanceReport, getTeacherGradeReport,
   getFeeCollection, getOutstandingBalances, getRevenueVsExpenses,
   getStaffDirectory, getPayrollSummary, getHeadcount,
   getStudentGradeSummary, getStudentAttendanceSummary,

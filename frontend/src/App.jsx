@@ -41,9 +41,21 @@ const TaxSettingsPage = lazy(() => import("./pages/TaxSettingsPage"));
 const LeaveManagementPage = lazy(() => import("./pages/LeaveManagementPage"));
 const PayrollAuditPage = lazy(() => import("./pages/PayrollAuditPage"));
 const RolesPermissionsPage = lazy(() => import("./pages/school-admin/RolesPermissionsPage"));
+const AssetManagementPage = lazy(() => import("./pages/AssetManagementPage"));
+const TeacherAttendancePage = lazy(() => import("./pages/TeacherAttendancePage"));
+const TeacherKpiPage = lazy(() => import("./pages/TeacherKpiPage"));
 const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
+const QualityAssurancePage = lazy(() => import("./pages/QualityAssurancePage"));
+const TeacherWorkspacePage = lazy(() => import("./pages/TeacherWorkspacePage"));
+const ShiftDutyHubPage = lazy(() => import("./pages/ShiftDutyHubPage"));
+const SecurityHubPage = lazy(() => import("./pages/SecurityHubPage"));
+const GeneralServicesPage = lazy(() => import("./pages/GeneralServicesPage"));
+const AccountantReconciliationPage = lazy(() => import("./pages/AccountantReconciliationPage"));
+const ExecutiveDashboardPage = lazy(() => import("./pages/ExecutiveDashboardPage"));
+const DisciplineManagementPage = lazy(() => import("./pages/DisciplineManagementPage"));
+const EnrollmentWizardPage = lazy(() => import("./pages/EnrollmentWizardPage"));
 const SetPasswordPage = lazy(() => import("./pages/auth/SetPasswordPage"));
 
 const queryClient = new QueryClient({
@@ -105,45 +117,95 @@ function AppContent() {
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "cashier", "finance"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "cashier", "finance", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator"]} />}>
             <Route path="/students" element={<StudentsPage />} />
             <Route path="/students/:id" element={<StudentDetailPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/exams" element={<ExamsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "student", "parent", "cashier"]} />}>
+          {/* Enrollment wizard — cashier registers students at the counter */}
+          <Route element={<RoleRoute roles={["admin", "owner", "cashier"]} />}>
+            <Route path="/enroll" element={<EnrollmentWizardPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "student", "parent", "cashier", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator", "accountant", "general_services", "security_head"]} />}>
             <Route path="/timetable" element={<TimetablePage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "parent"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "parent", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator", "security_head", "support"]} />}>
             <Route path="/chat" element={<ChatPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier"]} permissions={["fees.manage", "payments.manage"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier", "accountant"]} permissions={["fees.manage", "payments.manage"]} />}>
             <Route path="/fees" element={<FeeStructuresPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier", "accountant", "general_services"]} permissions={["expenses.manage"]} />}>
             <Route path="/expenses" element={<ExpensesPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier"]} permissions={["fees.manage", "payments.manage", "reports.view"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier", "accountant"]} permissions={["payments.reconcile", "payments.manage"]} />}>
             <Route path="/reports/fee-collection" element={<CollectionReportPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr"]} permissions={["payroll.view", "reports.view"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr", "general_manager", "accountant"]} permissions={["payroll.view", "reports.view"]} />}>
             <Route path="/payroll" element={<PayrollPage />} />
             <Route path="/salary-register" element={<SalaryRegisterPage />} />
             <Route path="/staff/:id" element={<StaffDetailPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr", "teacher"]} permissions={["reports.view"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr", "teacher", "quality_director", "principal", "vice_principal", "general_manager", "accountant", "shift_coordinator", "security_head", "general_services"]} permissions={["reports.view"]} />}>
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "hr"]} permissions={["leave-management.manage", "payroll-audit.view"]} />}>
             <Route path="/leave-management" element={<LeaveManagementPage />} />
             <Route path="/payroll-audit" element={<PayrollAuditPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "hr", "teacher", "shift_coordinator", "principal", "vice_principal", "quality_director", "general_services"]} />}>
+            <Route path="/assets" element={<AssetManagementPage />} />
+            <Route path="/shift-hub" element={<ShiftDutyHubPage />} />
+            <Route path="/teacher-attendance" element={<TeacherAttendancePage />} />
+            <Route path="/teacher-kpis" element={<TeacherKpiPage />} />
+          </Route>
+
+          {/* Quality Director + reviewers */}
+          <Route element={<RoleRoute roles={["admin", "owner", "quality_director", "principal", "vice_principal", "general_manager"]} permissions={["quality.review"]} />}>
+            <Route path="/quality-assurance" element={<QualityAssurancePage />} />
+          </Route>
+
+          {/* Teacher workspace */}
+          <Route element={<RoleRoute roles={["teacher", "admin", "owner"]} permissions={["quality.submit"]} />}>
+            <Route path="/teacher/workspace" element={<TeacherWorkspacePage />} />
+          </Route>
+
+          {/* Security hub */}
+          <Route element={<RoleRoute roles={["admin", "owner", "security_head", "general_manager", "principal", "vice_principal"]} permissions={["security.manage"]} />}>
+            <Route path="/security-hub" element={<SecurityHubPage />} />
+          </Route>
+
+          {/* General services */}
+          <Route element={<RoleRoute roles={["admin", "owner", "general_services", "general_manager"]} permissions={["services.manage"]} />}>
+            <Route path="/general-services" element={<GeneralServicesPage />} />
+          </Route>
+
+          {/* Accountant portal */}
+          <Route element={<RoleRoute roles={["admin", "owner", "accountant", "general_manager"]} permissions={["payments.reconcile"]} />}>
+            <Route path="/accountant" element={<AccountantReconciliationPage />} />
+          </Route>
+
+          {/* GM executive dashboard */}
+          <Route element={<RoleRoute roles={["general_manager", "owner"]} permissions={["payroll.approve", "expenses.approve"]} />}>
+            <Route path="/executive-dashboard" element={<ExecutiveDashboardPage />} />
+          </Route>
+
+          {/* Discipline management */}
+          <Route element={<RoleRoute roles={["admin", "owner", "principal", "vice_principal"]} permissions={["discipline.manage"]} />}>
+            <Route path="/discipline" element={<DisciplineManagementPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "super_admin"]} permissions={["audit.view"]} />}>

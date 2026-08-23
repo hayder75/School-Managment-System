@@ -34,4 +34,10 @@ async function getTotals(req, res) {
   res.json({ success: true, data: totals });
 }
 
-module.exports = { create, list, getById, update, remove, getTotals };
+async function approveGM(req, res) {
+  const updated = await expenseService.approveGM(req.tenant.id, req.params.id, req.user.userId);
+  if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Expense not found' } });
+  res.json({ success: true, data: updated });
+}
+
+module.exports = { create, list, getById, update, remove, getTotals, approveGM };

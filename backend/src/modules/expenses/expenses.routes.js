@@ -13,6 +13,7 @@ router.use(tenant);
 router.use(requireAccess(['admin', 'owner', 'finance'], ['expenses.manage']));
 
 router.get('/totals', controller.getTotals);
+router.patch('/:id/gm-approve', requireAccess(['admin', 'owner', 'general_manager'], ['expenses.approve']), controller.approveGM);
 router.post('/', validate(createExpenseSchema), controller.create);
 router.get('/', controller.list);
 router.get('/:id', controller.getById);

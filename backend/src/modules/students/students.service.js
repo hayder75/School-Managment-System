@@ -7,32 +7,75 @@ async function create(tenantId, data) {
 }
 
 async function enroll(tenantId, userId, data) {
-  const { guardians, enrollment, ...studentData } = data;
+  const { guardians = [], new_guardians = [], enrollment, first_name, last_name, student_email, ...studentData } = data;
 
   return db.transaction(async (trx) => {
-    const [student] = await trx('students').insert({ ...studentData, tenant_id: tenantId }).returning('*');
+    // Auto-create the student's login account when not linked to an existing user
+    let studentUserId = studentData.user_id;
+    if (!studentUserId) {
+      const email = student_email || `${(first_name || 'student').toLowerCase().replace(/\s+/g, '')}.${Date.now().toString(36)}@students.mountolive.edu.et`;
+      const [u] = await trx('users')
+        .insert({
+          tenant_id: tenantId,
+          first_name: first_name || 'Student',
+          last_name: last_name || '',
+          email,
+          role: 'student',
+          status: 'active',
+          phone: studentData.emergency_contact || null,
+          gender: studentData.gender || null,
+        })
+        .returning('*');
+      studentUserId = u.id;
+    }
 
-    if (guardians && guardians.length > 0) {
+    // Generate a student number when missing
+    if (!studentData.student_number) {
+      const [{ c }] = await trx('students').where('tenant_id', tenantId).count('* as c');
+      const seq = String(Number(c) + 1).padStart(4, '0');
+      studentData.student_number = `ST-${new Date().getFullYear()}-${seq}`;
+    }
+
+    const [student] = await trx('students')
+      .insert({ ...studentData, user_id: studentUserId, tenant_id: tenantId })
+      .returning('*');
+
+    // Create brand-new guardian accounts inline
+    const allGuardians = [...guardians];
+    for (const ng of new_guardians) {
+      const email = ng.email || `${ng.first_name.toLowerCase().replace(/\s+/g, '')}.${ng.last_name.toLowerCase().replace(/\s+/g, '') || 'parent'}.${Date.now().toString(36)}@parents.mountolive.edu.et`;
+      const [parentUser] = await trx('users')
+        .insert({
+          tenant_id: tenantId,
+          first_name: ng.first_name,
+          last_name: ng.last_name,
+          email,
+          phone: ng.phone,
+          role: 'parent',
+          status: 'active',
+        })
+        .returning('*');
+      allGuardians.push({ ...ng, parent_id: parentUser.id });
+    }
+
+    if (allGuardians.length > 0) {
       const uniqueGuardians = [];
       const seen = new Set();
-      for (const g of guardians) {
+      for (const g of allGuardians) {
         if (g.parent_id && !seen.has(g.parent_id)) {
           seen.add(g.parent_id);
           uniqueGuardians.push(g);
         }
       }
 
-      if (uniqueGuardians.length > 0) {
-        const parentIds = uniqueGuardians.map((g) => g.parent_id);
-        const parents = await trx('users')
-          .where({ tenant_id: tenantId, role: 'parent' })
-          .whereIn('id', parentIds)
-          .select('id');
-        if (parents.length !== uniqueGuardians.length) {
-          const err = new Error('PARENT_NOT_FOUND');
-          err.code = 'PARENT_NOT_FOUND';
-          throw err;
-        }
+      const existingParents = await trx('users')
+        .where({ tenant_id: tenantId, role: 'parent' })
+        .whereIn('id', uniqueGuardians.map((g) => g.parent_id))
+        .select('id');
+      if (existingParents.length !== uniqueGuardians.length) {
+        const err = new Error('PARENT_NOT_FOUND');
+        err.code = 'PARENT_NOT_FOUND';
+        throw err;
       }
 
       let hasPrimary = false;

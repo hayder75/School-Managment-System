@@ -8,7 +8,7 @@ async function login(req, res) {
 
     res.cookie('token', result.token, {
       httpOnly: true,
-      secure: config.env === 'production',
+      secure: config.cookie.secure,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });

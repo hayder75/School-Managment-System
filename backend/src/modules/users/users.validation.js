@@ -19,7 +19,7 @@ const createUserSchema = z.object({
       first_name: z.string().min(1, 'First name is required').max(100),
       last_name: z.string().min(1, 'Last name is required').max(100),
       phone: z.string().optional(),
-      role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'support']),
+      role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'support', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'general_services', 'shift_coordinator', 'accountant', 'security_head']),
       send_invite: z.boolean().optional().default(true),
     })
     .superRefine((data, ctx) => {
@@ -40,7 +40,7 @@ const updateUserSchema = z.object({
     last_name: z.string().min(1).max(100).optional(),
     username: z.string().max(50).optional(),
     phone: z.string().optional(),
-    role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'support']).optional(),
+    role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'support', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'general_services', 'shift_coordinator', 'accountant', 'security_head']).optional(),
     status: z.enum(['active', 'invited', 'suspended']).optional(),
     job_title: z.string().max(150).optional().nullable(),
     qualification: z.string().max(150).optional().nullable(),

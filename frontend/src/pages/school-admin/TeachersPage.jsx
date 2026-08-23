@@ -9,7 +9,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Label } from "../../components/ui/label";
 import { Plus, Trash2, BookOpen } from "lucide-react";
@@ -20,7 +20,7 @@ function TeacherAssignments({ teacherId, teacherName }) {
   const { data: subjectsData } = useSubjects({ limit: 200 });
   const assignSubject = useAssignSubject();
   const removeAssignment = useRemoveAssignment();
-  const [open, setOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ subject_id: "", class_id: "", is_primary: false });
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -33,7 +33,6 @@ function TeacherAssignments({ teacherId, teacherName }) {
     setFieldErrors({});
     try {
       await assignSubject.mutateAsync({ teacherId, ...form });
-      setOpen(false);
       setForm({ subject_id: "", class_id: "", is_primary: false });
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
@@ -42,77 +41,82 @@ function TeacherAssignments({ teacherId, teacherName }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium">{teacherName}'s Assignments</h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Assign</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Assign Subject to Class</DialogTitle></DialogHeader>
-            <form onSubmit={handleAssign} className="space-y-4">
-              {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
-              <div className="space-y-2">
-                <Label>Subject</Label>
-                <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                  <SelectContent>
-                    {subjects.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <FieldError errors={fieldErrors} field="subject_id" />
-              <div className="space-y-2">
-                <Label>Class</Label>
-                <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                  <SelectContent>
-                    {classes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <FieldError errors={fieldErrors} field="class_id" />
-              <Button type="submit" className="w-full">Assign</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <DialogHeader>
+        <DialogTitle>{teacherName}'s Assignments</DialogTitle>
+        <DialogDescription>Subjects this teacher teaches and the classes they cover</DialogDescription>
+      </DialogHeader>
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No assignments yet</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Subject</TableHead>
-              <TableHead>Class</TableHead>
-              <TableHead className="w-20"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((a) => (
-              <TableRow key={a.id}>
-                <TableCell>{a.subject_name}</TableCell>
-                <TableCell>{a.class_name}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeAssignment.mutate({ teacherId, assignmentId: a.id })}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </TableCell>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Subject</TableHead>
+                <TableHead>Class</TableHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {items.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell>{a.subject_name}</TableCell>
+                  <TableCell>{a.class_name}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeAssignment.mutate({ teacherId, assignmentId: a.id })}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium text-sm">Assign Subject to Class</h3>
+        <Button size="sm" variant="outline" onClick={() => setShowForm((s) => !s)}>
+          <Plus className="h-4 w-4 mr-1" /> {showForm ? "Hide" : "Assign"}
+        </Button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleAssign} className="space-y-4">
+          {fieldErrors.form && <p className="text-sm text-red-500">{fieldErrors.form}</p>}
+          <div className="space-y-2">
+            <Label>Subject</Label>
+            <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+              <SelectContent>
+                {subjects.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <FieldError errors={fieldErrors} field="subject_id" />
+          <div className="space-y-2">
+            <Label>Class</Label>
+            <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+              <SelectContent>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <FieldError errors={fieldErrors} field="class_id" />
+          <Button type="submit" className="w-full">Assign</Button>
+        </form>
       )}
     </div>
   );
@@ -159,11 +163,9 @@ export default function TeachersPage() {
               </TableHeader>
               <TableBody>
                 {teachers.map((teacher) => (
-                  <TableRow key={teacher.id}>
+                  <TableRow key={teacher.id} className="cursor-pointer" onClick={() => navigate(`/staff/${teacher.id}`)}>
                     <TableCell className="font-medium">
-                      <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/staff/${teacher.id}`)}>
-                        {teacher.first_name} {teacher.last_name}
-                      </Button>
+                      {teacher.first_name} {teacher.last_name}
                     </TableCell>
                     <TableCell>{teacher.email}</TableCell>
                     <TableCell>{teacher.gender ? teacher.gender.charAt(0).toUpperCase() + teacher.gender.slice(1) : "—"}</TableCell>
@@ -177,7 +179,7 @@ export default function TeachersPage() {
                       <Badge variant={teacher.status === "active" ? "success" : "warning"}>{teacher.status}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedTeacher(selectedTeacher?.id === teacher.id ? null : teacher)}>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedTeacher(teacher); }}>
                         <BookOpen className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -192,16 +194,16 @@ export default function TeachersPage() {
         </CardContent>
       </Card>
 
-      {selectedTeacher && (
-        <Card>
-          <CardContent className="pt-6">
+      <Dialog open={!!selectedTeacher} onOpenChange={(open) => { if (!open) setSelectedTeacher(null); }}>
+        <DialogContent>
+          {selectedTeacher && (
             <TeacherAssignments
               teacherId={selectedTeacher.id}
               teacherName={`${selectedTeacher.first_name} ${selectedTeacher.last_name}`}
             />
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {meta.totalPages > 1 && (
         <div className="flex items-center justify-between">

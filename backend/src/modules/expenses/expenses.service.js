@@ -1,9 +1,13 @@
 const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
 
+const GM_EXPENSE_THRESHOLD = 10000;
+
 async function create(tenantId, userId, data) {
+  const amount = parseFloat(data.amount || 0);
+  const approvalStatus = amount > GM_EXPENSE_THRESHOLD ? 'pending_gm' : 'approved';
   const [expense] = await db('expenses')
-    .insert({ ...data, tenant_id: tenantId, created_by: userId })
+    .insert({ ...data, tenant_id: tenantId, created_by: userId, approval_status: approvalStatus })
     .returning('*');
   return expense;
 }
@@ -38,9 +42,16 @@ async function getTotalsByCategory(tenantId, { from_date, to_date } = {}) {
   return query;
 }
 
-async function getTotalSpent(tenantId) {
-  const result = await db('expenses').where({ tenant_id: tenantId }).sum('amount as total').first();
-  return parseFloat(result?.total || 0);
+async function approveGM(tenantId, id, userId) {
+  const [expense] = await db('expenses')
+    .where({ tenant_id: tenantId, id, approval_status: 'pending_gm' })
+    .update({
+      approval_status: 'approved',
+      gm_approved_at: db.fn.now(),
+      approved_by_gm: userId,
+    })
+    .returning('*');
+  return expense || null;
 }
 
-module.exports = { create, findAll, findById, update, remove, getTotalsByCategory, getTotalSpent };
+module.exports = { create, findAll, findById, update, remove, getTotalsByCategory, approveGM };

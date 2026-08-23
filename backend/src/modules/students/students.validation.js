@@ -1,7 +1,10 @@
 const { z } = require('zod');
 
 const studentFields = {
-  user_id: z.string().uuid(),
+  user_id: z.string().uuid().optional(),
+  first_name: z.string().max(100).optional(),
+  last_name: z.string().max(100).optional(),
+  student_email: z.string().email().optional(),
   class_id: z.string().uuid(),
   student_number: z.string().max(50).optional(),
   enrollment_date: z.string().optional(),
@@ -80,6 +83,15 @@ const enrollSchema = z.object({
     guardians: z.array(z.object({
       parent_id: z.string().uuid(),
       relationship: z.string().optional(),
+      is_primary: z.boolean().optional(),
+      education_level: z.string().max(150).optional(),
+    })).optional(),
+    new_guardians: z.array(z.object({
+      first_name: z.string().min(1).max(100),
+      last_name: z.string().min(1).max(100),
+      phone: z.string().min(7).max(30),
+      email: z.string().email().optional(),
+      relationship: z.string().max(50).optional(),
       is_primary: z.boolean().optional(),
       education_level: z.string().max(150).optional(),
     })).optional(),

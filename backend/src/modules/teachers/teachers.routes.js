@@ -10,9 +10,9 @@ const router = Router();
 
 router.use(auth);
 router.use(tenant);
-router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'], ['teachers.manage']), controller.list);
+router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'shift_coordinator', 'accountant', 'general_services', 'security_head'], ['teachers.manage']), controller.list);
 router.post('/:teacherId/assignments', requireAccess(['admin', 'owner'], ['teachers.manage']), validate(assignSubjectSchema), controller.assignSubject);
-router.get('/:teacherId/assignments', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'], ['teachers.manage']), controller.getAssignments);
+router.get('/:teacherId/assignments', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'shift_coordinator', 'accountant', 'general_services', 'security_head'], ['teachers.manage']), controller.getAssignments);
 router.delete('/:teacherId/assignments/:assignmentId', requireAccess(['admin', 'owner'], ['teachers.manage']), controller.removeAssignment);
 
 module.exports = router;

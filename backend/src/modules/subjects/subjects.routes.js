@@ -11,8 +11,8 @@ const router = Router();
 router.use(auth);
 router.use(tenant);
 router.post('/', requireAccess(['admin', 'owner'], ['subjects.manage']), validate(createSubjectSchema), controller.create);
-router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'], ['subjects.manage']), controller.list);
-router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance'], ['subjects.manage']), controller.getById);
+router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'shift_coordinator', 'accountant', 'general_services', 'security_head'], ['subjects.manage']), controller.list);
+router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'shift_coordinator', 'accountant', 'general_services', 'security_head'], ['subjects.manage']), controller.getById);
 router.put('/:id', requireAccess(['admin', 'owner'], ['subjects.manage']), validate(updateSubjectSchema), controller.update);
 router.delete('/:id', requireAccess(['admin', 'owner'], ['subjects.manage']), controller.remove);
 

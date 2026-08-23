@@ -72,6 +72,7 @@ export default function ParentsPage() {
                     className={`w-full text-left p-3 text-sm hover:bg-muted transition-colors ${selectedParent?.id === p.id ? "bg-muted" : ""}`}
                   >
                     <p className="font-medium">{p.first_name} {p.last_name}</p>
+                    <p className="text-xs text-muted-foreground">{p.phone || "—"}</p>
                     <p className="text-xs text-muted-foreground">{p.email}</p>
                   </button>
                 ))}
@@ -162,10 +163,10 @@ export default function ParentsPage() {
                       <table className="w-full text-sm">
                         <thead><tr className="border-b bg-muted/50"><th className="text-left p-2 font-medium">Name</th><th className="text-left p-2 font-medium">Student #</th><th className="text-left p-2 font-medium">Relationship</th><th className="text-left p-2 font-medium">Primary</th><th className="text-right p-2 font-medium">Actions</th></tr></thead>
                         <tbody>
-                          {(!parentDetail?.children || parentDetail.children.length === 0) && (
+                          {(!parentDetail?.data?.children || parentDetail.data.children.length === 0) && (
                             <tr><td colSpan={5} className="text-center p-4 text-muted-foreground">No children linked</td></tr>
                           )}
-                          {(parentDetail?.children || []).map((child) => (
+                          {(parentDetail?.data?.children || []).map((child) => (
                             <tr key={child.student_id} className="border-b last:border-0">
                               <td className="p-2">{child.first_name} {child.last_name}</td>
                               <td className="p-2">{child.student_number || "—"}</td>

@@ -30,6 +30,9 @@ router.patch('/leaves/:id/reject', requireAccess(['admin', 'owner', 'hr'], ['lea
 
 router.get('/audits', controller.listAudits);
 
+router.patch('/gm-approve', requireAccess(['admin', 'owner', 'general_manager'], ['payroll.approve']), controller.approvePayrollGM);
+router.patch('/:id/gm-approve', requireAccess(['admin', 'owner', 'general_manager'], ['payroll.approve']), controller.approvePayrollGM);
+
 router.post('/', validate(createPayrollSchema), controller.createPayroll);
 router.post('/calculate', validate(calculatePayrollSchema), controller.calculatePayroll);
 router.get('/', controller.listPayroll);

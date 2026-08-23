@@ -456,8 +456,236 @@ async function getPaymentTrends(tenantId, year, collectorUserId = null) {
   return { year: y, months };
 }
 
+// ── Accountant Reconciliation & Batch Locking ──
+async function listReconciliationBatches(tenantId, { page = 1, limit = 20, date } = {}) {
+  let query = db('payment_reconciliation_batches as b')
+    .join('users as u', 'b.reconciled_by', 'u.id')
+    .leftJoin('users as c', 'b.cashier_id', 'c.id')
+    .where('b.tenant_id', tenantId)
+    .select(
+      'b.*',
+      db.raw("CONCAT(u.first_name, ' ', u.last_name) as reconciled_by_name"),
+      db.raw("CONCAT(c.first_name, ' ', c.last_name) as cashier_name")
+    )
+    .orderBy('b.batch_date', 'desc')
+    .orderBy('b.created_at', 'desc');
+
+  if (date) query = query.where('b.batch_date', date);
+
+  return paginatedResult(query, { page, limit });
+}
+
+async function createReconciliationBatch(tenantId, userId, data) {
+  const batchDate = data.batchDate || new Date().toISOString().slice(0, 10);
+  const cashierId = data.cashierId || null;
+
+  let paymentsQuery = db('payments')
+    .where({ tenant_id: tenantId, is_locked: false })
+    .whereRaw('DATE(paid_date) = ?', [batchDate]);
+
+  if (cashierId) paymentsQuery = paymentsQuery.where('collected_by', cashierId);
+
+  const payments = await paymentsQuery.select('*');
+
+  let totalCash = 0;
+  let totalTelebirr = 0;
+  let totalCbe = 0;
+  let totalOther = 0;
+
+  for (const p of payments) {
+    const amt = parseFloat(p.amount_paid || 0);
+    const method = (p.payment_method || '').toLowerCase();
+    if (method === 'cash') totalCash += amt;
+    else if (method.includes('telebirr')) totalTelebirr += amt;
+    else if (method.includes('cbe') || method.includes('cbe birr') || method.includes('bank')) totalCbe += amt;
+    else totalOther += amt;
+  }
+
+  const totalAmount = totalCash + totalTelebirr + totalCbe + totalOther;
+
+  const [batch] = await db('payment_reconciliation_batches')
+    .insert({
+      tenant_id: tenantId,
+      batch_date: batchDate,
+      reconciled_by: userId,
+      cashier_id: cashierId,
+      total_cash: totalCash,
+      total_telebirr: totalTelebirr,
+      total_cbe: totalCbe,
+      total_other: totalOther,
+      total_amount: totalAmount,
+      transaction_count: payments.length,
+      notes: data.notes || null,
+      status: 'reconciled_and_locked',
+    })
+    .returning('*');
+
+  if (payments.length > 0) {
+    const paymentIds = payments.map((p) => p.id);
+    await db('payments')
+      .whereIn('id', paymentIds)
+      .update({
+        is_locked: true,
+        reconciliation_batch_id: batch.id,
+      });
+  }
+
+  return batch;
+}
+
+async function getDefaultersAging(tenantId, { classId } = {}) {
+  let query = db('payments as p')
+    .join('users as u', 'p.student_id', 'u.id')
+    .leftJoin('students as s', 'u.id', 's.user_id')
+    .leftJoin('classes as c', 's.class_id', 'c.id')
+    .leftJoin('fee_structures as f', 'p.fee_structure_id', 'f.id')
+    .where('p.tenant_id', tenantId)
+    .whereIn('p.status', ['pending', 'partial', 'overdue'])
+    .where('p.balance', '>', 0)
+    .select(
+      'p.id as payment_id',
+      'p.balance as outstanding_balance',
+      'p.paid_date',
+      'p.created_at',
+      'p.status',
+      'u.id as student_id',
+      'u.first_name',
+      'u.last_name',
+      'u.phone as parent_phone',
+      's.student_number',
+      'c.id as class_id',
+      'c.name as class_name',
+      'f.name as fee_name'
+    );
+
+  if (classId) query = query.where('s.class_id', classId);
+
+  const rows = await query;
+  const now = new Date();
+
+  let currentTotal = 0;
+  let thirtyTotal = 0;
+  let sixtyTotal = 0;
+  let ninetyPlusTotal = 0;
+
+  const defaulters = rows.map((r) => {
+    const createdDate = new Date(r.paid_date || r.created_at);
+    const diffDays = Math.max(0, Math.floor((now - createdDate) / (1000 * 60 * 60 * 24)));
+    const balance = parseFloat(r.outstanding_balance || 0);
+
+    let bucket = '0-30';
+    if (diffDays > 90) {
+      bucket = '90+';
+      ninetyPlusTotal += balance;
+    } else if (diffDays > 60) {
+      bucket = '61-90';
+      sixtyTotal += balance;
+    } else if (diffDays > 30) {
+      bucket = '31-60';
+      thirtyTotal += balance;
+    } else {
+      currentTotal += balance;
+    }
+
+    return {
+      ...r,
+      days_overdue: diffDays,
+      aging_bucket: bucket,
+      outstanding_balance: balance,
+    };
+  });
+
+  return {
+    summary: {
+      total_defaulters: defaulters.length,
+      total_outstanding: currentTotal + thirtyTotal + sixtyTotal + ninetyPlusTotal,
+      current_30_days: currentTotal,
+      thirty_to_sixty_days: thirtyTotal,
+      sixty_to_ninety_days: sixtyTotal,
+      ninety_plus_days: ninetyPlusTotal,
+    },
+    defaulters,
+  };
+}
+
+async function getMonthlyClosePack(tenantId, { month, year } = {}) {
+  const m = parseInt(month || new Date().getMonth() + 1, 10);
+  const y = parseInt(year || new Date().getFullYear(), 10);
+
+  const startDate = new Date(y, m - 1, 1).toISOString().slice(0, 10);
+  const endDate = new Date(y, m, 0).toISOString().slice(0, 10);
+
+  // 1. Collections by payment method
+  const methodRows = await db('payments')
+    .where('tenant_id', tenantId)
+    .whereRaw('DATE(paid_date) >= ? AND DATE(paid_date) <= ?', [startDate, endDate])
+    .select('payment_method')
+    .sum('amount_paid as total')
+    .count('* as count')
+    .groupBy('payment_method');
+
+  const totalCollected = methodRows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+
+  // 2. Expenses by category
+  const expenseRows = await db('expenses')
+    .where('tenant_id', tenantId)
+    .whereRaw('DATE(expense_date) >= ? AND DATE(expense_date) <= ?', [startDate, endDate])
+    .select('category')
+    .sum('amount as total')
+    .count('* as count')
+    .groupBy('category');
+
+  const totalExpenses = expenseRows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+
+  // 3. Payroll totals
+  const payrollRows = await db('payroll')
+    .where({ tenant_id: tenantId, month: m, year: y })
+    .select(
+      db.raw('SUM(net_pay) as total_net'),
+      db.raw('SUM(gross_pay) as total_gross'),
+      db.raw('COUNT(*) as staff_count')
+    )
+    .first();
+
+  const netPayroll = parseFloat(payrollRows?.total_net || 0);
+  const totalOutflows = totalExpenses + netPayroll;
+  const netOperatingMargin = totalCollected - totalOutflows;
+
+  return {
+    period: { month: m, year: y, startDate, endDate },
+    revenue: {
+      total_collected: totalCollected,
+      by_method: methodRows.map((r) => ({
+        method: r.payment_method || 'Other',
+        total: parseFloat(r.total || 0),
+        count: parseInt(r.count || 0, 10),
+      })),
+    },
+    expenses: {
+      total_operating_expenses: totalExpenses,
+      by_category: expenseRows.map((r) => ({
+        category: r.category || 'General',
+        total: parseFloat(r.total || 0),
+        count: parseInt(r.count || 0, 10),
+      })),
+    },
+    payroll: {
+      net_payroll_disbursed: netPayroll,
+      gross_payroll: parseFloat(payrollRows?.total_gross || 0),
+      staff_count: parseInt(payrollRows?.staff_count || 0, 10),
+    },
+    net_position: {
+      total_inflow: totalCollected,
+      total_outflow: totalOutflows,
+      net_surplus: netOperatingMargin,
+      status: netOperatingMargin >= 0 ? 'surplus' : 'deficit',
+    },
+  };
+}
+
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, createBulkPayments, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
   getStudentLedger, getCollectionReport, getPaymentTrends,
+  listReconciliationBatches, createReconciliationBatch, getDefaultersAging, getMonthlyClosePack,
 };

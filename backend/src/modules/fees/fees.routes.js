@@ -14,7 +14,12 @@ router.use(tenant);
 
 router.get('/my', rbac('student', 'parent'), controller.getMyFees);
 
-router.use(requireAccess(['admin', 'owner', 'finance', 'cashier'], ['fees.manage', 'payments.manage']));
+router.use(requireAccess(['admin', 'owner', 'finance', 'cashier', 'accountant'], ['fees.manage', 'payments.manage', 'payments.reconcile']));
+
+router.get('/reconciliation/batches', requireAccess(['admin', 'owner', 'finance', 'accountant'], ['payments.reconcile']), controller.listReconciliationBatches);
+router.post('/reconciliation/batches', requireAccess(['admin', 'owner', 'finance', 'accountant'], ['payments.reconcile']), controller.createReconciliationBatch);
+router.get('/defaulters/aging', requireAccess(['admin', 'owner', 'finance', 'accountant'], ['payments.reconcile', 'reports.view']), controller.getDefaultersAging);
+router.get('/monthly-close-pack', requireAccess(['admin', 'owner', 'finance', 'accountant', 'general_manager'], ['reports.view', 'payments.reconcile']), controller.getMonthlyClosePack);
 
 router.get('/summary', controller.getSummary);
 router.get('/collection-report', controller.getCollectionReport);

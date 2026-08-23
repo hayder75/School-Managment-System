@@ -10,6 +10,7 @@ router.use(auth);
 router.use(tenant);
 
 // Admin/Owner reports
+router.get('/semester-results', requireAccess(['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'teacher'], ['reports.view']), controller.getSemesterResults);
 router.get('/enrollment', requireAccess(['admin', 'owner'], ['reports.view']), controller.getEnrollmentReport);
 router.get('/grade-distribution', requireAccess(['admin', 'owner', 'teacher'], ['reports.view']), controller.getGradeDistribution);
 router.get('/class-performance', requireAccess(['admin', 'owner'], ['reports.view']), controller.getClassPerformance);
@@ -18,6 +19,7 @@ router.get('/teacher-workload', requireAccess(['admin', 'owner'], ['reports.view
 
 // Teacher reports
 router.get('/my-students', requireAccess(['teacher'], ['reports.view']), controller.getTeacherClassStudents);
+router.get('/my-class-summary', requireAccess(['teacher'], ['reports.view']), controller.getTeacherClassSummary);
 router.get('/my-attendance', requireAccess(['teacher'], ['reports.view']), controller.getTeacherAttendanceReport);
 router.get('/my-grades', requireAccess(['teacher'], ['reports.view']), controller.getTeacherGradeReport);
 

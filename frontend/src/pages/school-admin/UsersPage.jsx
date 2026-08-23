@@ -12,10 +12,12 @@ import { Badge } from "../../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Plus, Trash2, Search } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 
-const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "support"];
+const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head"];
 
 export default function UsersPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -27,7 +29,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "", section_count: "", periods_per_week: "", overtime_periods: "0" });
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const isStaffRole = ["admin", "teacher", "hr", "finance", "support"].includes(form.role);
+  const isStaffRole = ["admin", "teacher", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head"].includes(form.role);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -92,7 +94,7 @@ export default function UsersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {roles.map((r) => (
-                      <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                      <SelectItem key={r} value={r}>{t.roles[r] || r}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -172,7 +174,7 @@ export default function UsersPage() {
                 <SelectContent>
                   <SelectItem value="all">All roles</SelectItem>
                   {roles.map((r) => (
-                    <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                    <SelectItem key={r} value={r}>{t.roles[r] || r}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -205,7 +207,7 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{user.role}</Badge>
+                        <Badge variant="outline">{t.roles[user.role] || user.role}</Badge>
                       </TableCell>
                       <TableCell>{user.job_title || "—"}</TableCell>
                       <TableCell>

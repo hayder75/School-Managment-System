@@ -22,8 +22,34 @@ export function BarChart({ data = [], height = 200, color = "#2c5a5e" }) {
   );
 }
 
-export function DonutChart({ total = 0, segments = [] }) {
-  const sum = segments.reduce((s, x) => s + (Number(x.value) || 0), 0) || 1;
+export function GroupedBarChart({ data = [], series = [], height = 220 }) {
+  if (!data || data.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No data</p>;
+  const max = Math.max(...data.flatMap((d) => series.map((s) => Number(d[s.key]) || 0)), 1);
+  return (
+    <div className="flex items-end gap-1.5" style={{ height }}>
+      {data.map((d, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
+          <div className="flex items-end gap-0.5 w-full justify-center">
+            {series.map((s) => {
+              const v = Number(d[s.key]) || 0;
+              return (
+                <div
+                  key={s.key}
+                  title={`${d.label}: ${s.label} ${Math.round(v).toLocaleString()}`}
+                  className="w-1/2 rounded-t-md transition-all duration-300 hover:opacity-80"
+                  style={{ height: `${(v / max) * 100}%`, backgroundColor: s.color, minHeight: v > 0 ? 4 : 0 }}
+                />
+              );
+            })}
+          </div>
+          <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center">{d.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function DonutChart({ total = 0, segments = [] }) {  const sum = segments.reduce((s, x) => s + (Number(x.value) || 0), 0) || 1;
   let cumulative = 0;
   const radius = 70;
   const circumference = 2 * Math.PI * radius;

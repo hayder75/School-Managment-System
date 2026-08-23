@@ -8,7 +8,10 @@ import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, FileText, Stethoscope, AlertTriangle, Award, History, Download, BookOpen, Phone, UserRound, Wallet } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { useAuthStore } from "../store/auth";
+import { useToast } from "../store/toast";
+import { ArrowLeft, Plus, Trash2, FileText, Stethoscope, AlertTriangle, Award, History, Download, BookOpen, Phone, UserRound, Wallet, Pencil } from "lucide-react";
 
 const TABS = [
   { key: "documents", label: "Documents", icon: FileText },
@@ -22,6 +25,8 @@ const TABS = [
 export default function StudentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const user = useAuthStore((s) => s.user);
   const [student, setStudent] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [activeTab, setActiveTab] = useState("documents");
@@ -40,6 +45,9 @@ export default function StudentDetailPage() {
   const [newAch, setNewAch] = useState({ type: "academic", title: "", description: "", achieved_date: "" });
   const [profileOpen, setProfileOpen] = useState(false);
   const [ledger, setLedger] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     loadStudent();
@@ -96,6 +104,60 @@ export default function StudentDetailPage() {
         const res = await api.get(`/fees/ledger/${id}`);
         setLedger(res.data);
       } catch {}
+    }
+  }
+
+  function openEdit() {
+    setEditForm({
+      mother_name: student.mother_name || "",
+      father_name: student.father_name || "",
+      grandfather_name: student.grandfather_name || "",
+      date_of_birth: student.date_of_birth ? String(student.date_of_birth).slice(0, 10) : "",
+      gender: student.gender || "",
+      nationality: student.nationality || "",
+      country_of_birth: student.country_of_birth || "",
+      national_id: student.national_id || "",
+      economic_status: student.economic_status || "",
+      disability: !!student.disability,
+      disability_type: student.disability_type || "",
+      region_of_residence: student.region_of_residence || "",
+      zone_of_residence: student.zone_of_residence || "",
+      woreda_of_residence: student.woreda_of_residence || "",
+      region_of_birth: student.region_of_birth || "",
+      zone_of_birth: student.zone_of_birth || "",
+      woreda_of_birth: student.woreda_of_birth || "",
+      kebele: student.kebele || "",
+      location_type: student.location_type || "",
+      home_address: student.home_address || "",
+      parent_status: student.parent_status || "",
+      family_head_gender: student.family_head_gender || "",
+    });
+    setEditOpen(true);
+  }
+
+  function setEdit(k, v) {
+    setEditForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function handleSaveEdit(e) {
+    e.preventDefault();
+    setEditSaving(true);
+    try {
+      const payload = {};
+      for (const [k, v] of Object.entries(editForm)) {
+        if (k === "disability") { payload[k] = !!v; continue; }
+        if (v === null || v === undefined) continue;
+        if (typeof v === "string" && v.trim() === "") continue;
+        payload[k] = v;
+      }
+      await api.put(`/students/${id}`, payload);
+      setEditOpen(false);
+      toast("Student details updated");
+      await loadStudent();
+    } catch (err) {
+      alert(err?.error?.message || err?.message || "Update failed");
+    } finally {
+      setEditSaving(false);
     }
   }
 

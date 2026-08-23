@@ -1,12 +1,16 @@
 const db = require('../../config/database');
+const knex = db;
 
 // ── Admin/Owner Reports ──
 
 async function getStudentEnrollmentReport(tenantId, { academic_year_id } = {}) {
-  let query = db('classes').where({ 'classes.tenant_id': tenantId });
-  if (academic_year_id) query = query.where('classes.academic_year_id', academic_year_id);
+  function baseQuery() {
+    let q = db('classes').where({ 'classes.tenant_id': tenantId });
+    if (academic_year_id) q = q.where('classes.academic_year_id', academic_year_id);
+    return q;
+  }
 
-  const byClass = await query.clone()
+  const byClass = await baseQuery()
     .select('classes.id', 'classes.name', 'classes.grade_level')
     .leftJoin('students', 'classes.id', 'students.class_id')
     .groupBy('classes.id', 'classes.name', 'classes.grade_level')
@@ -15,7 +19,33 @@ async function getStudentEnrollmentReport(tenantId, { academic_year_id } = {}) {
 
   const totalEnrolled = byClass.reduce((sum, c) => sum + parseInt(c.student_count || 0, 10), 0);
 
-  return { by_class: byClass, total_enrolled: totalEnrolled };
+  const levelRows = await baseQuery()
+    .select('classes.level_group', 'classes.grade_level')
+    .leftJoin('students', 'classes.id', 'students.class_id')
+    .groupBy('classes.level_group', 'classes.grade_level')
+    .count('students.id as student_count')
+    .orderBy('classes.grade_level');
+
+  const levelBreakdown = levelRows.map((r) => {
+    let label;
+    if (r.level_group === 'nursery') label = 'Nursery';
+    else if (r.level_group === 'kg') label = r.grade_level === 2 ? 'UKG' : 'LKG';
+    else label = `Grade ${r.grade_level}`;
+    return { level_group: r.level_group, label, count: parseInt(r.student_count || 0, 10) };
+  });
+
+  const genderRows = await db('students')
+    .where({ tenant_id: tenantId })
+    .select('gender')
+    .count('* as count')
+    .groupBy('gender');
+
+  const genderBreakdown = genderRows.map((r) => ({
+    gender: r.gender || 'unknown',
+    count: parseInt(r.count, 10),
+  }));
+
+  return { by_class: byClass, level_breakdown: levelBreakdown, gender_breakdown: genderBreakdown, total_enrolled: totalEnrolled };
 }
 
 async function getGradeDistributionReport(tenantId, { class_id, exam_id } = {}) {
@@ -129,6 +159,39 @@ async function getTeacherClassStudents(tenantId, teacherId, classId) {
   }
 
   return { students: await query };
+}
+
+async function getTeacherClassSummary(tenantId, teacherId) {
+  const rows = await db('teacher_subjects')
+    .where({ 'teacher_subjects.tenant_id': tenantId, 'teacher_subjects.teacher_id': teacherId })
+    .leftJoin('classes', 'classes.id', 'teacher_subjects.class_id')
+    .leftJoin('subjects', 'subjects.id', 'teacher_subjects.subject_id')
+    .leftJoin('students', 'students.class_id', 'teacher_subjects.class_id')
+    .select(
+      'classes.id as class_id',
+      'classes.name as class_name',
+      'classes.grade_level',
+      'classes.section',
+      db.raw('json_agg(DISTINCT subjects.name) filter (where subjects.name is not null) as subjects'),
+      db.raw('COUNT(DISTINCT students.id)::int as student_count')
+    )
+    .groupBy('classes.id', 'classes.name', 'classes.grade_level', 'classes.section')
+    .orderBy('classes.grade_level', 'classes.section');
+
+  const summary = {
+    totalClasses: rows.length,
+    totalStudents: rows.reduce((s, r) => s + (Number(r.student_count) || 0), 0),
+    subjects: [...new Set(rows.flatMap((r) => (r.subjects || []).filter(Boolean)))],
+    byClass: rows.map((r) => ({
+      class_id: r.class_id,
+      class_name: r.class_name,
+      grade_level: r.grade_level,
+      section: r.section,
+      students: Number(r.student_count) || 0,
+      subjects: r.subjects || [],
+    })),
+  };
+  return summary;
 }
 
 async function getTeacherAttendanceReport(tenantId, teacherId, { from_date, to_date } = {}) {
@@ -447,6 +510,114 @@ async function getFeeReport(tenantId, { from_date, to_date } = {}) {
   return getFeeCollectionReport(tenantId, { from_date, to_date });
 }
 
+
+async function getSemesterResults(tenantId, { term_id, class_id } = {}) {
+  if (!term_id) {
+    const err = new Error('TERM_REQUIRED');
+    err.code = 'TERM_REQUIRED';
+    throw err;
+  }
+
+  const grading = require('../../shared/grading');
+  const { scale, weights } = await grading.getGradingConfig(tenantId);
+
+  let exams = db('exams')
+    .where({ tenant_id: tenantId, term_id })
+    .select('id', 'name', 'class_id', 'subject_id', 'type', 'total_marks', 'pass_marks');
+  if (class_id) exams = exams.where('class_id', class_id);
+  exams = await exams;
+  if (!exams.length) return { scale, weights, subjects: [], students: [] };
+
+  const subjectRowsDb = await db('subjects').where('tenant_id', tenantId).select('id', 'name');
+  const subjectNames = Object.fromEntries(subjectRowsDb.map((s) => [s.id, s.name]));
+  void subjectNames;
+
+  const examIds = exams.map((e) => e.id);
+  const gradeRows = await db('grades as g')
+    .join('users as su', 'g.student_id', 'su.id')
+    .join('students as s', 's.user_id', 'su.id')
+    .whereIn('g.exam_id', examIds)
+    .where('g.tenant_id', tenantId)
+    .select(
+      'g.exam_id', 'g.marks_obtained', 'su.id as student_id',
+      knex.raw("CONCAT(su.first_name, ' ', su.last_name) as student_name"),
+      's.student_number'
+    );
+
+  const examById = Object.fromEntries(exams.map((e) => [e.id, e]));
+
+  // student → subject → buckets
+  const byStudent = {};
+  for (const row of gradeRows) {
+    const exam = examById[row.exam_id];
+    if (!exam || row.marks_obtained == null) continue;
+    const subjectKey = exam.subject_id || `cls-${exam.class_id}`;
+    const bucket = grading.isFinalExamType(exam.type) ? 'final' : 'ca';
+
+    byStudent[row.student_id] = byStudent[row.student_id] || {
+      student_id: row.student_id,
+      student_name: row.student_name,
+      student_number: row.student_number,
+      class_id: exam.class_id,
+      subjects: {},
+    };
+    const st = byStudent[row.student_id];
+    st.subjects[subjectKey] = st.subjects[subjectKey] || { subject_id: exam.subject_id, ca: [], final: [] };
+    st.subjects[subjectKey][bucket].push({
+      marks: Number(row.marks_obtained),
+      total: Number(exam.total_marks || 100),
+    });
+  }
+
+  // compute weighted semester mark per subject
+  const results = [];
+  for (const student of Object.values(byStudent)) {
+    if (class_id && student.class_id !== class_id) continue;
+    const subjectRows = [];
+    let totalMark = 0;
+    for (const [, subj] of Object.entries(student.subjects)) {
+      const avgPct = (arr) => arr.length
+        ? arr.reduce((a, x) => a + (x.marks / (x.total || 100)) * 100, 0) / arr.length
+        : null;
+      const caPct = avgPct(subj.ca);
+      const examPct = avgPct(subj.final);
+      let mark;
+      if (caPct != null && examPct != null) {
+        mark = (caPct * weights.ca_pct + examPct * weights.exam_pct) / 100;
+      } else {
+        mark = caPct != null ? caPct : examPct;
+      }
+      if (mark == null) continue;
+      const rounded = Math.round(mark * 10) / 10;
+      subjectRows.push({
+        subject_id: subj.subject_id,
+        name: (subj.subject_id && subjectNames[subj.subject_id]) || 'Subject',
+        ca: caPct != null ? Math.round(caPct * 10) / 10 : null,
+        exam: examPct != null ? Math.round(examPct * 10) / 10 : null,
+        mark: rounded,
+        letter: grading.letterFor(scale, rounded),
+      });
+      totalMark += rounded;
+    }
+    subjectRows.sort((a, b) => (b.mark || 0) - (a.mark || 0));
+    const average = subjectRows.length ? Math.round((totalMark / subjectRows.length) * 10) / 10 : 0;
+    results.push({
+      student_id: student.student_id,
+      student_name: student.student_name,
+      student_number: student.student_number,
+      subjects: subjectRows,
+      total: Math.round(totalMark * 10) / 10,
+      average,
+      letter: grading.letterFor(scale, average),
+    });
+  }
+
+  results.sort((a, b) => b.average - a.average);
+  results.forEach((r, i) => { r.rank = i + 1; });
+
+  return { term_id, class_id: class_id || null, scale, weights, students: results };
+}
+
 module.exports = {
   getStudentEnrollmentReport,
   getGradeDistributionReport,
@@ -454,6 +625,7 @@ module.exports = {
   getAttendanceOverviewReport,
   getTeacherWorkloadReport,
   getTeacherClassStudents,
+  getTeacherClassSummary,
   getTeacherAttendanceReport,
   getTeacherGradeReport,
   getFeeCollectionReport,
@@ -467,4 +639,5 @@ module.exports = {
   getStudentReport,
   getClassReport,
   getFeeReport,
+  getSemesterResults,
 };

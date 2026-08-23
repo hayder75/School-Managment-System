@@ -79,4 +79,27 @@ async function getSummary(req, res) {
   res.json({ success: true, data: summary });
 }
 
-module.exports = { mark, getByClassAndDate, getByStudent, getSummary };
+async function getAdminOverview(req, res) {
+  const { from_date, to_date, class_id } = req.query;
+  const data = await attendanceService.getAdminOverview(req.tenant.id, {
+    fromDate: from_date,
+    toDate: to_date,
+    classId: class_id,
+  });
+  res.json({ success: true, data });
+}
+
+async function getAdminClassOverview(req, res) {
+  const { classId } = req.params;
+  const { from_date, to_date } = req.query;
+  const data = await attendanceService.getAdminClassOverview(req.tenant.id, classId, {
+    fromDate: from_date,
+    toDate: to_date,
+  });
+  if (!data) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Class not found' } });
+  }
+  res.json({ success: true, data });
+}
+
+module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview };

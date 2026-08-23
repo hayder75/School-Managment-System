@@ -3,11 +3,64 @@ const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const requireAccess = require('../../middleware/access');
 const db = require('../../config/database');
+const knex = db;
 
 const router = Router();
 
 router.use(auth);
 router.use(tenant);
+
+// Read-only term list — needed by leadership & teachers for semester reports
+router.get('/terms', async (req, res) => {
+  const terms = await db('terms as t')
+    .join('academic_years as ay', 't.academic_year_id', 'ay.id')
+    .leftJoin('exams as e', function () { this.on('e.term_id', '=', 't.id').andOn('e.tenant_id', '=', 't.tenant_id'); })
+    .where('t.tenant_id', req.tenant.id)
+    .groupBy('t.id', 't.name', 't.start_date', 't.end_date', 'ay.name', 't.academic_year_id')
+    .select(
+      't.id', 't.name', 't.start_date', 't.end_date', 'ay.name as year_name',
+      't.academic_year_id',
+      knex.raw('COUNT(e.id)::int as has_exams')
+    )
+    .orderBy('t.start_date');
+  res.json({ success: true, data: terms });
+});
+
+// Terms management — admins only
+router.post('/terms', requireAccess(['admin', 'owner'], ['academics.manage']), async (req, res) => {
+  const { name, start_date, end_date, academic_year_id } = req.body;
+  if (!name || !start_date || !end_date || !academic_year_id) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'name, start_date, end_date and academic_year_id are required' } });
+  }
+  const [term] = await db('terms')
+    .insert({ tenant_id: req.tenant.id, name, start_date, end_date, academic_year_id })
+    .returning('*');
+  res.status(201).json({ success: true, data: term });
+});
+
+router.put('/terms/:id', requireAccess(['admin', 'owner'], ['academics.manage']), async (req, res) => {
+  const payload = {};
+  ['name', 'start_date', 'end_date'].forEach((f) => {
+    if (req.body[f] !== undefined) payload[f] = req.body[f];
+  });
+  const [term] = await db('terms')
+    .where({ tenant_id: req.tenant.id, id: req.params.id })
+    .update(payload)
+    .returning('*');
+  if (!term) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Term not found' } });
+  res.json({ success: true, data: term });
+});
+
+router.delete('/terms/:id', requireAccess(['admin', 'owner'], ['academics.manage']), async (req, res) => {
+  const exams = await db('exams').where({ tenant_id: req.tenant.id, term_id: req.params.id }).count('* as c');
+  if (Number(exams[0].c) > 0) {
+    return res.status(400).json({ success: false, error: { code: 'TERM_IN_USE', message: 'Cannot delete a term that has exams. Remove its exams first.' } });
+  }
+  const count = await db('terms').where({ tenant_id: req.tenant.id, id: req.params.id }).del();
+  if (!count) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Term not found' } });
+  res.json({ success: true, data: { deleted: true } });
+});
+
 router.use(requireAccess(['admin', 'owner'], ['academics.manage']));
 
 async function rollover(req, res) {

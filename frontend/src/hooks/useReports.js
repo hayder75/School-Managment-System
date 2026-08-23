@@ -51,6 +51,13 @@ export function useMyStudents(params = {}) {
   });
 }
 
+export function useMyClassSummary() {
+  return useQuery({
+    queryKey: ["report-my-class-summary"],
+    queryFn: () => api.get("/reports/my-class-summary"),
+  });
+}
+
 export function useMyAttendance(params = {}) {
   return useQuery({
     queryKey: ["report-my-attendance", params],

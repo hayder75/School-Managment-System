@@ -17,3 +17,18 @@ export function useMarkAttendance() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
   });
 }
+
+export function useAdminAttendanceOverview(params = {}) {
+  return useQuery({
+    queryKey: ["attendance-admin-overview", params],
+    queryFn: () => api.get("/attendance/admin/overview", { params }),
+  });
+}
+
+export function useAdminClassAttendance(classId, params = {}) {
+  return useQuery({
+    queryKey: ["attendance-admin-class", classId, params],
+    queryFn: () => api.get(`/attendance/admin/classes/${classId}`, { params }),
+    enabled: !!classId,
+  });
+}

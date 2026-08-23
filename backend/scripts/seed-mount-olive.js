@@ -215,6 +215,7 @@ async function main() {
     { name: 'Hand Craft', code: 'HAND' },
     { name: 'Health & Social Skills', code: 'HSS' },
     { name: 'Sport', code: 'SPORT' },
+    { name: 'KG (General)', code: 'KG' },
   ];
   const subjectRows = subjectList.map((s) => ({
     id: uid(`subject-${s.code}`), tenant_id: TID, name: s.name, code: s.code, is_active: true,
@@ -394,7 +395,7 @@ async function main() {
     const seq = studentSeq;
     const userId = uid(`student-user-${e.student_id}`);
     const firstName = basic.first_name || e.first_name || e.student_id;
-    const father = basic.father_name || '';
+    const father = basic.father_name || basic.guardian_name || '';
     const lastName = father || '';
     const phone = `+251-91-000-${String(seq).padStart(4, '0')}`;
 
@@ -421,7 +422,7 @@ async function main() {
       admission_type: basic.admission_type || 'new',
       date_of_birth: basic.dob || null,
       gender: basic.sex ? (basic.sex === 'Male' ? 'male' : 'female') : null,
-      father_name: basic.father_name || null,
+      father_name: basic.father_name || basic.guardian_name || null,
       grandfather_name: basic.grandfather_name || null,
       mother_name: basic.mother_name || null,
       nationality: basic.nationality || null,
@@ -533,32 +534,109 @@ async function main() {
 
   // ── 9. Teacher subjects ──
   console.log('Seeding teacher subject assignments…');
+  // Subject alias map: normalizes the free-text 'subject' column in the source
+  // spreadsheets to the seeded subject list, and supports combined strings.
+  const SUBJECT_ALIASES = {
+    maths: ['Mathematics'],
+    math: ['Mathematics'],
+    amhric: ['Amharic'],
+    amharic: ['Amharic'],
+    sci: ['Science'],
+    science: ['Science'],
+    english: ['English'],
+    spokenenglish: ['Spoken English'],
+    sport: ['Sport'],
+    ict: ['ICT'],
+    sidamuaafo: ['Sidamu Afo'],
+    pva: ['Performing Visual Arts'],
+    art: ['Art & Aesthetics'],
+    handcraft: ['Hand Craft'],
+    moralcitizen: ['Moral & Social'],
+    moralsocial: ['Moral & Social'],
+    'moral&social': ['Moral & Social'],
+    selfcontent: ['KG (General)'], // KG: single general subject for their classes
+    assist: ['KG (General)'],
+    babysitter: ['KG (General)'],
+  };
+  function subjNames(subjectStr) {
+    if (!subjectStr) return [];
+    const normStr = norm(subjectStr);
+    if (SUBJECT_ALIASES[normStr]) return SUBJECT_ALIASES[normStr];
+    if (SUBJECT_ALIASES[normStr] === null) return ['__ALL__'];
+    const found = [subjectStr];
+    try {
+      if (subjectIdByName.has(normStr)) return [subjectStr];
+    } catch (e) { /* ignore */ }
+    // Handle combined subjects like "Science & ICT", "PVA & CTE", "Science & maths"
+    const parts = String(subjectStr).split(/[&\/,]/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const mapped = [];
+      for (const p of parts) {
+        const pn = norm(p);
+        if (SUBJECT_ALIASES[pn]) mapped.push(...SUBJECT_ALIASES[pn]);
+        else if (subjectIdByName.get(pn)) mapped.push(p);
+        else mapped.push(pn);
+      }
+      return mapped.length ? mapped : found;
+    }
+    return found;
+  }
   const teacherSubjectRows = [];
+  const tsSeen = new Set();
   for (const s of staffRows) {
     if (!s.user_id || (s.role !== 'teacher' && s.role !== 'admin')) continue;
     if (!s.subject && !s.classes) continue;
-    const subjId = subjectIdByName.get(norm(s.subject));
-    if (!subjId) continue;
 
-    let grades = [];
-    if (s.classes) {
-      grades = parseGrades(s.classes);
+    const names = subjNames(s.subject);
+    const allSubjects = names.includes('__ALL__')
+      ? subjectRows.map((r) => r.name)
+      : names;
+    const isKgSubject = allSubjects.includes('KG (General)');
+
+    // Resolve the class objects this teacher teaches.
+    let classRowsForGrades = [];
+    if (names.includes('__ALL__')) {
+      // KG staff teach every subject in their assigned KG classes
+      const level = String(s.classes);
+      classRowsForGrades = [...classMap.values()].filter((c) =>
+        (c.level_group === 'nursery' && /nursery/i.test(level)) ||
+        (c.name.startsWith('LKG') && /lkg|kg/i.test(level)) ||
+        (c.name.startsWith('UKG') && /ukg|kg/i.test(level))
+      );
+    } else if (isKgSubject) {
+      // KG staff: assign to KG classes at the level they teach (Nursery/LKG/UKG)
+      const level = String(s.classes);
+      classRowsForGrades = [...classMap.values()].filter((c) =>
+        (c.level_group === 'nursery' && /nursery/i.test(level)) ||
+        (c.name.startsWith('LKG') && /lkg/i.test(level)) ||
+        (c.name.startsWith('UKG') && /ukg/i.test(level)) ||
+        (c.level_group === 'kg' && /kg/i.test(level) && !/lkg|ukg/i.test(level))
+      );
+    } else {
+      let grades = parseGrades(s.classes);
+      if (!grades.length) {
+        const clsMatch = String(s.classes).match(/[1-8]/g);
+        grades = clsMatch ? [...new Set(clsMatch.map(Number))].sort() : [];
+      }
+      classRowsForGrades = [...classMap.values()].filter((c) =>
+        (c.level_group === 'primary' && grades.includes(c.grade_level))
+        || (c.level_group === 'kg' && /nursery|kg/i.test(String(s.classes)))
+      );
     }
-    if (!grades.length) {
-      const clsMatch = String(s.classes).match(/[1-8]/g);
-      grades = clsMatch ? [...new Set(clsMatch.map(Number))].sort() : [];
-    }
 
-    const classRowsForGrades = [...classMap.values()].filter((c) =>
-      (c.level_group === 'primary' && grades.includes(c.grade_level))
-      || (c.level_group === 'kg' && /nursery|kg/i.test(String(s.classes)))
-    );
-
-    for (const c of classRowsForGrades) {
-      teacherSubjectRows.push({
-        id: uid(`ts-${s.user_id}-${c.id}-${subjId}`), tenant_id: TID,
-        teacher_id: s.user_id, subject_id: subjId, class_id: c.id, is_primary: false,
-      });
+    for (const name of allSubjects) {
+      if (name === '__ALL__') continue;
+      const subjId = subjectIdByName.get(norm(name));
+      if (!subjId) continue;
+      for (const c of classRowsForGrades) {
+        const key = `${s.user_id}|${c.id}|${subjId}`;
+        if (tsSeen.has(key)) continue;
+        tsSeen.add(key);
+        teacherSubjectRows.push({
+          id: uid(`ts-${key}`), tenant_id: TID,
+          teacher_id: s.user_id, subject_id: subjId, class_id: c.id, is_primary: false,
+        });
+      }
     }
   }
   if (teacherSubjectRows.length) {

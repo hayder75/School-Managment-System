@@ -64,6 +64,15 @@ app.use('/api/roles', rolesRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/operations', require('./modules/operations/operations.routes'));
 app.use('/api/pdf', require('./modules/pdf/pdf.routes'));
+app.use('/api/assets', require('./modules/assets/assets.routes'));
+app.use('/api/shifts', require('./modules/shifts/shifts.routes'));
+app.use('/api/hr-enhancements', require('./modules/hr/hr.routes'));
+app.use('/api/academic-content', require('./modules/academic-content/academic-content.routes'));
+app.use('/api/security', require('./modules/security/security.routes'));
+app.use('/api/facilities', require('./modules/facilities/facilities.routes'));
+app.use('/api/accounting', require('./modules/accounting/accounting.routes'));
+app.use('/api/executive', require('./modules/executive/executive.routes'));
+app.use('/api/discipline', require('./modules/discipline/discipline.routes'));
 
 app.get('/', (req, res) => {
   res.redirect(config.frontendUrl);

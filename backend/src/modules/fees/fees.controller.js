@@ -152,9 +152,33 @@ async function getStudentLedger(req, res) {
   res.json({ success: true, data: ledger });
 }
 
+async function listReconciliationBatches(req, res) {
+  const { page, limit, date } = req.query;
+  const result = await feeService.listReconciliationBatches(req.tenant.id, { page, limit, date });
+  res.json({ success: true, ...result });
+}
+
+async function createReconciliationBatch(req, res) {
+  const batch = await feeService.createReconciliationBatch(req.tenant.id, req.user.userId, req.body);
+  res.status(201).json({ success: true, data: batch });
+}
+
+async function getDefaultersAging(req, res) {
+  const { classId } = req.query;
+  const result = await feeService.getDefaultersAging(req.tenant.id, { classId });
+  res.json({ success: true, data: result });
+}
+
+async function getMonthlyClosePack(req, res) {
+  const { month, year } = req.query;
+  const pack = await feeService.getMonthlyClosePack(req.tenant.id, { month, year });
+  res.json({ success: true, data: pack });
+}
+
 module.exports = {
   createFeeStructure, listFeeStructures, getFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, createBulkPayments, updatePayment, listPayments, getPaymentById, removePayment, getSummary,
   getStudentLedger, getCollectionReport, getPaymentTrends,
   getMyFees,
+  listReconciliationBatches, createReconciliationBatch, getDefaultersAging, getMonthlyClosePack,
 };

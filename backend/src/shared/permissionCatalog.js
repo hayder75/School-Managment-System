@@ -31,6 +31,17 @@ const PERMISSIONS = [
   { key: 'settings.manage', label: 'School Settings', description: 'Manage school settings' },
   { key: 'roles.manage', label: 'Manage Roles & Permissions', description: 'Create roles and assign permissions' },
   { key: 'academics.manage', label: 'Manage Academic Setup', description: 'Manage academic years, terms and rollovers' },
+  { key: 'quality.submit', label: 'Submit Academic Content', description: 'Upload draft tests, lesson plans and notes for review' },
+  { key: 'quality.review', label: 'Review & Approve Content', description: 'Score content against rubric and approve/reject' },
+  { key: 'shifts.manage', label: 'Manage Shift & Duty Roster', description: 'Schedule substitutions, guard shifts, duty rotas' },
+  { key: 'guard-roster.view', label: 'View Guard Shift Roster', description: 'View daily security guard shifts' },
+  { key: 'leave.view', label: 'View Staff Leaves', description: 'View approved leaves for planning' },
+  { key: 'payroll.approve', label: 'Executive Payroll Sign-Off', description: 'Authorize final payroll disbursement' },
+  { key: 'expenses.approve', label: 'Approve Expense Thresholds', description: 'Approve high-value expense requisitions' },
+  { key: 'security.manage', label: 'Security & Visitor Gate', description: 'Manage visitor log, gate passes and incidents' },
+  { key: 'services.manage', label: 'Campus Facilities & Repairs', description: 'Manage maintenance tickets and assets' },
+  { key: 'discipline.manage', label: 'Student Disciplinary Cases', description: 'Manage hearings, sanctions and resolutions' },
+  { key: 'payments.reconcile', label: 'Reconcile & Lock Payments', description: 'Settle cashier batches and lock receipts' },
 ];
 
 const ALL_PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);
@@ -41,12 +52,13 @@ const DEFAULT_ROLE_PERMISSIONS = {
   teacher: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage',
     'grades.manage', 'timetable.view', 'announcements.view', 'chat.access',
+    'quality.submit', 'leave.view',
   ],
   student: ['dashboard.view', 'timetable.view', 'announcements.view'],
   parent: ['dashboard.view', 'timetable.view', 'announcements.view', 'chat.access'],
   finance: [
     'dashboard.view', 'fees.manage', 'payments.manage', 'expenses.manage',
-    'payroll.view', 'reports.view', 'announcements.view',
+    'payroll.view', 'reports.view', 'announcements.view', 'leave.view',
   ],
   cashier: [
     'dashboard.view', 'students.view', 'students.manage', 'fees.manage',
@@ -55,8 +67,43 @@ const DEFAULT_ROLE_PERMISSIONS = {
   hr: [
     'dashboard.view', 'users.manage', 'payroll.view', 'reports.view',
     'tax-settings.manage', 'leave-management.manage', 'payroll-audit.view', 'announcements.view',
+    'leave.view',
   ],
   support: ['dashboard.view', 'announcements.view', 'chat.access'],
+  general_manager: [
+    'dashboard.view', 'students.view', 'reports.view', 'payroll.view',
+    'audit.view', 'announcements.view', 'announcements.manage', 'chat.access',
+    'payroll.approve', 'expenses.approve', 'leave.view',
+  ],
+  principal: [
+    'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
+    'timetable.view', 'reports.view', 'announcements.view', 'announcements.manage', 'chat.access',
+    'quality.review', 'discipline.manage', 'leave.view',
+  ],
+  vice_principal: [
+    'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
+    'timetable.view', 'reports.view', 'announcements.view', 'chat.access',
+    'quality.review', 'discipline.manage', 'leave.view',
+  ],
+  quality_director: [
+    'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
+    'timetable.view', 'reports.view', 'announcements.view', 'chat.access',
+    'quality.review', 'leave.view',
+  ],
+  general_services: [
+    'dashboard.view', 'operations.manage', 'expenses.manage', 'announcements.view', 'chat.access',
+    'services.manage',
+  ],
+  shift_coordinator: [
+    'dashboard.view', 'announcements.view', 'chat.access', 'timetable.view',
+    'shifts.manage', 'guard-roster.view', 'leave.view',
+  ],
+  accountant: [
+    'dashboard.view', 'students.view', 'fees.manage', 'payments.manage', 'expenses.manage',
+    'payroll.view', 'reports.view', 'tax-settings.manage', 'announcements.view',
+    'payments.reconcile', 'leave.view',
+  ],
+  security_head: ['dashboard.view', 'announcements.view', 'chat.access', 'security.manage', 'guard-roster.view'],
 };
 
 module.exports = { PERMISSIONS, ALL_PERMISSION_KEYS, DEFAULT_ROLE_PERMISSIONS };

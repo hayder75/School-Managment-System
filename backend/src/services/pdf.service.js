@@ -1,5 +1,6 @@
 const PDFDocument = require('pdfkit');
 const db = require('../config/database');
+const { getSemesterResults } = require('../modules/reports/reports.service');
 
 function gradeLetter(score, max) {
   if (score == null || !max || max <= 0) return '-';
@@ -16,7 +17,8 @@ function gpaFromPct(pct) {
   return 0.0;
 }
 
-async function generateReportCard(tenantId, studentId, academicYear) {
+async function generateReportCard(tenantId, studentId, academicYear, termId) {
+  if (termId) return generateTermReportCard(tenantId, studentId, termId);
   const student = await db('students')
     .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
     .leftJoin('users', 'students.user_id', 'users.id')
@@ -370,6 +372,90 @@ async function generatePayslip(tenantId, payrollId) {
   return new Promise((resolve) => {
     doc.on('end', () => resolve(Buffer.concat(buffers)));
   });
+}
+
+
+// Semester-weighted MoE style report card (when a specific term is requested)
+async function generateTermReportCard(tenantId, studentId, termId) {
+  const student = await db('students')
+    .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
+    .leftJoin('users', 'students.user_id', 'users.id')
+    .leftJoin('classes', 'students.class_id', 'classes.id')
+    .select(
+      'students.*',
+      'users.first_name', 'users.last_name',
+      'classes.name as class_name', 'classes.id as class_id'
+    )
+    .first();
+  if (!student) throw new Error('NOT_FOUND');
+
+  const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
+  const term = await db('terms').where({ id: termId }).first();
+  const termName = term?.name || '—';
+
+  const results = await getSemesterResults(tenantId, {
+    term_id: termId,
+    class_id: student.class_id,
+  });
+  const mine = results.students.find((r) => r.student_id === student.id) || {
+    subjects: [], total: 0, average: 0, letter: 'F', rank: null,
+  };
+
+  const subjectNames = {};
+  if (mine.subjects.some((s) => s.subject_id)) {
+    const ids = mine.subjects.map((s) => s.subject_id).filter(Boolean);
+    if (ids.length) {
+      const subs = await db('subjects').whereIn('id', ids).select('id', 'name');
+      subs.forEach((s) => { subjectNames[s.id] = s.name; });
+    }
+  }
+
+  const subjects = mine.subjects.map((s) => ({
+    name: (s.subject_id && subjectNames[s.subject_id]) || 'Subject',
+    ca: s.ca,
+    exam: s.exam,
+    mark: s.mark,
+    letter: s.letter,
+  }));
+
+  // attendance within the term window
+  const attRecords = await db('attendance')
+    .where({ tenant_id: tenantId, student_id: student.id })
+    .whereBetween('date', [term?.start_date || '1900-01-01', term?.end_date || '2100-01-01'])
+    .select('status').count('* as count').groupBy('status');
+  const attendance = {
+    present: Number(attRecords.find((r) => r.status === 'present')?.count || 0),
+    absent: Number(attRecords.find((r) => r.status === 'absent')?.count || 0),
+    late: Number(attRecords.find((r) => r.status === 'late')?.count || 0),
+  };
+
+  const failed = subjects.filter((s) => Number(s.mark) < 50).length;
+  const promotionLine =
+    student.status !== 'active' ? '' :
+    failed === 0
+      ? 'RESULT: PROMOTED to the next grade.'
+      : failed <= 2
+        ? `RESULT: CONDITIONAL — must improve ${failed} subject(s).`
+        : 'RESULT: NOT PROMOTED — repeat current grade.';
+
+  const payload = {
+    __v2: true,
+    schoolName: tenant?.name || 'School',
+    studentName: `${student.first_name} ${student.last_name}`,
+    studentNumber: student.student_number,
+    className: student.class_name || '—',
+    termName,
+    subjects,
+    average: mine.average,
+    rank: mine.rank,
+    studentCount: results.students.length,
+    remarks: '',
+    promotionLine,
+  };
+  void studentId;
+
+  const reportCard = require('../shared/report-card');
+  return reportCard.generateReportCard(payload, null, attendance, { name: termName });
 }
 
 module.exports = { generateReportCard, generateInvoice, generatePayslip };

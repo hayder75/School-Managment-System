@@ -23,6 +23,9 @@ module.exports = {
 
   cookie: {
     secret: process.env.COOKIE_SECRET || 'cookie-secret',
+    secure: process.env.COOKIE_SECURE !== undefined
+      ? process.env.COOKIE_SECURE === 'true'
+      : (process.env.NODE_ENV || 'development') === 'production',
   },
 
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',

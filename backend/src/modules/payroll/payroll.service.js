@@ -205,10 +205,27 @@ async function createPayrollAudit(tenantId, data) {
   return audit;
 }
 
+async function approvePayrollGM(tenantId, userId, { month, year, id } = {}) {
+  let q = db('payroll').where({ tenant_id: tenantId });
+  if (id) q = q.where({ id });
+  if (month) q = q.where({ month });
+  if (year) q = q.where({ year });
+
+  const updated = await q.update({
+    gm_approved: true,
+    gm_approved_by: userId,
+    gm_approved_at: db.fn.now(),
+    updated_at: db.fn.now(),
+  }).returning('*');
+
+  return updated;
+}
+
 module.exports = {
   createSalaryGrade, findAllSalaryGrades, updateSalaryGrade, removeSalaryGrade,
   createPayroll, findAllPayroll, updatePayroll, getPayrollSummary, calculatePayroll,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,
   listLeaves, createLeave, approveLeave, rejectLeave,
   listPayrollAudits, createPayrollAudit,
+  approvePayrollGM,
 };

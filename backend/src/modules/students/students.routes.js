@@ -20,7 +20,7 @@ router.use(tenant);
 router.get('/enrollment-stats', requireAccess(['admin', 'owner'], ['students.manage']), controller.enrollmentStats);
 router.get('/class/:classId', requireAccess(['admin', 'owner', 'teacher'], ['students.view']), controller.listByClass);
 
-router.post('/enroll', requireAccess(['admin', 'owner'], ['students.manage']), validate(enrollSchema), controller.enroll);
+router.post('/enroll', requireAccess(['admin', 'owner', 'cashier'], ['students.manage']), validate(enrollSchema), controller.enroll);
 router.post('/promote', requireAccess(['admin', 'owner'], ['students.manage']), validate(promoteSchema), controller.promote);
 router.post('/graduate', requireAccess(['admin', 'owner'], ['students.manage']), validate(graduateSchema), controller.graduate);
 router.post('/transfer', requireAccess(['admin', 'owner'], ['students.manage']), validate(transferSchema), controller.transfer);
