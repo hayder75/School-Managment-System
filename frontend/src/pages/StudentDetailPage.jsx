@@ -205,7 +205,7 @@ export default function StudentDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl border p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone size={12} /> Contact</p>
               <p className="font-medium mt-0.5">{student.phone || student.emergency_contact || "—"}</p>
@@ -245,7 +245,7 @@ export default function StudentDetailPage() {
             {!ledger ? (
               <p className="text-sm text-muted-foreground mt-0.5">Loading fee status…</p>
             ) : (
-              <div className="grid grid-cols-3 gap-2 mt-1 text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1 text-center">
                 <div><p className="text-sm font-bold">{Number(ledger.total_owed).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Owed</p></div>
                 <div><p className="text-sm font-bold text-green-600">{Number(ledger.total_paid).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Paid</p></div>
                 <div>
@@ -260,7 +260,7 @@ export default function StudentDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm">Guardians</CardTitle></CardHeader>
           <CardContent className="space-y-2">
@@ -298,7 +298,7 @@ export default function StudentDetailPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm">Demographics</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-1">
@@ -386,7 +386,7 @@ function DocumentsTab({ documents, studentId, newDoc, setNewDoc, onReload }) {
         {documents.length === 0 ? (
           <p className="text-sm text-muted-foreground">No documents</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-2">
             {documents.map((d) => (
               <div key={d.id} className="flex items-center justify-between border rounded-md p-3">
                 <div>
@@ -416,7 +416,7 @@ function MedicalTab({ medical, studentId, newMed, setNewMed, onReload }) {
     <Card>
       <CardHeader><CardTitle>Medical Information</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label>Blood Group</Label>
             <Input value={newMed.blood_group} onChange={(e) => setNewMed({ ...newMed, blood_group: e.target.value })} placeholder="e.g. O+" />
@@ -527,7 +527,7 @@ function AchievementsTab({ achievements, studentId, newAch, setNewAch, onReload 
         {achievements.length === 0 ? (
           <p className="text-sm text-muted-foreground">No achievements recorded</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-2">
             {achievements.map((a) => (
               <div key={a.id} className="border rounded-md p-3">
                 <div className="flex items-start justify-between">
@@ -645,7 +645,7 @@ function EnrollmentTab({ studentId, enrollments, onReload }) {
                     {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Grade Level</Label>
                     <Input value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: e.target.value })} placeholder="e.g. 1 or Nursery" />

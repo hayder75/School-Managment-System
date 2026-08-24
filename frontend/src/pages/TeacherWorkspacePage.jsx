@@ -65,7 +65,7 @@ export default function TeacherWorkspacePage() {
                 <Label>{t.qa.titleCol}</Label>
                 <Input name="title" required defaultValue={editing?.title} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>{t.qa.type}</Label>
                   <Select name="type" defaultValue={editing?.type || "test"}>
@@ -141,7 +141,7 @@ export default function TeacherWorkspacePage() {
       )}
 
       {tab === "bank" && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 sm:grid-cols-3">
           {bank.map((b) => (
             <Card key={b.id}>
               <CardHeader className="pb-2 flex-row items-start justify-between">

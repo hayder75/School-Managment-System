@@ -36,3 +36,20 @@
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 }
+
+/* ── Mobile responsiveness utilities ── */
+@media (max-width: 640px) {
+  /* bigger touch targets for icon buttons inside tables */
+  td button svg { width: 18px; height: 18px; }
+  td .p-1\.5 { padding: 0.5rem; }
+}
+
+/* sticky first column for wide matrices */
+.table-sticky-col th:first-child,
+.table-sticky-col td:first-child {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 1;
+}
+.table-sticky-col thead th:first-child { z-index: 2; }

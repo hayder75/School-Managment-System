@@ -51,7 +51,7 @@ export default function ParentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
           <Card>
             <CardHeader>
@@ -153,7 +153,7 @@ export default function ParentsPage() {
                 <p className="text-muted-foreground text-center py-12">Select a parent from the list to view details</p>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><Label className="text-xs">Email</Label><p className="text-sm">{selectedParent.email}</p></div>
                     <div><Label className="text-xs">Phone</Label><p className="text-sm">{selectedParent.phone || "—"}</p></div>
                   </div>

@@ -209,7 +209,7 @@ export default function EnrollmentWizardPage() {
               <ExistingGuardianPicker guardians={guardians} setGuardians={setGuardians} />
               <div className="border-t pt-4">
                 <p className="text-sm font-medium mb-3 flex items-center gap-2"><UserPlus size={15} /> Create new guardian</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>First name *</Label><Input value={ngForm.first_name} onChange={(e) => setNgForm({ ...ngForm, first_name: e.target.value })} /></div>
                   <div><Label>Last name *</Label><Input value={ngForm.last_name} onChange={(e) => setNgForm({ ...ngForm, last_name: e.target.value })} /></div>
                   <div><Label>Phone * (required)</Label><Input value={ngForm.phone} onChange={(e) => setNgForm({ ...ngForm, phone: e.target.value })} placeholder="09…" /></div>
@@ -321,11 +321,11 @@ function StepStudent({ student, setStudent }) {
   const set = (k) => (e) => setStudent({ ...student, [k]: e.target.value });
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><Label>First name *</Label><Input className="mt-1" required value={student.first_name} onChange={set("first_name")} /></div>
         <div><Label>Last name *</Label><Input className="mt-1" required value={student.last_name} onChange={set("last_name")} /></div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <Label>Gender</Label>
           <Select value={student.gender} onValueChange={(v) => setStudent({ ...student, gender: v })}>
@@ -338,7 +338,7 @@ function StepStudent({ student, setStudent }) {
       </div>
       <div className="border-t pt-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Family names (as on birth certificate)</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div><Label>Father name</Label><Input className="mt-1" value={student.father_name} onChange={set("father_name")} /></div>
           <div><Label>Grandfather name</Label><Input className="mt-1" value={student.grandfather_name} onChange={set("grandfather_name")} /></div>
           <div><Label>Mother name</Label><Input className="mt-1" value={student.mother_name} onChange={set("mother_name")} /></div>
@@ -346,7 +346,7 @@ function StepStudent({ student, setStudent }) {
       </div>
       <div className="border-t pt-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Birth place</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div><Label>Region</Label><Input className="mt-1" value={student.region_of_birth} onChange={set("region_of_birth")} /></div>
           <div><Label>Zone / Sub-city</Label><Input className="mt-1" value={student.zone_of_birth} onChange={set("zone_of_birth")} /></div>
           <div><Label>Woreda</Label><Input className="mt-1" value={student.woreda_of_birth} onChange={set("woreda_of_birth")} /></div>
@@ -354,12 +354,12 @@ function StepStudent({ student, setStudent }) {
       </div>
       <div className="border-t pt-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Residence</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div><Label>Region</Label><Input className="mt-1" value={student.region_of_residence} onChange={set("region_of_residence")} /></div>
           <div><Label>Zone / Sub-city</Label><Input className="mt-1" value={student.zone_of_residence} onChange={set("zone_of_residence")} /></div>
           <div><Label>Woreda</Label><Input className="mt-1" value={student.woreda_of_residence} onChange={set("woreda_of_residence")} /></div>
         </div>
-        <div className="grid grid-cols-3 gap-3 mt-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
           <div><Label>Kebele</Label><Input className="mt-1" value={student.kebele} onChange={set("kebele")} /></div>
           <div><Label>House / Address</Label><Input className="mt-1" value={student.home_address} onChange={set("home_address")} /></div>
           <div>
@@ -373,7 +373,7 @@ function StepStudent({ student, setStudent }) {
       </div>
       <div className="border-t pt-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Background</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><Label>Previous school</Label><Input className="mt-1" value={student.previous_school} onChange={set("previous_school")} /></div>
           <div>
             <Label>Admission type</Label>

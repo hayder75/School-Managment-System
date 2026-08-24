@@ -211,7 +211,7 @@ export default function StudentsPage() {
                 <FieldError errors={fieldErrors} field="emergency_contact" />
                 <div className="border-t pt-4">
                   <Label className="text-sm font-semibold">Personal / Demographics</Label>
-                  <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                     <div className="space-y-2">
                       <Label>Father's Name</Label>
                       <Input value={form.father_name} onChange={(e) => setForm({ ...form, father_name: e.target.value })} />
@@ -302,7 +302,7 @@ export default function StudentsPage() {
                     )}
                   </div>
                   <Label className="text-sm font-semibold mt-4 block">Address of Residence</Label>
-                  <div className="grid grid-cols-3 gap-4 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
                     <div className="space-y-2">
                       <Label>Region</Label>
                       <Input value={form.region_of_residence} onChange={(e) => setForm({ ...form, region_of_residence: e.target.value })} />
@@ -317,7 +317,7 @@ export default function StudentsPage() {
                     </div>
                   </div>
                   <Label className="text-sm font-semibold mt-4 block">Address of Birth</Label>
-                  <div className="grid grid-cols-3 gap-4 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
                     <div className="space-y-2">
                       <Label>Region</Label>
                       <Input value={form.region_of_birth} onChange={(e) => setForm({ ...form, region_of_birth: e.target.value })} />
@@ -344,7 +344,7 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total Students</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{stats.total || meta.total || 0}</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Classes</CardTitle></CardHeader>

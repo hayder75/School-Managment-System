@@ -75,7 +75,7 @@ export default function TenantsPage() {
               <DialogTitle>Create New School</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>School Name *</Label>
                   <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -85,7 +85,7 @@ export default function TenantsPage() {
                   <Input required value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="my-school" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Email</Label>
                   <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -101,7 +101,7 @@ export default function TenantsPage() {
               </div>
               <div className="border-t pt-4">
                 <p className="text-sm font-medium mb-3">School Owner (optional)</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Owner Email</Label>
                     <Input type="email" value={form.owner_email} onChange={(e) => setForm({ ...form, owner_email: e.target.value })} placeholder="owner@school.com" />
@@ -111,7 +111,7 @@ export default function TenantsPage() {
                     <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                   <div className="space-y-2">
                     <Label>First Name</Label>
                     <Input value={form.owner_first_name} onChange={(e) => setForm({ ...form, owner_first_name: e.target.value })} placeholder="School" />
@@ -217,7 +217,7 @@ export default function TenantsPage() {
           </DialogHeader>
           {editTarget && (
             <form onSubmit={handleEdit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>School Name *</Label>
                   <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
@@ -227,7 +227,7 @@ export default function TenantsPage() {
                   <Input value={editForm.slug} disabled className="bg-muted" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Email</Label>
                   <Input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
@@ -241,7 +241,7 @@ export default function TenantsPage() {
                 <Label>Address</Label>
                 <Input value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>

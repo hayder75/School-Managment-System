@@ -141,7 +141,7 @@ export default function ExamsPage() {
                 <Label>Name</Label>
                 <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Type</Label>
                   <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
@@ -160,7 +160,7 @@ export default function ExamsPage() {
                   <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Class</Label>
                   <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
@@ -180,7 +180,7 @@ export default function ExamsPage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Total Marks</Label>
                   <Input type="number" value={form.total_marks} onChange={(e) => setForm({ ...form, total_marks: e.target.value })} />

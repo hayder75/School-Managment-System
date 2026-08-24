@@ -137,7 +137,7 @@ function SubstitutionBoard() {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><Label>{t.shift.dateCol}</Label>
                   <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
                 <div><Label>{t.shift.periodCol}</Label>
@@ -168,14 +168,14 @@ function TodayBoard({ date }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-8 w-8 text-green-500" /><div><p className="text-2xl font-bold">{present.length}</p><p className="text-xs text-muted-foreground">{t.shift.onDuty}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><UserX className="h-8 w-8 text-red-500" /><div><p className="text-2xl font-bold">{absent.length}</p><p className="text-xs text-muted-foreground">{t.shift.absentToday}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CalendarClock className="h-8 w-8 text-blue-500" /><div><p className="text-2xl font-bold">{onLeave.length}</p><p className="text-xs text-muted-foreground">{t.shift.onLeaveToday}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-purple-500" /><div><p className="text-2xl font-bold">{(present.length / Math.max(present.length + absent.length + onLeave.length, 1) * 100).toFixed(0)}%</p><p className="text-xs text-muted-foreground">{t.shift.presenceRate}</p></div></div></CardContent></Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-1 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base text-red-600">{t.shift.absentList}</CardTitle></CardHeader>
           <CardContent>
@@ -293,12 +293,12 @@ function NewGuardShiftDialog({ open, onClose, defaultDate }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t.shift.dateCol}</Label>
               <Input type="date" value={form.shift_date} onChange={(e) => setForm({ ...form, shift_date: e.target.value })} required />
             </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t.shift.startTime}</Label>
               <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} required />

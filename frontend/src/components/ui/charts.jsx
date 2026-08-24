@@ -2,8 +2,10 @@ export function BarChart({ data = [], height = 200, color = "#2c5a5e" }) {
   if (!data || data.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No data</p>;
   const max = Math.max(...data.map((d) => Number(d.value) || 0), 1);
   const width = 100 / data.length;
+  const needsScroll = data.length > 6;
   return (
-    <div className="flex items-end gap-2" style={{ height }}>
+    <div className={needsScroll ? "overflow-x-auto pb-1" : ""}>
+    <div className="flex items-end gap-2" style={{ height, minWidth: needsScroll ? data.length * 56 : undefined }}>
       {data.map((d, i) => {
         const h = ((Number(d.value) || 0) / max) * 100;
         return (
@@ -19,14 +21,17 @@ export function BarChart({ data = [], height = 200, color = "#2c5a5e" }) {
         );
       })}
     </div>
+    </div>
   );
 }
 
 export function GroupedBarChart({ data = [], series = [], height = 220 }) {
   if (!data || data.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No data</p>;
   const max = Math.max(...data.flatMap((d) => series.map((s) => Number(d[s.key]) || 0)), 1);
+  const needsScroll = data.length * series.length > 10;
   return (
-    <div className="flex items-end gap-1.5" style={{ height }}>
+    <div className={needsScroll ? "overflow-x-auto pb-1" : ""}>
+    <div className="flex items-end gap-1.5" style={{ height, minWidth: needsScroll ? data.length * series.length * 40 : undefined }}>
       {data.map((d, i) => (
         <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
           <div className="flex items-end gap-0.5 w-full justify-center">
@@ -46,10 +51,11 @@ export function GroupedBarChart({ data = [], series = [], height = 220 }) {
         </div>
       ))}
     </div>
+    </div>
   );
 }
 
-export function DonutChart({ total = 0, segments = [] }) {  const sum = segments.reduce((s, x) => s + (Number(x.value) || 0), 0) || 1;
+export function DonutChart({ total = 0, segments = [], caption = "students" }) {  const sum = segments.reduce((s, x) => s + (Number(x.value) || 0), 0) || 1;
   let cumulative = 0;
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
@@ -61,8 +67,8 @@ export function DonutChart({ total = 0, segments = [] }) {  const sum = segments
   });
 
   return (
-    <div className="flex items-center gap-6">
-      <svg viewBox="0 0 180 180" className="w-40 h-40 shrink-0">
+    <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-4 sm:gap-6">
+      <svg viewBox="0 0 180 180" className="w-36 h-36 sm:w-40 sm:h-40 shrink-0">
         <circle cx="90" cy="90" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="24" />
         {segs.map((s, i) =>
           s.frac > 0 ? (
@@ -82,11 +88,11 @@ export function DonutChart({ total = 0, segments = [] }) {  const sum = segments
           ) : null
         )}
         <text x="90" y="86" textAnchor="middle" className="fill-neutral-900 font-semibold" fontSize="26">{total.toLocaleString()}</text>
-        <text x="90" y="104" textAnchor="middle" className="fill-neutral-400" fontSize="10">students</text>
+        <text x="90" y="104" textAnchor="middle" className="fill-neutral-400" fontSize="10">{caption}</text>
       </svg>
-      <div className="space-y-2">
+      <div className="space-y-2 text-center sm:text-left">
         {segs.map((s, i) => (
-          <div key={i} className="flex items-center gap-2 text-sm">
+          <div key={i} className="flex items-center justify-center sm:justify-start gap-2 text-sm">
             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }} />
             <span className="text-muted-foreground font-medium">{s.label}</span>
             <span className="font-semibold">{Number(s.value).toLocaleString()}</span>

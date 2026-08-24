@@ -44,7 +44,7 @@ function SecuritySummaryStrip() {
   const open = incidents.filter((i) => i.status === "open").length;
   const critical = incidents.filter((i) => i.severity === "critical").length;
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-3">
       <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{incidents.length}</p><p className="text-xs text-muted-foreground">{t.security.reportTotalIncidents}</p></CardContent></Card>
       <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-amber-600">{open}</p><p className="text-xs text-muted-foreground">{t.security.reportOpenIncidents}</p></CardContent></Card>
       <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-red-600">{critical}</p><p className="text-xs text-muted-foreground">{t.security.sev_critical}</p></CardContent></Card>
@@ -68,7 +68,7 @@ function VisitorLog() {
             <DialogHeader><DialogTitle>{t.security.logVisitor}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); createV.mutate(Object.fromEntries(new FormData(e.target).entries()), () => document.querySelector("form")?.reset()); }} className="space-y-3">
               <div className="space-y-1"><Label>{t.security.visitorName}</Label><Input name="visitor_name" required /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><Label>{t.security.phone}</Label><Input name="phone" /></div>
                 <div className="space-y-1"><Label>{t.security.badge}</Label><Input name="badge_number" /></div>
               </div>
@@ -135,7 +135,7 @@ function GatePasses() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid gap-6 lg:grid-cols-1 sm:grid-cols-3">
       <Card className="lg:col-span-1 h-fit">
         <CardHeader className="pb-2"><CardTitle className="text-base">{t.security.verifyPassTitle}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
@@ -202,7 +202,7 @@ function IncidentRegister() {
             <DialogHeader><DialogTitle>{t.security.reportIncident}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); createI.mutate(Object.fromEntries(new FormData(e.target).entries())); e.target.reset(); }} className="space-y-3">
               <div className="space-y-1"><Label>{t.qa.titleCol}</Label><Input name="title" required /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><Label>{t.security.severity}</Label>
                   <Select name="severity" defaultValue="low">
                     <SelectTrigger><SelectValue /></SelectTrigger>

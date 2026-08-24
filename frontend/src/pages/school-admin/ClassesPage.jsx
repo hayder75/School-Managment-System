@@ -65,7 +65,7 @@ export default function ClassesPage() {
                 <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Grade 7A" />
               </div>
               <FieldError errors={fieldErrors} field="name" />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Level Group</Label>
                   <Select value={form.level_group} onValueChange={(v) => setForm({ ...form, level_group: v })}>

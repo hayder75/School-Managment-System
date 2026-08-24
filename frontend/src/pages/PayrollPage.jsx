@@ -276,7 +276,7 @@ function PayrollEntriesTab() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Basic Pay</Label>
                   <Input required type="number" value={form.basic_pay} onChange={(e) => handleFormField("basic_pay", e.target.value)} />
@@ -302,7 +302,7 @@ function PayrollEntriesTab() {
               </div>
               <div className="border-t pt-4">
                 <Label className="text-sm font-semibold">Allowances</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   {ALLOWANCE_FIELDS.map((f) => (
                     <div key={f.key} className="space-y-1">
                       <Label className="text-xs">{f.label}</Label>
@@ -313,7 +313,7 @@ function PayrollEntriesTab() {
               </div>
               <div className="border-t pt-4">
                 <Label className="text-sm font-semibold">Deductions</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   {DEDUCTION_FIELDS.map((f) => (
                     <div key={f.key} className="space-y-1">
                       <Label className="text-xs">{f.label}</Label>
@@ -322,7 +322,7 @@ function PayrollEntriesTab() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Bank Account</Label>
                   <Input value={form.bank_account} onChange={(e) => setForm({ ...form, bank_account: e.target.value })} />
@@ -332,7 +332,7 @@ function PayrollEntriesTab() {
                   <Input value={form.bank_name} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4 bg-muted rounded-md p-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-muted rounded-md p-3">
                 <div>
                   <Label className="text-xs">Allowances Total</Label>
                   <p className="text-lg font-semibold">{parseFloat(form.allowances_total || 0).toLocaleString()}</p>
@@ -352,7 +352,7 @@ function PayrollEntriesTab() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Employees</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{summary.employee_count || 0}</div></CardContent>
@@ -420,7 +420,7 @@ function PayrollEntriesTab() {
                       {expandedId === e.id && (
                         <TableRow>
                           <TableCell colSpan={8} className="bg-muted/30 p-4">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                               <div className="space-y-1">
                                 <p className="font-medium text-xs uppercase text-muted-foreground">Allowances</p>
                                 {ALLOWANCE_FIELDS.map((f) => (

@@ -63,7 +63,7 @@ export default function TenantDetailPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function TenantDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -128,7 +128,7 @@ export default function TenantDetailPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -201,7 +201,7 @@ export default function TenantDetailPage() {
             <DialogTitle>Edit School</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>School Name *</Label>
                 <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
@@ -211,7 +211,7 @@ export default function TenantDetailPage() {
                 <Input value={tenant.slug} disabled className="bg-muted" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
@@ -225,7 +225,7 @@ export default function TenantDetailPage() {
               <Label>Address</Label>
               <Input value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>

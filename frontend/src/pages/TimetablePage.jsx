@@ -179,7 +179,7 @@ export default function TimetablePage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Start</Label>
                       <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
@@ -208,7 +208,8 @@ export default function TimetablePage() {
             {isLoading ? (
               <p className="text-muted-foreground">Loading...</p>
             ) : (
-              <div className="grid grid-cols-6 gap-2">
+              <div className="overflow-x-auto -mx-4 px-4">
+                <div className="grid grid-cols-6 gap-2 min-w-[640px]">
                 {days.map((day) => (
                   <div key={day} className="border rounded-lg">
                     <div className="bg-muted p-2 text-center font-medium text-sm rounded-t-lg">
@@ -243,6 +244,7 @@ export default function TimetablePage() {
                     </div>
                   </div>
                 ))}
+                </div>
               </div>
             )}
           </CardContent>

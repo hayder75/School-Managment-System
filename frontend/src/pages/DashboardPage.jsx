@@ -78,14 +78,14 @@ function SuperAdminDashboard() {
         <p className="text-muted-foreground">Loading system stats...</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
             <StatCard title="Schools" value={stats.schools || 0} icon={Building2} sub="Registered tenants" />
             <StatCard title="Branches" value={stats.branches || 0} icon={Globe} sub="Across all schools" />
             <StatCard title="Total Users" value={stats.totalUsers || 0} icon={Users} sub={`${stats.activeUsers || 0} active`} />
             <StatCard title="Students" value={stats.students || 0} icon={GraduationCap} sub="All enrolled" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard title="Teachers" value={stats.teachers || 0} icon={BookOpen} color="text-blue-600" />
             <StatCard title="System Admins" value={stats.superAdmins || 0} icon={ShieldAlert} color="text-purple-600" />
             <StatCard title="System Status" value="Online" icon={CheckCircle} color="text-green-600" sub="All systems operational" />
@@ -176,20 +176,20 @@ function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Dashboard</h1><p className="text-muted-foreground">School overview</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Students" value={studentsData?.meta?.total || "—"} icon={GraduationCap} sub={`${enrollmentData?.data?.total_enrolled ?? "—"} enrolled`} />
         <StatCard title="Teachers" value={teachersData?.meta?.total || "—"} icon={Users} sub={`${workloadData?.data?.workload?.length || 0} with assignments`} />
         <StatCard title="Classes" value={classesData?.meta?.total || "—"} icon={BookOpen} />
         <StatCard title="Subjects" value={subjectsData?.meta?.total || "—"} icon={School} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Fees Collected" value={totalCollected ? `$${totalCollected.toLocaleString()}` : "—"} icon={DollarSign} color="text-green-600" />
         <StatCard title="Total Expenses" value={totalExpenses ? `$${totalExpenses.toLocaleString()}` : "—"} icon={TrendingDown} color="text-red-600" />
         <StatCard title="Net Balance" value={totalCollected ? `$${(totalCollected - totalExpenses).toLocaleString()}` : "—"} icon={BarChart3} color={totalCollected >= totalExpenses ? "text-green-600" : "text-red-600"} />
         <StatCard title="Outstanding Fees" value={totalOutstanding ? `$${totalOutstanding.toLocaleString()}` : "$0"} icon={AlertTriangle} color={totalOutstanding > 0 ? "text-yellow-600" : "text-green-600"} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Students by Level</CardTitle></CardHeader>
           <CardContent><BarChart data={levelBars} height={200} /></CardContent>
@@ -200,7 +200,7 @@ function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4" /> Staff by Role</CardTitle></CardHeader>
           <CardContent><DonutChart total={staffTotal} segments={staffSegments} /></CardContent>
@@ -211,7 +211,7 @@ function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
@@ -275,7 +275,7 @@ function TeacherDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Teacher Dashboard</h1><p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="My Classes" value={taughtClassCount || "—"} icon={BookOpen} sub="Classes taught" />
         <StatCard title="Subjects" value={taughtSubjectCount || "—"} icon={School} sub="Assigned to teach" />
         <StatCard title="Students" value={myStudents.length || classSummary.totalStudents || "—"} icon={GraduationCap} sub="Across all classes" />
@@ -288,7 +288,7 @@ function TeacherDashboard() {
         </Card>
       )}
       {classBars.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
           <Card>
             <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BookOpen className="h-4 w-4" /> Students by Class</CardTitle></CardHeader>
             <CardContent>
@@ -321,7 +321,7 @@ function StudentDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Student Dashboard</h1><p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Overall Average" value={grades.overall_average ? `${grades.overall_average}%` : "—"} icon={BarChart3} color="text-blue-600" />
         <StatCard title="GPA" value={grades.gpa != null ? grades.gpa.toFixed(1) : "—"} icon={Award} color="text-indigo-600" />
         <StatCard title="Attendance" value={presentPct ? `${presentPct}%` : "—"} icon={UserCheck} sub={`${attendance.total || 0} days recorded`} color={presentPct >= 80 ? "text-green-600" : "text-yellow-600"} />
@@ -367,7 +367,7 @@ function ChildAcademicCard({ child }) {
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-2 border rounded">
             <p className="text-xs text-muted-foreground">Overall Average</p>
             <p className="text-lg font-bold">{grades.overall_average != null ? `${grades.overall_average}%` : "—"}</p>
@@ -412,7 +412,7 @@ function ParentDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Parent Dashboard</h1><p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Linked Children" value={children.length} icon={Users} />
         <StatCard title="Active" value={children.filter((c) => c.status === "active").length} icon={CheckCircle} color="text-green-600" />
         <StatCard title="Outstanding Fees" value={totalOutstanding ? `$${totalOutstanding.toLocaleString()}` : "$0"} icon={DollarSign} color={totalOutstanding > 0 ? "text-red-600" : "text-green-600"} />
@@ -422,7 +422,7 @@ function ParentDashboard() {
         <Card>
           <CardHeader><CardTitle className="text-sm">Fee Payments</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div className="p-2 border rounded">
                 <p className="text-xs text-muted-foreground">Total Paid</p>
                 <p className="text-lg font-bold">${Number(myFees.total_paid || 0).toLocaleString()}</p>
@@ -463,7 +463,7 @@ function FinanceDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">Finance Dashboard</h1><p className="text-muted-foreground">Financial overview</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Fees Collected" value={`$${totalCollected.toLocaleString()}`} icon={DollarSign} color="text-green-600" />
         <StatCard title="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon={TrendingDown} color="text-red-600" />
         <StatCard title="Net" value={`$${(totalCollected - totalExpenses).toLocaleString()}`} icon={TrendingUp} color={totalCollected >= totalExpenses ? "text-green-600" : "text-red-600"} />
@@ -514,13 +514,13 @@ function CashierDashboard() {
         <h1 className="text-3xl font-bold">Cashier Dashboard</h1>
         <p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Collected Today" value={summary.today_collected ? `$${summary.today_collected.toLocaleString()}` : "$0"} icon={Wallet} color="text-green-600" sub={`${summary.today_transactions || 0} transactions`} />
         <StatCard title="This Month" value={summary.month_collected ? `$${summary.month_collected.toLocaleString()}` : "$0"} icon={TrendingUp} color="text-blue-600" sub={`${summary.month_transactions || 0} transactions`} />
         <StatCard title="Total Collected" value={summary.total_collected ? `$${summary.total_collected.toLocaleString()}` : "$0"} icon={DollarSign} color="text-green-600" />
         <StatCard title="Uncollected Students" value={totals.unpaid_count ?? "—"} icon={AlertTriangle} color="text-yellow-600" sub={totals.total_students ? `${totals.total_students} enrolled` : "this month"} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm">My Recent Collections</CardTitle></CardHeader>
           <CardContent>
@@ -561,7 +561,7 @@ function HRDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">HR Dashboard</h1><p className="text-muted-foreground">Staff & payroll overview</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Staff" value={staffData?.data?.total || "—"} icon={Users} sub="Total employees" />
         <StatCard title="Payroll Entries" value={payrollData?.meta?.total || "—"} icon={CreditCard} color="text-blue-600" />
         <StatCard title="Pending Payroll" value={recentPayroll.filter((p) => p.status === "pending").length} icon={AlertTriangle} color="text-yellow-600" />
@@ -625,14 +625,14 @@ function GeneralServicesDashboard() {
         <p className="text-muted-foreground">Campus facilities, maintenance and purchasing overview</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4">
         <StatCard title="Open Tickets" value={s.open ?? 0} icon={Wrench} color="text-blue-600" sub="Repairs waiting to start" />
         <StatCard title="In Progress" value={s.in_progress ?? 0} icon={Hammer} color="text-yellow-600" sub="Being fixed now" />
         <StatCard title="Completed" value={s.completed ?? 0} icon={CheckCircle} color="text-green-600" sub={`Spent ${Number(s.total_spent || 0).toLocaleString()} ETB`} />
         <StatCard title="Purchase Requests" value={pendingPurchases.length} icon={ShoppingCart} color="text-purple-600" sub="Pending approval" />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-1 sm:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Recent maintenance tickets</CardTitle></CardHeader>
           <CardContent>

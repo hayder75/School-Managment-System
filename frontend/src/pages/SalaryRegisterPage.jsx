@@ -76,7 +76,7 @@ export default function SalaryRegisterPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-4 gap-4">
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Employees</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{rows.length}</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total Gross</CardTitle></CardHeader>

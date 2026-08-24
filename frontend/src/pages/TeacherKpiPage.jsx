@@ -125,7 +125,7 @@ export default function TeacherKpiPage() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Overall Score</p>
@@ -278,7 +278,7 @@ export default function TeacherKpiPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Attendance Rate (%)</label>
                   <input
@@ -306,7 +306,7 @@ export default function TeacherKpiPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Syllabus Progress (%)</label>
                   <input

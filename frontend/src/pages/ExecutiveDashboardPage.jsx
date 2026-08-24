@@ -29,7 +29,7 @@ export default function ExecutiveDashboardPage() {
         <p className="text-muted-foreground">{t.exec.subtitle}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><TrendingUp className="h-8 w-8 text-green-500" /><div><p className="text-xl font-bold">{Number(k.collections_mtd).toLocaleString()}</p><p className="text-xs text-muted-foreground">{t.exec.collectionsMtd}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><TrendingDown className="h-8 w-8 text-red-500" /><div><p className="text-xl font-bold">{Number(k.expenses_mtd).toLocaleString()}</p><p className="text-xs text-muted-foreground">{t.exec.expensesMtd}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><GraduationCap className="h-8 w-8 text-blue-500" /><div><p className="text-xl font-bold">{k.active_students}</p><p className="text-xs text-muted-foreground">{t.exec.activeStudents}</p></div></div></CardContent></Card>
@@ -53,7 +53,7 @@ export default function ExecutiveDashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-1 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t.exec.pendingExpenseApprovals} ({pendingExpenses.length})</CardTitle>

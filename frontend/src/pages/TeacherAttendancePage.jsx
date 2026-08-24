@@ -90,7 +90,7 @@ export default function TeacherAttendancePage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
           <p className="text-xs font-medium text-gray-500 uppercase">Total Staff</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStaff || 0}</p>

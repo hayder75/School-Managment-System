@@ -93,7 +93,7 @@ export default function AnnouncementsPage() {
                   />
                 </div>
                 <FieldError errors={fieldErrors} field="content" />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Audience</Label>
                     <Select value={form.audience} onValueChange={(v) => setForm({ ...form, audience: v })}>

@@ -58,7 +58,7 @@ function LibraryTab() {
         </div></CardContent>
       </Card>
       <Card><CardHeader><CardTitle>Books ({books.length})</CardTitle></CardHeader>
-        <CardContent><div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-1 sm:grid-cols-3 gap-2">
           {books.map(b => <div key={b.id} className="border rounded-md p-3 text-sm"><p className="font-medium">{b.title}</p><p className="text-xs text-muted-foreground">{b.author}<br/>{b.available_copies}/{b.total_copies} available</p></div>)}
           {books.length === 0 && <p className="text-muted-foreground">No books</p>}
         </div></CardContent>
@@ -111,7 +111,7 @@ function TransportTab() {
           <Button onClick={addRoute}>Add</Button>
         </div></CardContent>
       </Card>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
         <Card><CardHeader><CardTitle>Routes</CardTitle></CardHeader>
           <CardContent><div className="space-y-2">
             {routes.map(r => <div key={r.id} className="border rounded-md p-3 text-sm"><p className="font-medium">{r.route_name}</p><p className="text-xs text-muted-foreground">{r.driver_name} · {r.capacity} seats</p></div>)}
@@ -162,9 +162,9 @@ function HostelTab() {
           <Button onClick={addRoom}>Add</Button>
         </div></CardContent>
       </Card>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
         <Card><CardHeader><CardTitle>Rooms</CardTitle></CardHeader>
-          <CardContent><div className="grid grid-cols-2 gap-2">
+          <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {rooms.map(r => <div key={r.id} className="border rounded-md p-3 text-sm"><p className="font-medium">{r.block_name}-{r.room_number}</p><p className="text-xs text-muted-foreground">{r.current_occupancy}/{r.capacity} occupied</p></div>)}
             {rooms.length === 0 && <p className="text-muted-foreground">No rooms</p>}
           </div></CardContent>

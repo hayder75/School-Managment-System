@@ -257,7 +257,7 @@ export default function PaymentsPage() {
                     <Input value={`${selectedStudent?.first_name || ""} ${selectedStudent?.last_name || ""}`} disabled />
                   </div>
                   <FieldError errors={fieldErrors} field="student_id" />
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Amount Paid</Label>
                       <Input required type="number" value={form.amount_paid} onChange={(e) => setForm({ ...form, amount_paid: e.target.value })} />
@@ -440,7 +440,7 @@ export default function PaymentsPage() {
                     <FieldError errors={fieldErrors} field="amounts" />
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Method</Label>
                       <Select value={bulkMethod} onValueChange={(v) => setBulkMethod(v)}>
@@ -475,7 +475,7 @@ export default function PaymentsPage() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Collected</CardTitle></CardHeader>
           <CardContent>
@@ -546,7 +546,7 @@ export default function PaymentsPage() {
             <CardTitle>Fee Statement — {ledger.student?.first_name} {ledger.student?.last_name} ({ledger.student?.student_number || "—"})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-2 border rounded">
                 <p className="text-xs text-muted-foreground">Total Owed</p>
                 <p className="text-lg font-bold">{Number(ledger.total_owed).toLocaleString()}</p>

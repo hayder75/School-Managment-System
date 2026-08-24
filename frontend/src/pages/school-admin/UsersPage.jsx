@@ -74,7 +74,7 @@ export default function UsersPage() {
                 <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <FieldError errors={fieldErrors} field="email" />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>First Name</Label>
                   <Input required value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
@@ -117,7 +117,7 @@ export default function UsersPage() {
                     <Label>Job Title</Label>
                     <Input value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} placeholder="e.g. Teacher, Director" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Qualification</Label>
                       <Input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. BA, MA" />
@@ -128,7 +128,7 @@ export default function UsersPage() {
                     </div>
                   </div>
                   {form.role === "teacher" && (
-                    <div className="grid grid-cols-3 gap-4 rounded-md border p-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-md border p-3">
                       <div className="space-y-2">
                         <Label>Section Count <span className="text-red-500">*</span></Label>
                         <Input type="number" min="0" required value={form.section_count} onChange={(e) => setForm({ ...form, section_count: e.target.value })} placeholder="e.g. 14" />

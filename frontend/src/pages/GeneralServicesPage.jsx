@@ -29,7 +29,7 @@ export default function GeneralServicesPage() {
       </div>
 
       {/* Services report strip */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
         {[[
           s.open ?? 0, t.services.open, "text-blue-600",
         ], [
@@ -69,7 +69,7 @@ function MaintenanceBoard() {
             <DialogHeader><DialogTitle>{t.services.newTicket}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target); createM.mutate(Object.fromEntries(fd.entries())); e.target.closest("[role=dialog]").querySelector("button[type=button]")?.click(); }} className="space-y-3">
               <div className="space-y-1"><Label>{t.qa.titleCol}</Label><Input name="title" required /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><Label>{t.security.location}</Label><Input name="location" required /></div>
                 <div className="space-y-1"><Label>{t.services.category}</Label>
                   <Select name="category" defaultValue="other">
@@ -143,7 +143,7 @@ function PurchaseBoard() {
             <DialogHeader><DialogTitle>{t.services.newRequest}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target).entries()); fd.quantity = Number(fd.quantity); fd.estimated_cost = Number(fd.estimated_cost); createP.mutate(fd); e.target.reset(); }} className="space-y-3">
               <div className="space-y-1"><Label>{t.services.itemName}</Label><Input name="item_name" required /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><Label>{t.services.quantity}</Label><Input name="quantity" type="number" min="1" defaultValue="1" /></div>
                 <div className="space-y-1"><Label>{t.services.estCost}</Label><Input name="estimated_cost" type="number" step="0.01" min="0" defaultValue="0" /></div>
               </div>

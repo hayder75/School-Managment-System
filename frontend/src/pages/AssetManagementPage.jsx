@@ -197,7 +197,7 @@ export default function AssetManagementPage() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Valuation</p>
@@ -433,7 +433,7 @@ export default function AssetManagementPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Asset Tag / Code</label>
                   <input
@@ -463,7 +463,7 @@ export default function AssetManagementPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Quantity</label>
                   <input
@@ -489,7 +489,7 @@ export default function AssetManagementPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Location / Room</label>
                   <input
@@ -517,7 +517,7 @@ export default function AssetManagementPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Condition</label>
                   <select
@@ -643,7 +643,7 @@ function DisposeDialog({ asset, onClose, onDone }) {
           {asset.name} <span className="font-mono text-xs">({asset.asset_code})</span> — value ${parseFloat(asset.total_cost || 0).toFixed(2)}
         </p>
         <form onSubmit={submit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Disposal Date</label>
               <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -773,7 +773,7 @@ function InventoryReportModal({ onClose }) {
           ) : report && (
             <div className="space-y-6 text-sm">
               {/* Totals */}
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="border rounded-lg p-3"><p className="text-[11px] text-gray-500 uppercase">Asset Lines</p><p className="text-xl font-bold">{report.totals?.items ?? 0}</p></div>
                 <div className="border rounded-lg p-3"><p className="text-[11px] text-gray-500 uppercase">Total Units</p><p className="text-xl font-bold">{report.totals?.units ?? 0}</p></div>
                 <div className="border rounded-lg p-3"><p className="text-[11px] text-gray-500 uppercase">Acquired {selectedYear}</p><p className="text-xl font-bold text-blue-600">{report.totals?.acquired_count ?? 0}</p></div>
@@ -807,7 +807,7 @@ function InventoryReportModal({ onClose }) {
               </table>
 
               {/* Status & condition */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="font-semibold mb-1">By status</p>
                   <ul className="text-gray-600 space-y-0.5">
@@ -873,7 +873,7 @@ function InventoryReportModal({ onClose }) {
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-8 pt-8 text-center text-xs text-gray-500">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 pt-8 text-center text-xs text-gray-500">
                 <div className="border-t pt-1">Prepared by<br/><strong>General Services Head</strong></div>
                 <div className="border-t pt-1">Verified by<br/><strong>General Manager</strong></div>
                 <div className="border-t pt-1">Approved by<br/><strong>School Owner / Board</strong></div>
@@ -926,7 +926,7 @@ function CountDialog({ asset, onClose, onDone }) {
         <h2 className="text-lg font-bold text-gray-900 mb-1">Annual physical count</h2>
         <p className="text-sm text-gray-500 mb-4">{asset.name} — system quantity: <strong>{asset.quantity}</strong></p>
         <form onSubmit={submit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Counted quantity</label>
               <input type="number" min="0" required value={form.countedQuantity}

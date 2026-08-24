@@ -66,7 +66,7 @@ export default function FeeStructuresPage() {
                 <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Tuition Fee" />
               </div>
               <FieldError errors={fieldErrors} field="name" />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Amount</Label>
                   <Input required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
@@ -86,7 +86,7 @@ export default function FeeStructuresPage() {
                 </div>
                 <FieldError errors={fieldErrors} field="frequency" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Class (optional)</Label>
                   <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
@@ -109,7 +109,7 @@ export default function FeeStructuresPage() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Collected</CardTitle></CardHeader>
           <CardContent>

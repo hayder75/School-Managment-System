@@ -111,7 +111,7 @@ export default function CollectionReportPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-5 gap-4">
         <StatCard title="Students" value={totals.total_students || 0} />
         <StatCard title="Paid" value={totals.paid_count ?? 0} sub={`${((totals.paid_count || 0) / (totals.total_students || 1) * 100).toFixed(1)}% of students`} color="text-green-600" />
         <StatCard title="Partial" value={totals.partial_count || 0} />

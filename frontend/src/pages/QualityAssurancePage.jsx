@@ -49,7 +49,7 @@ export default function QualityAssurancePage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><FileCheck2 className="h-8 w-8 text-blue-500" /><div><p className="text-2xl font-bold">{counts.pending_review ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.pendingReview}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><ClipboardList className="h-8 w-8 text-amber-500" /><div><p className="text-2xl font-bold">{counts.needs_revision ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.needsRevision}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Library className="h-8 w-8 text-green-500" /><div><p className="text-2xl font-bold">{counts.approved ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.approved}</p></div></div></CardContent></Card>
@@ -120,7 +120,7 @@ export default function QualityAssurancePage() {
       )}
 
       {tab === "bank" && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 sm:grid-cols-3">
           {bank.map((b) => (
             <Card key={b.id}>
               <CardHeader className="pb-2"><CardTitle className="text-base">{b.title}</CardTitle></CardHeader>
@@ -165,14 +165,14 @@ function QualityReport({ summary }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{total}</p><p className="text-xs text-muted-foreground">{t.qa.reportTotalReviewed}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-600">{approvalRate}%</p><p className="text-xs text-muted-foreground">{t.qa.reportApprovalRate}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-blue-600">{counts.pending_review ?? counts.submitted ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.pendingReview}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-purple-600">{bankedCount(summary)}</p><p className="text-xs text-muted-foreground">{t.qa.materialsBank}</p></CardContent></Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-1 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">{t.qa.reportByTeacher}</CardTitle></CardHeader>
           <CardContent>
@@ -249,7 +249,7 @@ function ReviewDialog({ id, onClose }) {
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{sub?.title || "..."}</DialogTitle></DialogHeader>
         {sub && (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-1 sm:grid-cols-2">
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-4 min-h-[160px] whitespace-pre-wrap text-sm">
                 {sub.body || t.qa.noBodyText}
@@ -293,7 +293,7 @@ function ReviewDialog({ id, onClose }) {
                 rows={4}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Button variant="destructive" disabled={review.isPending} onClick={() => decide("request_changes")}>{t.qa.requestChanges}</Button>
                 <Button disabled={review.isPending} onClick={() => decide("approve")}>{t.qa.approveBtn}</Button>
               </div>

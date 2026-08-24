@@ -49,7 +49,7 @@ function EnrollmentReport() {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Student Enrollment</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
-        <div className="grid gap-4 md:grid-cols-4 mb-4">
+        <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4 mb-4">
           <StatCard title="Total Enrolled" value={report.total_enrolled} />
           <StatCard title="Classes" value={report.by_class?.length || 0} />
         </div>
@@ -87,7 +87,7 @@ function GradeDistributionReport() {
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : dist.length === 0 ? (
         <p className="text-muted-foreground">No grade data yet</p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
           {dist.map((d) => (
             <StatCard key={d.grade_letter} title={`Grade ${d.grade_letter}`} value={d.count} />
           ))}
@@ -153,7 +153,7 @@ function AttendanceOverviewReport() {
       <h3 className="text-lg font-semibold">Attendance Overview</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-5">
             <StatCard title="Total Records" value={report.summary?.total || 0} />
             <StatCard title="Present" value={report.summary?.present || 0} color="text-green-600" />
             <StatCard title="Absent" value={report.summary?.absent || 0} color="text-red-600" />
@@ -471,7 +471,7 @@ function RevenueExpensesReport() {
       <h3 className="text-lg font-semibold">Revenue vs Expenses — {year}</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-3">
             <StatCard title="Total Revenue" value={report.total_revenue?.toLocaleString()} color="text-green-600" />
             <StatCard title="Total Expenses" value={report.total_expenses?.toLocaleString()} color="text-red-600" />
             <StatCard title="Net" value={report.net?.toLocaleString()} color={report.net >= 0 ? "text-green-600" : "text-red-600"} />
@@ -539,14 +539,14 @@ function CashierReports() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
         <StatCard title="Total Collected" value={`$${summary.total_collected?.toLocaleString() || 0}`} color="text-green-600" />
         <StatCard title="This Month" value={`$${summary.month_collected?.toLocaleString() || 0}`} sub={`${summary.month_transactions || 0} transactions`} />
         <StatCard title="Today" value={`$${summary.today_collected?.toLocaleString() || 0}`} sub={`${summary.today_transactions || 0} transactions`} />
         <StatCard title="Uncollected" value={totals.unpaid_count ?? 0} sub={`this month · ${totals.total_students || 0} students`} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Monthly Collections — {year}</CardTitle></CardHeader>
           <CardContent><BarChart data={trendBars} /></CardContent>
@@ -628,7 +628,7 @@ function StaffDirectoryReport() {
         </div>
       </div>
       {report && (
-        <div className="grid gap-4 md:grid-cols-4 mb-4">
+        <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4 mb-4">
           <StatCard title="Total Staff" value={report.total} />
           {Object.entries(report.by_role || {}).map(([role, count]) => (
             <StatCard key={role} title={role.charAt(0).toUpperCase() + role.slice(1)} value={count} />
@@ -708,7 +708,7 @@ function HeadcountReport() {
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
           <StatCard title="Total Users" value={report.total} />
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
             {(report.by_role || []).map((r) => (
               <StatCard key={r.role} title={r.role.charAt(0).toUpperCase() + r.role.slice(1)} value={r.count} />
             ))}
@@ -778,7 +778,7 @@ function StudentAttendanceReport() {
       <h3 className="text-lg font-semibold">My Attendance</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2">
             <StatCard title="Total Days" value={report.total} />
             <StatCard title="Attendance Rate" value={report.present_percentage ? `${report.present_percentage}%` : "—"} color="text-green-600" />
           </div>
@@ -907,7 +907,7 @@ function SemesterResultsTab() {
             </CardContent></Card>
           ) : (
             <Card><CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm min-w-[760px]">
+              <table className="w-full text-sm min-w-[760px] table-sticky-col">
                 <thead><tr className="border-b bg-muted/50 text-left">
                   <th className="p-3 font-medium">#</th>
                   <th className="p-3 font-medium">Student</th>
@@ -1043,14 +1043,14 @@ function QualityReportsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{totalSubs}</p><p className="text-xs text-muted-foreground">Content submissions reviewed</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-600">{approvalRate}%</p><p className="text-xs text-muted-foreground">First-pass approval rate</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-purple-600">{avgRating}</p><p className="text-xs text-muted-foreground">Avg teacher performance rating /5</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-blue-600">{avgSyllabus}%</p><p className="text-xs text-muted-foreground">Avg syllabus completion</p></CardContent></Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base text-green-700">Top performing teachers</CardTitle></CardHeader>
           <CardContent>{top.length ? top.map((r, i) => (
