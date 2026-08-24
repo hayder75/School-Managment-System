@@ -57,7 +57,7 @@ export default function SettingsPage() {
         <TabsContent value="general" className="space-y-4">
           <Card>
             <CardHeader><CardTitle>School Information</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>School Name</Label>
                 <Input value={form.school_name || ""} onChange={(e) => handleChange("school_name", e.target.value)} />
@@ -89,7 +89,7 @@ export default function SettingsPage() {
         <TabsContent value="academic" className="space-y-4">
           <Card>
             <CardHeader><CardTitle>Academic Settings</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Current Academic Year</Label>
                 <Input value={form.current_academic_year || ""} onChange={(e) => handleChange("current_academic_year", e.target.value)} />
@@ -132,7 +132,7 @@ export default function SettingsPage() {
         <TabsContent value="finance" className="space-y-4">
           <Card>
             <CardHeader><CardTitle>Finance Settings</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Default Late Fee (%)</Label>
                 <Input type="number" value={form.default_late_fee_pct || "5"} onChange={(e) => handleChange("default_late_fee_pct", e.target.value)} />

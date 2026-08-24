@@ -17,10 +17,10 @@ export default function OperationsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Operations</h1>
-      <div className="flex gap-1 border-b">
+      <div className="flex gap-1 border-b overflow-x-auto">
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm border-b-2 transition-colors ${tab === t.key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground"}`}>
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm border-b-2 transition-colors whitespace-nowrap shrink-0 ${tab === t.key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground"}`}>
             <t.icon className="h-4 w-4" />{t.label}
           </button>
         ))}
@@ -58,7 +58,7 @@ function LibraryTab() {
         </div></CardContent>
       </Card>
       <Card><CardHeader><CardTitle>Books ({books.length})</CardTitle></CardHeader>
-        <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-1 sm:grid-cols-3 gap-2">
+        <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 gap-2">
           {books.map(b => <div key={b.id} className="border rounded-md p-3 text-sm"><p className="font-medium">{b.title}</p><p className="text-xs text-muted-foreground">{b.author}<br/>{b.available_copies}/{b.total_copies} available</p></div>)}
           {books.length === 0 && <p className="text-muted-foreground">No books</p>}
         </div></CardContent>
@@ -111,7 +111,7 @@ function TransportTab() {
           <Button onClick={addRoute}>Add</Button>
         </div></CardContent>
       </Card>
-      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card><CardHeader><CardTitle>Routes</CardTitle></CardHeader>
           <CardContent><div className="space-y-2">
             {routes.map(r => <div key={r.id} className="border rounded-md p-3 text-sm"><p className="font-medium">{r.route_name}</p><p className="text-xs text-muted-foreground">{r.driver_name} · {r.capacity} seats</p></div>)}
@@ -162,7 +162,7 @@ function HostelTab() {
           <Button onClick={addRoom}>Add</Button>
         </div></CardContent>
       </Card>
-      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card><CardHeader><CardTitle>Rooms</CardTitle></CardHeader>
           <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {rooms.map(r => <div key={r.id} className="border rounded-md p-3 text-sm"><p className="font-medium">{r.block_name}-{r.room_number}</p><p className="text-xs text-muted-foreground">{r.current_occupancy}/{r.capacity} occupied</p></div>)}

@@ -260,7 +260,7 @@ export default function StudentDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm">Guardians</CardTitle></CardHeader>
           <CardContent className="space-y-2">
@@ -298,10 +298,10 @@ export default function StudentDetailPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm">Demographics</CardTitle></CardHeader>
-          <CardContent className="text-sm space-y-1">
+          <CardContent className="text-sm space-y-1 [&_p]:break-words">
             <p><span className="text-muted-foreground">Full Name:</span> {student.first_name} {student.father_name || ""} {student.grandfather_name || ""} {student.last_name}</p>
             <p><span className="text-muted-foreground">Mother's Name:</span> {student.mother_name || "—"}</p>
             <p><span className="text-muted-foreground">DOB:</span> {student.date_of_birth ? (!isNaN(new Date(student.date_of_birth).getTime()) ? new Date(student.date_of_birth).toLocaleDateString() : "—") : "—"}</p>
@@ -315,7 +315,7 @@ export default function StudentDetailPage() {
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-sm">Addresses</CardTitle></CardHeader>
-          <CardContent className="text-sm space-y-1">
+          <CardContent className="text-sm space-y-1 [&_p]:break-words">
             <p><span className="text-muted-foreground">Residence:</span> {[student.woreda_of_residence, student.zone_of_residence, student.region_of_residence].filter(Boolean).join(", ") || "—"}</p>
             <p><span className="text-muted-foreground">Birth:</span> {[student.woreda_of_birth, student.zone_of_birth, student.region_of_birth].filter(Boolean).join(", ") || "—"}</p>
             <p><span className="text-muted-foreground">Kebele:</span> {student.kebele || "—"}</p>
@@ -327,12 +327,12 @@ export default function StudentDetailPage() {
         </Card>
       </div>
 
-      <div className="flex gap-1 border-b">
+      <div className="flex gap-1 border-b overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => switchTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === t.key
                 ? "border-primary text-primary font-medium"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -386,7 +386,7 @@ function DocumentsTab({ documents, studentId, newDoc, setNewDoc, onReload }) {
         {documents.length === 0 ? (
           <p className="text-sm text-muted-foreground">No documents</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {documents.map((d) => (
               <div key={d.id} className="flex items-center justify-between border rounded-md p-3">
                 <div>
@@ -527,7 +527,7 @@ function AchievementsTab({ achievements, studentId, newAch, setNewAch, onReload 
         {achievements.length === 0 ? (
           <p className="text-sm text-muted-foreground">No achievements recorded</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {achievements.map((a) => (
               <div key={a.id} className="border rounded-md p-3">
                 <div className="flex items-start justify-between">

@@ -53,7 +53,7 @@ export default function ExecutiveDashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-1 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t.exec.pendingExpenseApprovals} ({pendingExpenses.length})</CardTitle>

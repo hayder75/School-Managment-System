@@ -44,7 +44,7 @@ function SecuritySummaryStrip() {
   const open = incidents.filter((i) => i.status === "open").length;
   const critical = incidents.filter((i) => i.severity === "critical").length;
   return (
-    <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-3">
       <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{incidents.length}</p><p className="text-xs text-muted-foreground">{t.security.reportTotalIncidents}</p></CardContent></Card>
       <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-amber-600">{open}</p><p className="text-xs text-muted-foreground">{t.security.reportOpenIncidents}</p></CardContent></Card>
       <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-red-600">{critical}</p><p className="text-xs text-muted-foreground">{t.security.sev_critical}</p></CardContent></Card>
@@ -135,7 +135,7 @@ function GatePasses() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-1 sm:grid-cols-3">
+    <div className="grid gap-6 sm:grid-cols-3">
       <Card className="lg:col-span-1 h-fit">
         <CardHeader className="pb-2"><CardTitle className="text-base">{t.security.verifyPassTitle}</CardTitle></CardHeader>
         <CardContent className="space-y-3">

@@ -175,7 +175,7 @@ function TodayBoard({ date }) {
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-purple-500" /><div><p className="text-2xl font-bold">{(present.length / Math.max(present.length + absent.length + onLeave.length, 1) * 100).toFixed(0)}%</p><p className="text-xs text-muted-foreground">{t.shift.presenceRate}</p></div></div></CardContent></Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-1 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base text-red-600">{t.shift.absentList}</CardTitle></CardHeader>
           <CardContent>

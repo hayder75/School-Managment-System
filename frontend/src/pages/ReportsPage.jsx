@@ -471,7 +471,7 @@ function RevenueExpensesReport() {
       <h3 className="text-lg font-semibold">Revenue vs Expenses — {year}</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
-          <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3">
             <StatCard title="Total Revenue" value={report.total_revenue?.toLocaleString()} color="text-green-600" />
             <StatCard title="Total Expenses" value={report.total_expenses?.toLocaleString()} color="text-red-600" />
             <StatCard title="Net" value={report.net?.toLocaleString()} color={report.net >= 0 ? "text-green-600" : "text-red-600"} />
@@ -546,7 +546,7 @@ function CashierReports() {
         <StatCard title="Uncollected" value={totals.unpaid_count ?? 0} sub={`this month · ${totals.total_students || 0} students`} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Monthly Collections — {year}</CardTitle></CardHeader>
           <CardContent><BarChart data={trendBars} /></CardContent>
@@ -778,7 +778,7 @@ function StudentAttendanceReport() {
       <h3 className="text-lg font-semibold">My Attendance</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report ? (
         <>
-          <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <StatCard title="Total Days" value={report.total} />
             <StatCard title="Attendance Rate" value={report.present_percentage ? `${report.present_percentage}%` : "—"} color="text-green-600" />
           </div>
@@ -1050,7 +1050,7 @@ function QualityReportsTab() {
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-blue-600">{avgSyllabus}%</p><p className="text-xs text-muted-foreground">Avg syllabus completion</p></CardContent></Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base text-green-700">Top performing teachers</CardTitle></CardHeader>
           <CardContent>{top.length ? top.map((r, i) => (

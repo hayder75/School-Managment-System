@@ -120,7 +120,7 @@ export default function QualityAssurancePage() {
       )}
 
       {tab === "bank" && (
-        <div className="grid gap-4 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 sm:grid-cols-3">
           {bank.map((b) => (
             <Card key={b.id}>
               <CardHeader className="pb-2"><CardTitle className="text-base">{b.title}</CardTitle></CardHeader>
@@ -172,7 +172,7 @@ function QualityReport({ summary }) {
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-purple-600">{bankedCount(summary)}</p><p className="text-xs text-muted-foreground">{t.qa.materialsBank}</p></CardContent></Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-1 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">{t.qa.reportByTeacher}</CardTitle></CardHeader>
           <CardContent>
@@ -249,7 +249,7 @@ function ReviewDialog({ id, onClose }) {
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{sub?.title || "..."}</DialogTitle></DialogHeader>
         {sub && (
-          <div className="grid gap-6 md:grid-cols-1 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-4 min-h-[160px] whitespace-pre-wrap text-sm">
                 {sub.body || t.qa.noBodyText}

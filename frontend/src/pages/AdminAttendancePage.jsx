@@ -146,7 +146,7 @@ export default function AdminAttendancePage() {
         <p className="text-muted-foreground">Loading attendance analytics...</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-5 gap-4">
             <StatCard title="Attendance Rate" value={summary.present_rate != null ? `${summary.present_rate}%` : "—"} icon={UserCheck} color="text-green-600" sub={`${summary.present || 0} present`} />
             <StatCard title="Absent" value={summary.absent || "—"} icon={AlertTriangle} color="text-red-600" sub={`${summary.absent_rate}% absent rate`} />
             <StatCard title="Late" value={summary.late || "—"} icon={Clock} color="text-yellow-600" sub={`${summary.late_rate}% late rate`} />
@@ -154,7 +154,7 @@ export default function AdminAttendancePage() {
             <StatCard title="Total Records" value={summary.total?.toLocaleString() || "—"} icon={CalendarDays} color="text-neutral-600" sub={`${byClass.length} classes tracked`} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Attendance Status Mix</CardTitle></CardHeader>
               <CardContent><DonutChart total={summary.students || 0} segments={statusSegments} /></CardContent>
@@ -175,7 +175,7 @@ export default function AdminAttendancePage() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardHeader><CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Absence by Level</CardTitle></CardHeader>
               <CardContent><BarChart data={levelBars} height={200} color="#d47a6a" /></CardContent>

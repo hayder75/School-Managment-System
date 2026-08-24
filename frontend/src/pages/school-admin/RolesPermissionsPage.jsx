@@ -116,7 +116,7 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="grid gap-4 sm:grid-cols-1 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Role Name</Label>
               <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Teacher Leader" />
@@ -132,7 +132,7 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
               {groupPermissions(permissions).map((g) => (
                 <div key={g.label}>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{g.label}</p>
-                  <div className="grid gap-2 sm:grid-cols-1 sm:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {g.items.map((p) => (
                       <PermissionCheckbox
                         key={p.key}
@@ -388,7 +388,7 @@ function UserOverridesTab({ permissions, customRoles }) {
 
               <div>
                 <Label>Extra roles</Label>
-                <div className="grid gap-2 mt-2 sm:grid-cols-1 sm:grid-cols-2">
+                <div className="grid gap-2 mt-2 sm:grid-cols-2">
                   {customRoles.map((r) => {
                     const checked = selectedRoles.has(r.id);
                     return (
@@ -414,7 +414,7 @@ function UserOverridesTab({ permissions, customRoles }) {
 
               <div>
                 <Label>Direct permissions</Label>
-                <div className="grid gap-2 mt-2 sm:grid-cols-1 sm:grid-cols-2">
+                <div className="grid gap-2 mt-2 sm:grid-cols-2">
                   {permissions.map((p) => {
                     const checked = selectedPerms.has(p.key);
                     return (
