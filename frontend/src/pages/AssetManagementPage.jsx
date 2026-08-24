@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import {
   Package, Plus, Search, Filter, Edit2, Trash2, CheckCircle2,
   AlertTriangle, Wrench, Building, X, DollarSign, FileText, History, Archive, Download, ClipboardCheck
@@ -27,6 +28,7 @@ export default function AssetManagementPage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [staffOptions, setStaffOptions] = useState([]);

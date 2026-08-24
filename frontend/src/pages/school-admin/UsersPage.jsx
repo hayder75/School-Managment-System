@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDebouncedValue } from "../../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
@@ -21,8 +22,9 @@ export default function UsersPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [roleFilter, setRoleFilter] = useState("");
-  const { data, isLoading } = useUsers({ page, limit: 20, search, role: roleFilter || undefined });
+  const { data, isLoading } = useUsers({ page, limit: 20, search: debouncedSearch, role: roleFilter || undefined });
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
   const [open, setOpen] = useState(false);

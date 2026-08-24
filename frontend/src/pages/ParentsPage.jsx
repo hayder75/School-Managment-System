@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useParents, useParent, useLinkParent, useUnlinkParent, useUpdateLink } from "../hooks/useParents";
@@ -14,12 +15,13 @@ import { Search, Plus, Link, Unlink, Users } from "lucide-react";
 export default function ParentsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [linkOpen, setLinkOpen] = useState(false);
   const [selectedParent, setSelectedParent] = useState(null);
   const [linkForm, setLinkForm] = useState({ student_id: "", relationship: "guardian", is_primary: false, education_level: "" });
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const { data, isLoading } = useParents({ page, limit: 20, search: search || undefined });
+  const { data, isLoading } = useParents({ page, limit: 20, search: debouncedSearch || undefined });
   const { data: parentDetail } = useParent(selectedParent?.id);
   const { data: studentsData } = useStudents({ limit: 200 });
   const linkParent = useLinkParent();

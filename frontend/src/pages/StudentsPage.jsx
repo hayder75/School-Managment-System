@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { FieldError } from "../components/ui/form-error";
@@ -21,6 +22,7 @@ export default function StudentsPage() {
   const isAdmin = user?.role === "admin" || user?.role === "owner";
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [classFilter, setClassFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [open, setOpen] = useState(false);
@@ -37,7 +39,7 @@ export default function StudentsPage() {
   });
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const { data, isLoading } = useStudents({ page, limit: 20, search: search || undefined, class_id: classFilter || undefined, status: statusFilter || undefined });
+  const { data, isLoading } = useStudents({ page, limit: 20, search: debouncedSearch || undefined, class_id: classFilter || undefined, status: statusFilter || undefined });
   const { data: classesData } = useClasses({ limit: 200 });
   const { data: usersData } = useUsers({ role: "student", limit: 200 });
   const { data: statsData } = useEnrollmentStats();

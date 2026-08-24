@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDebouncedValue } from "../../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
@@ -126,8 +127,9 @@ export default function TeachersPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
-  const { data, isLoading } = useTeachers({ page, limit: 20, search });
+  const { data, isLoading } = useTeachers({ page, limit: 20, search: debouncedSearch });
 
   const teachers = data?.data || [];
   const meta = data?.meta || {};

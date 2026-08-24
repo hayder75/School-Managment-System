@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useI18n } from "../i18n/I18nContext";
 import { useQuery } from "@tanstack/react-query";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import api from "../lib/api";
 import {
   useDisciplineCases, useCreateDisciplineCase, useResolveDisciplineCase,
@@ -91,11 +92,12 @@ function NewCaseDialog() {
   const create = useCreateDisciplineCase();
   const [open, setOpen] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
+  const debouncedStudentSearch = useDebouncedValue(studentSearch);
   const [studentId, setStudentId] = useState("");
 
   const { data: studentsData } = useQuery({
-    queryKey: ["discipline-student-search", studentSearch],
-    queryFn: () => api.get("/students", { params: { search: studentSearch, limit: 10 } }),
+    queryKey: ["discipline-student-search", debouncedStudentSearch],
+    queryFn: () => api.get("/students", { params: { search: debouncedStudentSearch, limit: 10 } }),
     enabled: open && studentSearch.length >= 2,
   });
   const candidates = studentsData?.data || [];

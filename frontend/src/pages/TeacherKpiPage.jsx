@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import { 
   Award, Star, TrendingUp, CheckCircle, UserCheck, 
   Search, Plus, BookOpen, Clock, ThumbsUp, X
@@ -10,6 +11,7 @@ export default function TeacherKpiPage() {
   const [kpiList, setKpiList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({

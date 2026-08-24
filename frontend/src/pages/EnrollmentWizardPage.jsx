@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "../lib/api";
@@ -406,9 +407,10 @@ function StepStudent({ student, setStudent }) {
 
 function ExistingGuardianPicker({ guardians, setGuardians }) {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const { data } = useQuery({
-    queryKey: ["parent-search", search],
-    queryFn: () => api.get("/parents", { params: { search } }),
+    queryKey: ["parent-search", debouncedSearch],
+    queryFn: () => api.get("/parents", { params: { search: debouncedSearch } }),
     enabled: search.length >= 2,
   });
   const candidates = (data?.data || []).slice(0, 6);
