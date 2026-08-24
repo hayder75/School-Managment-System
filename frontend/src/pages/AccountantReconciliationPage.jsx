@@ -64,7 +64,7 @@ function DailyTab({ today }) {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm min-w-[520px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[520px]">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.acct.cashier}</th>
             <th className="p-3 font-medium">{t.acct.method}</th>
@@ -88,12 +88,12 @@ function DailyTab({ today }) {
             ))}
             {!rows.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
 
       <Card><CardHeader className="pb-1"><CardTitle className="text-base">{t.acct.batchHistory}</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
             <thead><tr className="border-b bg-muted/50 text-left">
               <th className="p-3 font-medium">{t.shift.dateCol}</th>
               <th className="p-3 font-medium">Cash</th><th className="p-3 font-medium">Telebirr</th>
@@ -111,7 +111,7 @@ function DailyTab({ today }) {
               ))}
               {!batches.length && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">{t.common.noData}</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         </CardContent>
       </Card>
     </div>
@@ -139,7 +139,7 @@ function AgingTab() {
       <p className="text-sm font-medium">{t.acct.totalOutstanding}: <span className="text-red-600">{Number(aging.total_outstanding || 0).toLocaleString()} ETB</span></p>
 
       <Card><CardContent className="p-0 max-h-[420px] overflow-y-auto">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
           <thead className="sticky top-0"><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.security.studentCol}</th>
             <th className="p-3 font-medium">{t.qa.classCol}</th>
@@ -163,7 +163,7 @@ function AgingTab() {
               <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>
             )}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
     </div>
   );

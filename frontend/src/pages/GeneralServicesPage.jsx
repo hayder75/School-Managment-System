@@ -87,7 +87,7 @@ function MaintenanceBoard() {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm min-w-[640px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[640px]">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.qa.titleCol}</th>
             <th className="p-3 font-medium">{t.security.location}</th>
@@ -120,7 +120,7 @@ function MaintenanceBoard() {
             ))}
             {!rows.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
     </>
   );
@@ -155,7 +155,7 @@ function PurchaseBoard() {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[600px]">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.services.itemName}</th>
             <th className="p-3 font-medium">{t.services.qty}</th>
@@ -180,7 +180,7 @@ function PurchaseBoard() {
             ))}
             {!rows.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
     </>
   );

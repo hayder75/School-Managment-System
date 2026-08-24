@@ -81,7 +81,7 @@ function VisitorLog() {
       </div>
 
       <Card><CardContent className="p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.security.visitorName}</th>
             <th className="p-3 font-medium">{t.security.personVisited}</th>
@@ -109,7 +109,7 @@ function VisitorLog() {
             ))}
             {!rows.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
     </>
   );
@@ -156,7 +156,7 @@ function GatePasses() {
       </Card>
 
       <Card className="lg:col-span-2"><CardContent className="p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.security.studentCol}</th>
             <th className="p-3 font-medium">{t.qa.status}</th>
@@ -180,7 +180,7 @@ function GatePasses() {
             ))}
             {!rows.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
     </div>
   );
@@ -220,7 +220,7 @@ function IncidentRegister() {
       </div>
 
       <Card><CardContent className="p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.qa.titleCol}</th>
             <th className="p-3 font-medium">{t.security.severity}</th>
@@ -240,7 +240,7 @@ function IncidentRegister() {
             ))}
             {!rows.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
     </>
   );

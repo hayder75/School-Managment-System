@@ -41,7 +41,7 @@ export default function AppLayout() {
             <LanguageToggle />
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-4 lg:p-8">
+        <main className="flex-1 overflow-auto p-4 lg:p-8 min-w-0 max-w-full">
           <Outlet />
         </main>
       </div>

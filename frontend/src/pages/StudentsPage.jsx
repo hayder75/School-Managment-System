@@ -380,8 +380,39 @@ export default function StudentsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <table className="w-full text-sm">
+          {/* Mobile: student cards */}
+          <div className="md:hidden space-y-2">
+            {students.length === 0 && (
+              <p className="text-center p-6 text-muted-foreground text-sm">No students found</p>
+            )}
+            {students.map((s) => (
+              <div key={s.id} className="rounded-xl border p-3 active:bg-muted/50" onClick={() => navigate(`/students/${s.id}`)}>
+                <div className="flex items-center gap-3">
+                  <StudentAvatar student={s} className="w-10 h-10 text-xs shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{s.first_name} {s.last_name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{s.student_number || "—"}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] shrink-0 ${s.status === "active" ? "bg-green-100 text-green-800" : s.status === "graduated" ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"}`}>{s.status}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{s.class_name || "No class"}</span>
+                  {isAdmin ? (
+                    <span className="space-x-3">
+                      <button className="text-primary font-medium" onClick={(e) => { e.stopPropagation(); handleEdit(s); }}>Edit</button>
+                      <button className="text-red-500 font-medium" onClick={(e) => { e.stopPropagation(); if (confirm("Delete this student?")) deleteStudent.mutate(s.id); }}>Delete</button>
+                    </span>
+                  ) : (
+                    <span className="text-primary font-medium">View →</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-md border">
+            <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="text-left p-3 font-medium">Student #</th>
@@ -414,7 +445,7 @@ export default function StudentsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
           {meta.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">

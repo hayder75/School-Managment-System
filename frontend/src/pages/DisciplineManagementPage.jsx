@@ -43,7 +43,7 @@ export default function DisciplineManagementPage() {
       </Select>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm min-w-[680px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[680px]">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.security.studentCol}</th>
             <th className="p-3 font-medium">{t.disc.incidentType}</th>
@@ -80,7 +80,7 @@ export default function DisciplineManagementPage() {
             ))}
             {!rows.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
     </div>
   );

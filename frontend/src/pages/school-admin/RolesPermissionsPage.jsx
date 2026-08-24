@@ -169,7 +169,7 @@ function AccessMatrixTab() {
         <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Role Access Matrix — what each role can do</CardTitle>
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-xs min-w-[720px] table-sticky-col">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-xs min-w-[720px] table-sticky-col">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="p-2 text-left font-medium sticky left-0 bg-muted/50">Capability</th>
@@ -197,7 +197,7 @@ function AccessMatrixTab() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </CardContent>
     </Card>
   );

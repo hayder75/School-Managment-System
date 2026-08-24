@@ -92,7 +92,7 @@ export default function QualityAssurancePage() {
       {tab === "review" && (
         <Card>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50 text-left">
                   <th className="p-3 font-medium">{t.qa.titleCol}</th>
@@ -114,7 +114,7 @@ export default function QualityAssurancePage() {
                 ))}
                 {!subs.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
               </tbody>
-            </table>
+            </table></div>
           </CardContent>
         </Card>
       )}
@@ -176,7 +176,7 @@ function QualityReport({ summary }) {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">{t.qa.reportByTeacher}</CardTitle></CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
               <thead><tr className="border-b text-left text-xs text-muted-foreground">
                 <th className="py-2 font-medium">{t.qa.teacher}</th>
                 <th className="py-2 font-medium">{t.qa.reportSubmittedCol}</th>
@@ -201,7 +201,7 @@ function QualityReport({ summary }) {
                 ))}
                 {!byTeacher.length && <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">{t.common.noData}</td></tr>}
               </tbody>
-            </table>
+            </table></div>
           </CardContent>
         </Card>
 

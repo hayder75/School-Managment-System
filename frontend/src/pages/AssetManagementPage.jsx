@@ -291,7 +291,7 @@ export default function AssetManagementPage() {
       {/* Asset Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto -mx-px"><table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b text-gray-500 font-medium">
               <tr>
                 <th className="px-6 py-3">Asset & Tag</th>
@@ -402,7 +402,7 @@ export default function AssetManagementPage() {
                 ))
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
@@ -781,7 +781,7 @@ function InventoryReportModal({ onClose }) {
               </div>
 
               {/* By category */}
-              <table className="w-full border-collapse border">
+              <div className="overflow-x-auto -mx-px"><table className="w-full border-collapse border">
                 <thead><tr className="bg-gray-50">
                   <th className="border p-2 text-left">Category</th>
                   <th className="border p-2 text-right">Lines</th>
@@ -804,7 +804,7 @@ function InventoryReportModal({ onClose }) {
                     <td className="border p-2 text-right">{Number(report.totals?.total_value || 0).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
                   </tr>
                 </tbody>
-              </table>
+              </table></div>
 
               {/* Status & condition */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -825,7 +825,7 @@ function InventoryReportModal({ onClose }) {
               {/* Disposed */}
               <div>
                 <p className="font-semibold mb-2">Disposed / written off in {selectedYear}</p>
-                <table className="w-full border-collapse border">
+                <div className="overflow-x-auto -mx-px"><table className="w-full border-collapse border">
                   <thead><tr className="bg-gray-50">
                     <th className="border p-2 text-left">Asset</th>
                     <th className="border p-2 text-left">Date</th>
@@ -845,14 +845,14 @@ function InventoryReportModal({ onClose }) {
                     ))}
                     {!(report.disposed || []).length && <tr><td colSpan="5" className="border p-3 text-center text-gray-400">None disposed this year</td></tr>}
                   </tbody>
-                </table>
+                </table></div>
               </div>
 
               {/* Count discrepancies */}
               {(report.countDiscrepancies || []).length > 0 && (
                 <div>
                   <p className="font-semibold mb-2 text-red-700">Physical count discrepancies (flagged)</p>
-                  <table className="w-full border-collapse border">
+                  <div className="overflow-x-auto -mx-px"><table className="w-full border-collapse border">
                     <thead><tr className="bg-gray-50">
                       <th className="border p-2 text-left">Asset</th>
                       <th className="border p-2 text-right">System qty</th>
@@ -869,7 +869,7 @@ function InventoryReportModal({ onClose }) {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               )}
 

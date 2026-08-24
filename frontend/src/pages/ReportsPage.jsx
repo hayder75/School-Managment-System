@@ -907,7 +907,7 @@ function SemesterResultsTab() {
             </CardContent></Card>
           ) : (
             <Card><CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm min-w-[760px] table-sticky-col">
+              <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[760px] table-sticky-col">
                 <thead><tr className="border-b bg-muted/50 text-left">
                   <th className="p-3 font-medium">#</th>
                   <th className="p-3 font-medium">Student</th>
@@ -982,7 +982,7 @@ function SemesterResultsTab() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent></Card>
           )}
         </>
@@ -1079,7 +1079,7 @@ function QualityReportsTab() {
           <CardTitle className="text-base">Teacher quality overview — content reviews & appraisals</CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
+          <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[720px]">
             <thead><tr className="border-b bg-muted/50 text-left">
               <th className="p-3 font-medium">Teacher</th>
               <th className="p-3 font-medium">Submissions</th>
@@ -1103,7 +1103,7 @@ function QualityReportsTab() {
               ))}
               {!rows.length && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No data</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         </CardContent>
       </Card>
 

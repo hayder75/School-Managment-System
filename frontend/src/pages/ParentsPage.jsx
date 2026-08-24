@@ -160,7 +160,7 @@ export default function ParentsPage() {
                   <div>
                     <h3 className="font-medium text-sm mb-2">Linked Children</h3>
                     <div className="rounded-md border">
-                      <table className="w-full text-sm">
+                      <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
                         <thead><tr className="border-b bg-muted/50"><th className="text-left p-2 font-medium">Name</th><th className="text-left p-2 font-medium">Student #</th><th className="text-left p-2 font-medium">Relationship</th><th className="text-left p-2 font-medium">Primary</th><th className="text-right p-2 font-medium">Actions</th></tr></thead>
                         <tbody>
                           {(!parentDetail?.data?.children || parentDetail.data.children.length === 0) && (
@@ -193,7 +193,7 @@ export default function ParentsPage() {
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </table></div>
                     </div>
                   </div>
                 </div>

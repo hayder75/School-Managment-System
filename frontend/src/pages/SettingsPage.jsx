@@ -255,7 +255,7 @@ function GradingSettings({ settings, onSave, saving }) {
       <Card>
         <CardHeader><CardTitle>Grade Scale (percentage out of 100)</CardTitle></CardHeader>
         <CardContent>
-          <table className="w-full text-sm max-w-lg">
+          <div className="overflow-x-auto -mx-px"><table className="w-full text-sm max-w-lg">
             <thead><tr className="border-b text-left text-xs text-muted-foreground">
               <th className="py-2">Letter</th><th className="py-2">Min %</th><th className="py-2">Max %</th>
             </tr></thead>
@@ -268,7 +268,7 @@ function GradingSettings({ settings, onSave, saving }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <div className="flex items-center gap-3 mt-4">
             <Button onClick={save} disabled={saving}><Save className="h-4 w-4 mr-2" />Save grading setup</Button>
             {saved && <span className="text-sm text-green-600">Saved ✓ applies to new semester results & report cards</span>}
@@ -349,7 +349,7 @@ function TermsManager() {
         {terms === null ? (
           <p className="text-sm text-muted-foreground">Loading terms…</p>
         ) : (
-          <table className="w-full text-sm max-w-2xl">
+          <div className="overflow-x-auto -mx-px"><table className="w-full text-sm max-w-2xl">
             <thead><tr className="border-b text-left text-xs text-muted-foreground">
               <th className="py-2">Name</th><th className="py-2">Starts</th><th className="py-2">Ends</th><th className="py-2">Exams?</th><th></th>
             </tr></thead>
@@ -390,7 +390,7 @@ function TermsManager() {
               ))}
               {!terms.length && <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">No terms yet — add the first below.</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
 
         <form onSubmit={addTerm} className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-2 sm:grid-cols-5 gap-3 items-end">

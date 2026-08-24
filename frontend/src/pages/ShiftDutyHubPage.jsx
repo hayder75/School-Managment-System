@@ -86,7 +86,7 @@ function SubstitutionBoard() {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[600px]">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.shift.absentTeacher}</th>
             <th className="p-3 font-medium">→</th>
@@ -108,7 +108,7 @@ function SubstitutionBoard() {
             ))}
             {!subs.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent></Card>
 
       {showForm && (
@@ -212,7 +212,7 @@ function GuardRoster({ date }) {
     <Card>
       <CardHeader className="pb-2"><CardTitle className="text-base">{t.shift.guardRosterTitle}</CardTitle></CardHeader>
       <CardContent className="p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-left">
               <th className="p-3 font-medium">{t.shift.guard}</th>
@@ -242,7 +242,7 @@ function GuardRoster({ date }) {
             ))}
             {!isLoading && !rows.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </CardContent>
     </Card>
   );
