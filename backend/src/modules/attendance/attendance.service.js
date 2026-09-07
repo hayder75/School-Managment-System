@@ -220,6 +220,93 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
   return { summary, by_class: byClass, trend, top_absent: topAbsent };
 }
 
+async function getTeacherOverview(tenantId, teacherUserId, { fromDate, toDate, classId } = {}) {
+  const classRows = await db('teacher_subjects')
+    .where({ tenant_id: tenantId, teacher_id: teacherUserId })
+    .distinct('class_id')
+    .select('class_id');
+  let classIds = classRows.map((r) => r.class_id).filter(Boolean);
+  if (classId) classIds = classIds.filter((id) => id === classId);
+  if (classIds.length === 0) {
+    return { classes: [], top_absent: [], summary: { total: 0, present: 0, absent: 0, late: 0, excused: 0 } };
+  }
+
+  function scope(q) {
+    if (fromDate) q = q.where('attendance.date', '>=', fromDate);
+    if (toDate) q = q.where('attendance.date', '<=', toDate);
+    return q;
+  }
+
+  const classesAgg = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId })
+    .whereIn('attendance.class_id', classIds)
+    .leftJoin('classes', 'attendance.class_id', 'classes.id'))
+    .select(
+      'classes.id as class_id',
+      'classes.name as class_name',
+      'classes.level_group',
+      'classes.grade_level',
+      db.raw('COUNT(*)::int as total'),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'present')::int as present"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'absent')::int as absent"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'late')::int as late"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'excused')::int as excused")
+    )
+    .groupBy('classes.id', 'classes.name', 'classes.level_group', 'classes.grade_level')
+    .orderByRaw('absent DESC');
+
+  classesAgg.forEach((c) => {
+    c.absent_rate = rate((c.absent / c.total) * 100);
+    c.present_rate = rate((c.present / c.total) * 100);
+    c.late_rate = rate((c.late / c.total) * 100);
+  });
+
+  const topAbsent = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId })
+    .whereIn('attendance.class_id', classIds)
+    .leftJoin('users', 'attendance.student_id', 'users.id')
+    .leftJoin('classes', 'attendance.class_id', 'classes.id'))
+    .select(
+      'users.id as student_id',
+      'users.first_name',
+      'users.last_name',
+      'classes.name as class_name',
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'absent')::int as absent"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'late')::int as late"),
+      db.raw('COUNT(*)::int as total')
+    )
+    .groupBy('users.id', 'users.first_name', 'users.last_name', 'classes.name')
+    .orderByRaw('absent DESC, late DESC')
+    .limit(10);
+
+  topAbsent.forEach((s) => {
+    s.absent_rate = rate((s.absent / s.total) * 100);
+  });
+
+  const [summaryRow] = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId })
+    .whereIn('attendance.class_id', classIds))
+    .select(
+      db.raw('COUNT(*)::int as total'),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'present')::int as present"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'absent')::int as absent"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'late')::int as late"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'excused')::int as excused")
+    );
+
+  const total = parseInt(summaryRow?.total || 0, 10);
+  const summary = {
+    total,
+    present: parseInt(summaryRow?.present || 0, 10),
+    absent: parseInt(summaryRow?.absent || 0, 10),
+    late: parseInt(summaryRow?.late || 0, 10),
+    excused: parseInt(summaryRow?.excused || 0, 10),
+  };
+  summary.present_rate = rate((summary.present / total) * 100);
+  summary.absent_rate = rate((summary.absent / total) * 100);
+  summary.late_rate = rate((summary.late / total) * 100);
+  summary.excused_rate = rate((summary.excused / total) * 100);
+
+  return { classes: classesAgg, top_absent: topAbsent, summary };
+}
+
 async function getAdminClassOverview(tenantId, classId, { fromDate, toDate } = {}) {
   const cls = await db('classes').where({ tenant_id: tenantId, id: classId }).first();
   if (!cls) return null;
@@ -277,4 +364,4 @@ async function getAdminClassOverview(tenantId, classId, { fromDate, toDate } = {
   };
 }
 
-module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview };
+module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview, getTeacherOverview };

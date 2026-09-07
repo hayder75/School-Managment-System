@@ -2,26 +2,69 @@ const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
 const broadcast = require('../../socket/broadcast');
 const logger = require('../../config/logger');
+const timetable = require('../timetable/timetable.service');
 
 async function create(tenantId, data, actorId = null) {
-  const [exam] = await db('exams').insert({ ...data, tenant_id: tenantId }).returning('*');
-  await notifyExamCreated(tenantId, exam, actorId);
+  const classIds = data.class_ids && data.class_ids.length
+    ? data.class_ids
+    : (data.class_id ? [data.class_id] : []);
+  const primaryClassId = classIds[0] || null;
+
+  const [exam] = await db('exams').insert({
+    name: data.name,
+    type: data.type,
+    class_id: primaryClassId,
+    class_ids: classIds.length ? classIds : null,
+    subject_id: data.subject_id,
+    term_id: data.term_id,
+    date: data.date,
+    total_marks: data.total_marks,
+    pass_marks: data.pass_marks,
+    description: data.description,
+    tenant_id: tenantId,
+  }).returning('*');
+
+  await notifyExamCreated(tenantId, exam, actorId, classIds);
+
+  if (data.mark_test_day && primaryClassId && data.subject_id && data.date) {
+    try {
+      await timetable.markTestDay(tenantId, {
+        class_id: primaryClassId,
+        subject_id: data.subject_id,
+        date: data.date,
+        teacherId: actorId,
+      });
+    } catch (err) {
+      logger.error('markTestDay failed', { error: err.message });
+    }
+  }
+
   return exam;
 }
 
-async function notifyExamCreated(tenantId, exam, actorId) {
+async function notifyExamCreated(tenantId, exam, actorId, classIds = []) {
   try {
-    const studentRows = await db('students')
-      .where({ tenant_id: tenantId, class_id: exam.class_id })
-      .select('user_id');
-    const teacherRows = await db('teacher_subjects')
-      .where({ tenant_id: tenantId, class_id: exam.class_id, subject_id: exam.subject_id })
-      .select('teacher_id');
-    const recipients = [
-      ...studentRows.map((s) => s.user_id),
-      ...teacherRows.map((t) => t.teacher_id),
-    ].filter((id) => id && id !== actorId);
+    const ids = classIds.length ? classIds : (exam.class_id ? [exam.class_id] : []);
+    if (ids.length === 0) return;
 
+    let studentRows = [];
+    let teacherRows = [];
+    let parentRows = [];
+    for (const cid of ids) {
+      const s = await db('students').where({ tenant_id: tenantId, class_id: cid }).select('user_id');
+      studentRows.push(...s.map((x) => x.user_id));
+      const t = await db('teacher_subjects')
+        .where({ tenant_id: tenantId, class_id: cid, subject_id: exam.subject_id })
+        .select('teacher_id');
+      teacherRows.push(...t.map((x) => x.teacher_id));
+      const p = await db('student_parents')
+        .join('students', 'student_parents.student_id', 'students.id')
+        .where({ 'student_parents.tenant_id': tenantId, 'students.class_id': cid })
+        .select('student_parents.parent_id');
+      parentRows.push(...p.map((x) => x.parent_id));
+    }
+
+    const recipients = [...new Set(studentRows), ...new Set(teacherRows)].filter((id) => id && id !== actorId);
     await broadcast.notifyUsers(tenantId, recipients, {
       title: 'New Exam Scheduled',
       message: `${exam.name || 'An exam'} has been scheduled on ${exam.date || 'a new date'}.`,
@@ -30,12 +73,7 @@ async function notifyExamCreated(tenantId, exam, actorId) {
       refId: exam.id,
     });
 
-    const parentRows = await db('student_parents')
-      .join('students', 'student_parents.student_id', 'students.id')
-      .where({ 'student_parents.tenant_id': tenantId, 'students.class_id': exam.class_id })
-      .select('student_parents.parent_id');
-
-    await broadcast.notifyUsers(tenantId, parentRows.map((p) => p.parent_id), {
+    await broadcast.notifyUsers(tenantId, [...new Set(parentRows)], {
       title: 'New Exam Scheduled',
       message: `A new exam "${exam.name || 'An exam'}" has been scheduled for your child's class on ${exam.date || 'a new date'}.`,
       type: 'exam',

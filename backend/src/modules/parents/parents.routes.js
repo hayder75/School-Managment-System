@@ -14,7 +14,7 @@ router.use(tenant);
 
 router.get('/my-children', rbac('parent'), controller.myChildren);
 
-router.get('/', requireAccess(['admin', 'owner'], ['parents.manage']), controller.list);
+router.get('/', requireAccess(['admin', 'owner', 'cashier', 'teacher', 'general_manager', 'principal', 'vice_principal', 'quality_director'], ['parents.manage', 'students.manage']), controller.list);
 router.get('/:id', requireAccess(['admin', 'owner', 'teacher'], ['parents.manage']), controller.getById);
 router.post('/link', requireAccess(['admin', 'owner'], ['parents.manage']), validate(linkParentSchema), controller.link);
 router.put('/link/:id', requireAccess(['admin', 'owner'], ['parents.manage']), validate(updateLinkSchema), controller.updateLink);

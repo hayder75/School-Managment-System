@@ -92,7 +92,7 @@ export default function ExamsPage() {
   const deleteExam = useDeleteExam();
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", type: "exam", class_id: "", subject_id: "", total_marks: "", pass_marks: "", date: "" });
+  const [form, setForm] = useState({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "", pass_marks: "", date: "", mark_test_day: false });
 
   const exams = data?.data || [];
   const meta = data?.meta || {};
@@ -103,24 +103,26 @@ export default function ExamsPage() {
   const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
   const assignedSubjectIds = isTeacher ? assignments.map((a) => a.subject_id) : [];
   const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.includes(c.id)) : allClasses;
-  const subjects = isTeacher
-    ? allSubjects.filter((s) => {
-        if (form.class_id) {
-          return assignments.some((a) => a.class_id === form.class_id && a.subject_id === s.id);
-        }
-        return assignedSubjectIds.includes(s.id);
-      })
-    : allSubjects;
+  const subjects = isTeacher ? allSubjects.filter((s) => assignedSubjectIds.includes(s.id)) : allSubjects;
+
+  function toggleClass(id) {
+    setForm((f) => {
+      const has = f.class_ids.includes(id);
+      const class_ids = has ? f.class_ids.filter((x) => x !== id) : [...f.class_ids, id];
+      return { ...f, class_ids, class_id: class_ids[0] || "" };
+    });
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
     await createExam.mutateAsync({
       ...form,
+      class_ids: form.class_ids,
       total_marks: form.total_marks ? parseFloat(form.total_marks) : undefined,
       pass_marks: form.pass_marks ? parseFloat(form.pass_marks) : undefined,
     });
     setOpen(false);
-    setForm({ name: "", type: "exam", class_id: "", subject_id: "", total_marks: "", pass_marks: "", date: "" });
+    setForm({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "", pass_marks: "", date: "", mark_test_day: false });
   }
 
   return (
@@ -160,16 +162,28 @@ export default function ExamsPage() {
                   <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Class</Label>
-                  <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                    <SelectContent>
-                      {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label>Classes (select one or more)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {classes.map((c) => {
+                    const active = form.class_ids.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggleClass(c.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${active ? "bg-neutral-900 text-white border-neutral-900" : "text-neutral-700 border-neutral-300 hover:bg-neutral-100"}`}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
                 </div>
+                {form.class_ids.length > 1 && (
+                  <p className="text-xs text-muted-foreground">Exam will be created for {form.class_ids.length} classes and notify all their students.</p>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Subject</Label>
                   <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
@@ -178,6 +192,10 @@ export default function ExamsPage() {
                       {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -190,7 +208,11 @@ export default function ExamsPage() {
                   <Input type="number" value={form.pass_marks} onChange={(e) => setForm({ ...form, pass_marks: e.target.value })} />
                 </div>
               </div>
-              <Button type="submit" className="w-full">Create Exam</Button>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.mark_test_day} onChange={(e) => setForm({ ...form, mark_test_day: e.target.checked })} />
+                Mark this day as a <span className="font-semibold">test class</span> in the timetable
+              </label>
+              <Button type="submit" className="w-full" disabled={form.class_ids.length === 0}>Create Exam</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -220,7 +242,12 @@ export default function ExamsPage() {
                     <TableRow key={exam.id}>
                       <TableCell className="font-medium">{exam.name}</TableCell>
                       <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
-                      <TableCell>{exam.class_name}</TableCell>
+                      <TableCell>
+                        {exam.class_name}
+                        {exam.class_ids && exam.class_ids.length > 1 ? (
+                          <span className="ml-1 text-xs text-muted-foreground">+{exam.class_ids.length - 1} more</span>
+                        ) : null}
+                      </TableCell>
                       <TableCell>{exam.subject_name}</TableCell>
                       <TableCell>{exam.date ? (!isNaN(new Date(exam.date).getTime()) ? new Date(exam.date).toLocaleDateString() : "—") : "—"}</TableCell>
                       <TableCell>{exam.total_marks || "—"}</TableCell>

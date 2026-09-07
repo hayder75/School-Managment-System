@@ -50,4 +50,38 @@ async function deleteEntry(tenantId, id) {
   return db('timetable_entries').where({ tenant_id: tenantId, id }).del();
 }
 
-module.exports = { createEntry, getByClass, getByTeacher, updateEntry, deleteEntry };
+const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+async function markTestDay(tenantId, { class_id, subject_id, date, teacherId }) {
+  const d = new Date(`${date}T00:00:00`);
+  const day_of_week = DAYS[d.getDay()];
+  const teacher = await db('teacher_subjects')
+    .where({ tenant_id: tenantId, class_id, subject_id })
+    .select('teacher_id')
+    .first();
+  const tid = teacherId || teacher?.teacher_id || null;
+
+  const existing = await db('timetable_entries')
+    .where({ tenant_id: tenantId, class_id, subject_id, day_of_week })
+    .first();
+  if (existing) {
+    const [upd] = await db('timetable_entries')
+      .where({ id: existing.id })
+      .update({ is_test: true, teacher_id: tid, updated_at: db.fn.now() })
+      .returning('*');
+    return upd;
+  }
+  const [entry] = await db('timetable_entries').insert({
+    tenant_id: tenantId,
+    class_id,
+    subject_id,
+    teacher_id: tid,
+    day_of_week,
+    start_time: '08:00',
+    end_time: '09:00',
+    is_test: true,
+  }).returning('*');
+  return entry;
+}
+
+module.exports = { createEntry, getByClass, getByTeacher, updateEntry, deleteEntry, markTestDay };

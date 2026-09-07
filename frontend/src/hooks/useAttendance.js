@@ -32,3 +32,10 @@ export function useAdminClassAttendance(classId, params = {}) {
     enabled: !!classId,
   });
 }
+
+export function useTeacherAttendanceOverview(params = {}) {
+  return useQuery({
+    queryKey: ["attendance-teacher-overview", params],
+    queryFn: () => api.get("/attendance/teacher/overview", { params }),
+  });
+}

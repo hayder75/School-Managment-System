@@ -219,17 +219,20 @@ export default function TimetablePage() {
                       {timetableByDay[day].length === 0 && (
                         <p className="text-xs text-muted-foreground text-center">—</p>
                       )}
-                      {timetableByDay[day].map((entry) => (
-                        <div key={entry.id} className="bg-primary/5 rounded p-2 text-xs space-y-1 group relative">
-                          <p className="font-medium">{entry.subject_name}</p>
-                          <p className="text-muted-foreground">
-                            {entry.start_time?.slice(0, 5)}-{entry.end_time?.slice(0, 5)}
-                          </p>
-                          {entry.teacher_first_name && (
-                            <p className="text-muted-foreground">{entry.teacher_first_name} {entry.teacher_last_name}</p>
-                          )}
-                          {entry.room && <p className="text-muted-foreground">Room {entry.room}</p>}
-                          {isAdmin && (
+                       {timetableByDay[day].map((entry) => (
+                         <div key={entry.id} className={`rounded p-2 text-xs space-y-1 group relative ${entry.is_test ? "bg-rose-50 border border-rose-200" : "bg-primary/5"}`}>
+                           <div className="flex items-center justify-between">
+                             <p className="font-medium">{entry.subject_name}</p>
+                             {entry.is_test && <span className="px-1.5 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold">TEST</span>}
+                           </div>
+                           <p className="text-muted-foreground">
+                             {entry.start_time?.slice(0, 5)}-{entry.end_time?.slice(0, 5)}
+                           </p>
+                           {entry.teacher_first_name && (
+                             <p className="text-muted-foreground">{entry.teacher_first_name} {entry.teacher_last_name}</p>
+                           )}
+                           {entry.room && <p className="text-muted-foreground">Room {entry.room}</p>}
+                           {isAdmin && (
                             <Button
                               variant="ghost"
                               size="icon"

@@ -79,6 +79,17 @@ async function getSummary(req, res) {
   res.json({ success: true, data: summary });
 }
 
+async function getTeacherOverview(req, res) {
+  const { from_date, to_date, teacher_id } = req.query;
+  const teacherId = req.user.role === 'teacher' ? req.user.userId : (teacher_id || req.user.userId);
+  const data = await attendanceService.getTeacherOverview(req.tenant.id, teacherId, {
+    fromDate: from_date,
+    toDate: to_date,
+    classId: req.query.class_id,
+  });
+  res.json({ success: true, data });
+}
+
 async function getAdminOverview(req, res) {
   const { from_date, to_date, class_id } = req.query;
   const data = await attendanceService.getAdminOverview(req.tenant.id, {
@@ -102,4 +113,4 @@ async function getAdminClassOverview(req, res) {
   res.json({ success: true, data });
 }
 
-module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview };
+module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview, getTeacherOverview };

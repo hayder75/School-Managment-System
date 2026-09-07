@@ -28,6 +28,7 @@ const studentFields = {
   zone_of_birth: z.string().max(150).optional(),
   woreda_of_birth: z.string().max(150).optional(),
   kebele: z.string().max(150).optional(),
+  kebele_of_birth: z.string().max(150).optional(),
   location_type: z.enum(['urban', 'rural']).optional(),
   disability: z.boolean().optional(),
   disability_type: z.string().max(100).optional(),
