@@ -39,7 +39,7 @@ const studentFields = {
 };
 
 const createStudentSchema = z.object({
-  body: z.object({ ...studentFields }),
+  body: z.object({ ...studentFields, user_id: z.string().uuid() }),
 });
 
 const updateStudentSchema = z.object({

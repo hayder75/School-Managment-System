@@ -3,7 +3,10 @@ const bcrypt = require('bcrypt');
 const { paginatedResult } = require('../../shared/pagination');
 
 async function create(tenantId, data) {
-  const [student] = await db('students').insert({ ...data, tenant_id: tenantId }).returning('*');
+  // first_name/last_name/student_email belong to the linked user account, not
+  // the students table; drop them so inserts can't reference missing columns.
+  const { first_name, last_name, student_email, ...studentData } = data;
+  const [student] = await db('students').insert({ ...studentData, tenant_id: tenantId }).returning('*');
   return student;
 }
 
