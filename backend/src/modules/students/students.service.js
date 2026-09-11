@@ -358,7 +358,24 @@ async function update(tenantId, id, data) {
 }
 
 async function remove(tenantId, id) {
-  return db('students').where({ tenant_id: tenantId, id }).del();
+  return db.transaction(async (trx) => {
+    const student = await trx('students')
+      .where({ tenant_id: tenantId, id })
+      .select('id', 'user_id')
+      .first();
+    if (!student) return 0;
+
+    // Remove the student record first, then the linked login account so the
+    // account can no longer sign in (user deletion cascades to any remaining
+    // student records such as attendance/grades/payments).
+    await trx('students').where({ tenant_id: tenantId, id }).del();
+    if (student.user_id) {
+      await trx('users')
+        .where({ tenant_id: tenantId, id: student.user_id, role: 'student' })
+        .del();
+    }
+    return 1;
+  });
 }
 
 async function findByClass(tenantId, classId) {
