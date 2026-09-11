@@ -19,6 +19,24 @@ async function nextReceiptNo(trx, tenantId) {
   return `RCT-${String(seq + 1).padStart(6, '0')}`;
 }
 
+// Guard against accidental double submissions: reject an identical payment
+// (same student, fee, and amount) recorded within a short window.
+const DUPLICATE_WINDOW_SECONDS = 90;
+async function assertNotDuplicate(trx, tenantId, p) {
+  const q = trx('payments')
+    .where({ tenant_id: tenantId, student_id: p.student_id, amount_paid: p.amount_paid })
+    .where('created_at', '>', trx.raw(`now() - interval '${DUPLICATE_WINDOW_SECONDS} seconds'`));
+  if (p.fee_structure_id) q.where('fee_structure_id', p.fee_structure_id);
+  else q.whereNull('fee_structure_id');
+  const dup = await q.first();
+  if (dup) {
+    const err = new Error('DUPLICATE_PAYMENT');
+    err.code = 'DUPLICATE_PAYMENT';
+    err.existing = dup;
+    throw err;
+  }
+}
+
 async function createFeeStructure(tenantId, data) {
   const [fee] = await db('fee_structures').insert({ ...data, tenant_id: tenantId }).returning('*');
   return fee;
@@ -68,6 +86,7 @@ async function createPayment(tenantId, data, collectedBy) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const payment = await db.transaction(async (trx) => {
+        await assertNotDuplicate(trx, tenantId, data);
         const receipt_no = await nextReceiptNo(trx, tenantId);
         const [row] = await trx('payments')
           .insert({ ...data, tenant_id: tenantId, collected_by: collectedBy || null, receipt_no })
@@ -117,6 +136,7 @@ async function createBulkPayments(tenantId, payments, collectedBy) {
   const created = await db.transaction(async (trx) => {
     const rows = [];
     for (const p of payments) {
+      await assertNotDuplicate(trx, tenantId, p);
       const receipt_no = await nextReceiptNo(trx, tenantId);
       const [row] = await trx('payments')
         .insert({ ...p, tenant_id: tenantId, collected_by: collectedBy || null, receipt_no })

@@ -73,6 +73,9 @@ async function createPayment(req, res) {
     if (err.code === 'FEE_NOT_FOUND') {
       return res.status(404).json({ success: false, error: { code: 'FEE_NOT_FOUND', message: 'Fee structure not found in this school' } });
     }
+    if (err.code === 'DUPLICATE_PAYMENT') {
+      return res.status(409).json({ success: false, error: { code: 'DUPLICATE_PAYMENT', message: 'An identical payment was just recorded for this student. Please wait a moment or check the list before retrying.' } });
+    }
     throw err;
   }
 }
@@ -87,6 +90,9 @@ async function createBulkPayments(req, res) {
     }
     if (err.code === 'FEE_NOT_FOUND') {
       return res.status(404).json({ success: false, error: { code: 'FEE_NOT_FOUND', message: 'One or more fee structures not found in this school' } });
+    }
+    if (err.code === 'DUPLICATE_PAYMENT') {
+      return res.status(409).json({ success: false, error: { code: 'DUPLICATE_PAYMENT', message: 'One of these payments was just recorded. Please wait a moment or check the list before retrying.' } });
     }
     throw err;
   }
