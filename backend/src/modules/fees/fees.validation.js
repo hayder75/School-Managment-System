@@ -47,8 +47,7 @@ const createPaymentSchema = z.object({
   }),
 });
 
-const bulkCreatePaymentsSchema = z.object({
-  body: z.object({
+const bulkCreatePaymentsSchema = z.object({  body: z.object({
     payments: z.array(z.object({
       student_id: z.string().uuid(),
       fee_structure_id: z.string().uuid().nullable().optional(),
@@ -75,4 +74,12 @@ const updatePaymentSchema = z.object({
   }),
 });
 
-module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema };
+const subscriptionSchema = z.object({
+  body: z.object({
+    student_id: z.string().uuid(),
+    fee_structure_id: z.string().uuid(),
+    subscribed: z.boolean(),
+  }),
+});
+
+module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema, subscriptionSchema };

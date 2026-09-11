@@ -5,7 +5,7 @@ const tenant = require('../../middleware/tenant');
 const rbac = require('../../middleware/rbac');
 const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
-const { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema } = require('./fees.validation');
+const { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema, subscriptionSchema } = require('./fees.validation');
 
 const router = Router();
 
@@ -20,6 +20,10 @@ router.get('/reconciliation/batches', requireAccess(['admin', 'owner', 'finance'
 router.post('/reconciliation/batches', requireAccess(['admin', 'owner', 'finance', 'accountant'], ['payments.reconcile']), controller.createReconciliationBatch);
 router.get('/defaulters/aging', requireAccess(['admin', 'owner', 'finance', 'accountant'], ['payments.reconcile', 'reports.view']), controller.getDefaultersAging);
 router.get('/monthly-close-pack', requireAccess(['admin', 'owner', 'finance', 'accountant', 'general_manager'], ['reports.view', 'payments.reconcile']), controller.getMonthlyClosePack);
+
+// Optional-fee subscriptions (admin + cashier only)
+router.get('/student-subscriptions', requireAccess(['admin', 'owner', 'cashier'], []), controller.listStudentSubscriptions);
+router.post('/student-subscriptions', requireAccess(['admin', 'owner', 'cashier'], []), validate(subscriptionSchema), controller.setStudentSubscription);
 
 router.get('/summary', controller.getSummary);
 router.get('/collection-report', controller.getCollectionReport);

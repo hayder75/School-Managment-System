@@ -117,3 +117,18 @@ export function usePaymentTrends(params = {}) {
     queryFn: () => api.get("/fees/payment-trends", { params }),
   });
 }
+
+export function useStudentFeeSubscriptions(params = {}) {
+  return useQuery({
+    queryKey: ["student-fee-subs", params],
+    queryFn: () => api.get("/fees/student-subscriptions", { params }),
+  });
+}
+
+export function useSetStudentFeeSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => api.post("/fees/student-subscriptions", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student-fee-subs"] }),
+  });
+}

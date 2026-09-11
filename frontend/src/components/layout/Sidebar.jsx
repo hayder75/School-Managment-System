@@ -231,6 +231,7 @@ const permissionGated = [
   { to: "/subjects", label: "subjects", icon: BookOpen, permission: "subjects.manage" },
   { to: "/fees", label: "fees", icon: DollarSign, permission: "fees.manage" },
   { to: "/payments", label: "payments", icon: Wallet, permission: "payments.manage" },
+  { to: "/student-fees", label: "studentFees", icon: Wallet, permission: "fees.manage", roles: ["admin", "owner", "cashier"] },
   { to: "/expenses", label: "expenses", icon: TrendingDown, permission: "expenses.manage" },
   { to: "/payroll", label: "payroll", icon: Users, permission: "payroll.view" },
   { to: "/operations", label: "operations", icon: Bus, permission: "operations.manage" },
@@ -253,7 +254,7 @@ export default function Sidebar() {
   const baseItems = navItems[role] || navItems.admin;
   const perms = user?.permissions || [];
   const seen = new Set(baseItems.map((i) => i.to));
-  const extra = permissionGated.filter((i) => perms.includes(i.permission) && !seen.has(i.to));
+  const extra = permissionGated.filter((i) => perms.includes(i.permission) && !seen.has(i.to) && (!i.roles || i.roles.includes(role)));
   const items = [...baseItems, ...extra];
 
   return (

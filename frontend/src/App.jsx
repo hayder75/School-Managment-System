@@ -21,6 +21,7 @@ const ExamsPage = lazy(() => import("./pages/ExamsPage"));
 const TimetablePage = lazy(() => import("./pages/TimetablePage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const FeeStructuresPage = lazy(() => import("./pages/FeeStructuresPage"));
+const StudentFeesPage = lazy(() => import("./pages/StudentFeesPage"));
 const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
 const CollectionReportPage = lazy(() => import("./pages/CollectionReportPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
@@ -141,6 +142,10 @@ function AppContent() {
           <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier", "accountant"]} permissions={["fees.manage", "payments.manage"]} />}>
             <Route path="/fees" element={<FeeStructuresPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "cashier"]} permissions={[]} />}>
+            <Route path="/student-fees" element={<StudentFeesPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier", "accountant", "general_services"]} permissions={["expenses.manage"]} />}>

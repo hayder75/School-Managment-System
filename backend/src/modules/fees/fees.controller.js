@@ -182,10 +182,32 @@ async function getDefaultersAging(req, res) {
   res.json({ success: true, data: result });
 }
 
-async function getMonthlyClosePack(req, res) {
-  const { month, year } = req.query;
+async function getMonthlyClosePack(req, res) {  const { month, year } = req.query;
   const pack = await feeService.getMonthlyClosePack(req.tenant.id, { month, year });
   res.json({ success: true, data: pack });
+}
+
+async function listStudentSubscriptions(req, res) {
+  const data = await feeService.listStudentFeeSubscriptions(req.tenant.id, { class_id: req.query.class_id });
+  res.json({ success: true, data });
+}
+
+async function setStudentSubscription(req, res) {
+  try {
+    const data = await feeService.setStudentFeeSubscription(req.tenant.id, req.validated.body);
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.code === 'STUDENT_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'STUDENT_NOT_FOUND', message: 'Student not found in this school' } });
+    }
+    if (err.code === 'FEE_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'FEE_NOT_FOUND', message: 'Fee structure not found in this school' } });
+    }
+    if (err.code === 'FEE_MANDATORY') {
+      return res.status(400).json({ success: false, error: { code: 'FEE_MANDATORY', message: 'Mandatory fees apply to every student and cannot be toggled' } });
+    }
+    throw err;
+  }
 }
 
 module.exports = {
@@ -194,4 +216,5 @@ module.exports = {
   getStudentLedger, getCollectionReport, getPaymentTrends,
   getMyFees,
   listReconciliationBatches, createReconciliationBatch, getDefaultersAging, getMonthlyClosePack,
+  listStudentSubscriptions, setStudentSubscription,
 };

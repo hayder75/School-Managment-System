@@ -961,4 +961,10 @@ export const amPhrases = {
   "Optional": "አማራጭ",
   "per grade": "በደረጃ",
   "grades": "ደረጃዎች",
+  "Students Fee Management": "የተማሪዎች ክፍያ አስተዳደር",
+  "Turn optional fees (transport, after-school, etc.) on or off per student": "አማራጭ ክፍያዎችን (ትራንስፖርት፣ ከትምህርት በኋላ ጥናት ወዘተ) ለእያንዳንዱ ተማሪ ያብሩ ወይም ያጥፉ",
+  "No optional fee structures yet. Create an optional fee first.": "እስካሁን አማራጭ የክፍያ መዋቅር የለም። መጀመሪያ አማራጭ ክፍያ ይፍጠሩ።",
+  "Could not update subscription": "ምዝገባውን ማዘመን አልተቻለም",
+  "On": "በርቷል",
+  "Off": "ጠፍቷል",
 };

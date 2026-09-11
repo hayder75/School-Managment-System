@@ -796,9 +796,68 @@ async function getMonthlyClosePack(tenantId, { month, year } = {}) {
   };
 }
 
+// ---- Optional-fee subscriptions (per student) ----
+
+async function listStudentFeeSubscriptions(tenantId, { class_id } = {}) {
+  const fees = await db('fee_structures')
+    .where({ tenant_id: tenantId, is_mandatory: false, is_active: true })
+    .select('id', 'name', 'amount', 'frequency')
+    .orderBy('name');
+
+  let studentQuery = db('students as s')
+    .join('users as u', 's.user_id', 'u.id')
+    .leftJoin('classes as c', 's.class_id', 'c.id')
+    .where({ 's.tenant_id': tenantId, 's.status': 'active' })
+    .select('s.id', 's.student_number', 'u.first_name', 'u.last_name', 'c.name as class_name', 'c.id as class_id')
+    .orderBy('u.first_name')
+    .orderBy('u.last_name');
+  if (class_id) studentQuery = studentQuery.where('s.class_id', class_id);
+  const students = await studentQuery;
+
+  const subs = await db('student_fee_subscriptions')
+    .where({ tenant_id: tenantId })
+    .select('student_id', 'fee_structure_id');
+  const map = {};
+  for (const s of subs) {
+    (map[s.student_id] = map[s.student_id] || []).push(s.fee_structure_id);
+  }
+
+  return {
+    fees,
+    students: students.map((s) => ({ ...s, subscribed_fee_ids: map[s.id] || [] })),
+  };
+}
+
+async function setStudentFeeSubscription(tenantId, { student_id, fee_structure_id, subscribed }) {
+  const student = await db('students').where({ tenant_id: tenantId, id: student_id }).select('id').first();
+  if (!student) {
+    const err = new Error('STUDENT_NOT_FOUND'); err.code = 'STUDENT_NOT_FOUND'; throw err;
+  }
+  const fee = await db('fee_structures').where({ tenant_id: tenantId, id: fee_structure_id }).select('id', 'is_mandatory').first();
+  if (!fee) {
+    const err = new Error('FEE_NOT_FOUND'); err.code = 'FEE_NOT_FOUND'; throw err;
+  }
+  if (fee.is_mandatory) {
+    const err = new Error('FEE_MANDATORY'); err.code = 'FEE_MANDATORY'; throw err;
+  }
+
+  if (subscribed) {
+    await db('student_fee_subscriptions')
+      .insert({ tenant_id: tenantId, student_id, fee_structure_id })
+      .onConflict(['student_id', 'fee_structure_id'])
+      .ignore();
+  } else {
+    await db('student_fee_subscriptions')
+      .where({ tenant_id: tenantId, student_id, fee_structure_id })
+      .del();
+  }
+  return { student_id, fee_structure_id, subscribed: !!subscribed };
+}
+
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, createBulkPayments, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
   getStudentLedger, getCollectionReport, getPaymentTrends,
   listReconciliationBatches, createReconciliationBatch, getDefaultersAging, getMonthlyClosePack,
+  listStudentFeeSubscriptions, setStudentFeeSubscription,
 };
