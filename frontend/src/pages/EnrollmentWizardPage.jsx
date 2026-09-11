@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "../lib/api";
@@ -16,29 +16,68 @@ const STEPS = ["Student", "Class", "Guardian", "Medical & Docs", "Review"];
 const RELATIONSHIPS = ["father", "mother", "guardian", "brother", "sister", "grandfather", "grandmother", "uncle", "aunt", "other"];
 const EDU_LEVELS = ["None", "Primary", "Secondary", "Diploma", "Degree", "Masters", "PhD"];
 
+const WIZARD_STORAGE_KEY = "sms.enrollWizard.v1";
+const DEFAULT_STUDENT = {
+  first_name: "", last_name: "", father_name: "", grandfather_name: "",
+  gender: "", date_of_birth: "", nationality: "Ethiopian",
+  country_of_birth: "", region_of_birth: "", zone_of_birth: "", woreda_of_birth: "", kebele_of_birth: "",
+  region_of_residence: "", zone_of_residence: "", woreda_of_residence: "", kebele: "", home_address: "", location_type: "urban",
+  previous_school: "", admission_type: "new",
+  disability: false, disability_type: "", economic_status: "",
+  parent_status: "", family_head_gender: "", national_id: "", emergency_contact: "",
+};
+const DEFAULT_NGFORM = { first_name: "", last_name: "", phone: "", relationship: "father", education_level: "", is_primary: false };
+
+function loadWizardState() {
+  try {
+    const raw = localStorage.getItem(WIZARD_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function EnrollmentWizardPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const [step, setStep] = useState(0);
+  const saved = useMemo(() => loadWizardState(), []);
+  const [step, setStep] = useState(saved?.step ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [enrolledStudent, setEnrolledStudent] = useState(null);
+  const [enrolledStudent, setEnrolledStudent] = useState(saved?.enrolledStudent ?? null);
 
-  const [student, setStudent] = useState({
-    first_name: "", last_name: "", father_name: "", grandfather_name: "",
-    gender: "", date_of_birth: "", nationality: "Ethiopian",
-    country_of_birth: "", region_of_birth: "", zone_of_birth: "", woreda_of_birth: "", kebele_of_birth: "",
-    region_of_residence: "", zone_of_residence: "", woreda_of_residence: "", kebele: "", home_address: "", location_type: "urban",
-    previous_school: "", admission_type: "new",
-    disability: false, disability_type: "", economic_status: "",
-    parent_status: "", family_head_gender: "", national_id: "", emergency_contact: "",
-  });
-  const [classId, setClassId] = useState("");
-  const [guardians, setGuardians] = useState([]);
-  const [newGuardians, setNewGuardians] = useState([]);
-  const [ngForm, setNgForm] = useState({ first_name: "", last_name: "", phone: "", relationship: "father", education_level: "", is_primary: false });
-  const [medicalInfo, setMedicalInfo] = useState({});
-  const [docs, setDocs] = useState([]);
+  const [student, setStudent] = useState({ ...DEFAULT_STUDENT, ...(saved?.student || {}) });
+  const [classId, setClassId] = useState(saved?.classId ?? "");
+  const [guardians, setGuardians] = useState(saved?.guardians ?? []);
+  const [newGuardians, setNewGuardians] = useState(saved?.newGuardians ?? []);
+  const [ngForm, setNgForm] = useState({ ...DEFAULT_NGFORM, ...(saved?.ngForm || {}) });
+  const [medicalInfo, setMedicalInfo] = useState(saved?.medicalInfo ?? {});
+  const [docs, setDocs] = useState(saved?.docs ?? []);
+
+  // Keep the in-progress enrollment across refreshes. If attachments are too
+  // large for localStorage, retry without them so the rest is still saved.
+  useEffect(() => {
+    const payload = { step, student, classId, guardians, newGuardians, ngForm, medicalInfo, enrolledStudent, docs };
+    try {
+      localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      try { localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify({ ...payload, docs: [] })); } catch { /* ignore */ }
+    }
+  }, [step, student, classId, guardians, newGuardians, ngForm, medicalInfo, enrolledStudent, docs]);
+
+  function resetWizard() {
+    try { localStorage.removeItem(WIZARD_STORAGE_KEY); } catch { /* ignore */ }
+    setEnrolledStudent(null);
+    setStep(0);
+    setStudent({ ...DEFAULT_STUDENT });
+    setClassId("");
+    setGuardians([]);
+    setNewGuardians([]);
+    setNgForm({ ...DEFAULT_NGFORM });
+    setMedicalInfo({});
+    setDocs([]);
+    setError("");
+  }
 
   const { data: classesData } = useQuery({ queryKey: ["classes-enroll"], queryFn: () => api.get("/classes?limit=300") });
   const classes = (classesData?.data || []);
@@ -97,7 +136,12 @@ export default function EnrollmentWizardPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       {!enrolledStudent ? (
         <>
-          <div><h1 className="text-3xl font-bold">Enroll New Student</h1><p className="text-muted-foreground">Register the student, assign a class and add guardians in one flow</p></div>
+          <div className="flex items-start justify-between gap-3">
+            <div><h1 className="text-3xl font-bold">Enroll New Student</h1><p className="text-muted-foreground">Register the student, assign a class and add guardians in one flow</p></div>
+            {(step > 0 || student.first_name || student.father_name) && (
+              <Button variant="ghost" size="sm" onClick={resetWizard} className="shrink-0">Start over</Button>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             {STEPS.map((label, i) => (
               <div key={label} className="flex items-center flex-1 last:flex-none">
@@ -120,7 +164,7 @@ export default function EnrollmentWizardPage() {
           </div>
         </>
       ) : (
-        <PostEnrollment enrolledStudent={enrolledStudent} selectedClass={selectedClass} student={student} onReset={() => { setEnrolledStudent(null); setStep(0); }} navigate={navigate} />
+        <PostEnrollment enrolledStudent={enrolledStudent} selectedClass={selectedClass} student={student} onReset={resetWizard} navigate={navigate} />
       )}
     </div>
   );

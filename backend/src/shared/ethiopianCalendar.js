@@ -1,15 +1,15 @@
-// Ethiopian (Ge'ez) calendar conversion utilities.
-// The database always stores Gregorian ISO dates; this module is the
-// presentation/input layer that converts to and from Ethiopian dates.
+// Ethiopian (Ge'ez) calendar conversion utilities (CommonJS mirror of the
+// frontend lib). The database always stores Gregorian ISO dates; this module
+// is used server-side for Ethiopian period/report labelling.
 
-export const ETHIOPIAN_MONTHS = [
-  "Meskerem", "Tikimt", "Hidar", "Tahsas", "Tir", "Yekatit", "Megabit",
-  "Miazia", "Genbot", "Sene", "Hamle", "Nehase", "Pagume",
+const ETHIOPIAN_MONTHS = [
+  'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit',
+  'Miazia', 'Genbot', 'Sene', 'Hamle', 'Nehase', 'Pagume',
 ];
 
-export const ETHIOPIAN_MONTHS_AM = [
-  "መስከረም", "ጥቅምት", "ኅዳር", "ታኅሣሥ", "ጥር", "የካቲት", "መጋቢት",
-  "ሚያዝያ", "ግንቦት", "ሰኔ", "ሐምሌ", "ነሐሴ", "ጳጉሜ",
+const ETHIOPIAN_MONTHS_AM = [
+  'መስከረም', 'ጥቅምት', 'ኅዳር', 'ታኅሣሥ', 'ጥር', 'የካቲት', 'መጋቢት',
+  'ሚያዝያ', 'ግንቦት', 'ሰኔ', 'ሐምሌ', 'ነሐሴ', 'ጳጉሜ',
 ];
 
 const JD_EPOCH_OFFSET_AMETE_MIHRET = 1723856;
@@ -18,14 +18,14 @@ function mod(a, b) {
   return a - b * Math.floor(a / b);
 }
 
-export function gregorianToJdn(year, month, day) {
+function gregorianToJdn(year, month, day) {
   const a = Math.floor((14 - month) / 12);
   const y = year + 4800 - a;
   const m = month + 12 * a - 3;
   return day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
 }
 
-export function jdnToGregorian(jdn) {
+function jdnToGregorian(jdn) {
   const a = jdn + 32044;
   const b = Math.floor((4 * a + 3) / 146097);
   const c = a - Math.floor((146097 * b) / 4);
@@ -38,11 +38,11 @@ export function jdnToGregorian(jdn) {
   return { year, month, day };
 }
 
-export function ethiopianToJdn(year, month, day) {
+function ethiopianToJdn(year, month, day) {
   return (JD_EPOCH_OFFSET_AMETE_MIHRET + 365) + 365 * (year - 1) + Math.floor(year / 4) + 30 * month + day - 31;
 }
 
-export function jdnToEthiopian(jdn) {
+function jdnToEthiopian(jdn) {
   const r = mod(jdn - JD_EPOCH_OFFSET_AMETE_MIHRET, 1461);
   const n = mod(r, 365) + 365 * Math.floor(r / 1460);
   const year = 4 * Math.floor((jdn - JD_EPOCH_OFFSET_AMETE_MIHRET) / 1461) + Math.floor(r / 365) - Math.floor(r / 1460);
@@ -51,8 +51,6 @@ export function jdnToEthiopian(jdn) {
   return { year, month, day };
 }
 
-// Accepts a Date or an ISO/"YYYY-MM-DD" string and returns Gregorian parts,
-// avoiding timezone-driven off-by-one shifts.
 function toGregorianParts(input) {
   if (input instanceof Date) {
     return { year: input.getFullYear(), month: input.getMonth() + 1, day: input.getDate() };
@@ -65,16 +63,16 @@ function toGregorianParts(input) {
   return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
 }
 
-export function isEthiopianLeapYear(year) {
+function isEthiopianLeapYear(year) {
   return year % 4 === 3;
 }
 
-export function ethiopianMonthName(month, { amharic = false } = {}) {
+function ethiopianMonthName(month, { amharic = false } = {}) {
   const list = amharic ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
-  return list[Math.min(Math.max(month - 1, 0), 12)] || "";
+  return list[Math.min(Math.max(month - 1, 0), 12)] || '';
 }
 
-export function toEthiopian(input = new Date()) {
+function toEthiopian(input = new Date()) {
   const parts = toGregorianParts(input);
   if (!parts) return null;
   const { year, month, day } = jdnToEthiopian(gregorianToJdn(parts.year, parts.month, parts.day));
@@ -88,39 +86,62 @@ export function toEthiopian(input = new Date()) {
   };
 }
 
-// Returns a JS Date at local noon for the given Ethiopian date.
-export function toGregorian(year, month, day) {
+function toGregorian(year, month, day) {
   const g = jdnToGregorian(ethiopianToJdn(year, month, day));
   return new Date(g.year, g.month - 1, g.day, 12, 0, 0);
 }
 
-export function formatEthiopian(input = new Date(), { amharic = false } = {}) {
+function formatEthiopian(input = new Date(), { amharic = false } = {}) {
   const e = toEthiopian(input);
-  if (!e) return "—";
+  if (!e) return '—';
   return `${e.day} ${amharic ? e.monthNameAm : e.monthName} ${e.year} E.C.`;
 }
 
 const GREGORIAN_MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-export function formatGregorian(input = new Date()) {
+function formatGregorian(input = new Date()) {
   const parts = toGregorianParts(input);
-  if (!parts) return "—";
+  if (!parts) return '—';
   return `${GREGORIAN_MONTHS[parts.month - 1]} ${parts.day}, ${parts.year}`;
 }
 
-// "Meskerem 1, 2019 E.C. · Sep 11, 2026"
-export function formatEthiopianWithGregorian(input = new Date(), { primary = "ethiopian" } = {}) {
-  if (input === null || input === undefined || input === "") return "—";
+function formatEthiopianWithGregorian(input = new Date(), { primary = 'ethiopian' } = {}) {
+  if (input === null || input === undefined || input === '') return '—';
   const eth = formatEthiopian(input);
   const greg = formatGregorian(input);
-  return primary === "gregorian" ? `${greg} · ${eth}` : `${eth} · ${greg}`;
+  return primary === 'gregorian' ? `${greg} · ${eth}` : `${eth} · ${greg}`;
 }
 
-// Number of days in an Ethiopian month (Pagume = 5 or 6).
-export function daysInEthiopianMonth(year, month) {
+function daysInEthiopianMonth(year, month) {
   if (month === 13) return isEthiopianLeapYear(year) ? 6 : 5;
   return 30;
 }
+
+// Gregorian [start, end] (inclusive ISO dates) for an Ethiopian month.
+function ethiopianMonthGregorianRange(year, month) {
+  const start = jdnToGregorian(ethiopianToJdn(year, month, 1));
+  const end = jdnToGregorian(ethiopianToJdn(year, month, daysInEthiopianMonth(year, month)));
+  const iso = (p) => `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+  return { start: iso(start), end: iso(end) };
+}
+
+module.exports = {
+  ETHIOPIAN_MONTHS,
+  ETHIOPIAN_MONTHS_AM,
+  gregorianToJdn,
+  jdnToGregorian,
+  ethiopianToJdn,
+  jdnToEthiopian,
+  isEthiopianLeapYear,
+  ethiopianMonthName,
+  toEthiopian,
+  toGregorian,
+  formatEthiopian,
+  formatGregorian,
+  formatEthiopianWithGregorian,
+  daysInEthiopianMonth,
+  ethiopianMonthGregorianRange,
+};

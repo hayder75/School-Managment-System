@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuditLogs } from "../hooks/useAuditLogs";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
@@ -86,7 +87,7 @@ export default function AuditLogsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="capitalize">{log.entity_type} {log.entity_id?.slice(0, 8)}</TableCell>
-                      <TableCell className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</TableCell>
+                      <TableCell className="text-muted-foreground"><EthiopianDate date={log.created_at} /></TableCell>
                     </TableRow>
                   ))}
                   {logs.length === 0 && (

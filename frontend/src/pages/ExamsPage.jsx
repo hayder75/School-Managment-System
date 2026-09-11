@@ -5,6 +5,7 @@ import { useClasses } from "../hooks/useClasses";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeacherAssignments } from "../hooks/useTeachers";
 import { useExamGrades, useEnterGrades } from "../hooks/useGrades";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -249,7 +250,7 @@ export default function ExamsPage() {
                         ) : null}
                       </TableCell>
                       <TableCell>{exam.subject_name}</TableCell>
-                      <TableCell>{exam.date ? (!isNaN(new Date(exam.date).getTime()) ? new Date(exam.date).toLocaleDateString() : "—") : "—"}</TableCell>
+                      <TableCell><EthiopianDate date={exam.date} /></TableCell>
                       <TableCell>{exam.total_marks || "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">

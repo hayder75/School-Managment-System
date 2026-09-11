@@ -1,4 +1,5 @@
 import { StudentAvatar } from "../components/ui/StudentAvatar";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
@@ -285,7 +286,7 @@ export default function StudentDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-sm">Enrollment</CardTitle></CardHeader>
           <CardContent className="space-y-1 text-sm">
-            <p><span className="text-muted-foreground">Enrolled:</span> {student.enrollment_date ? (!isNaN(new Date(student.enrollment_date).getTime()) ? new Date(student.enrollment_date).toLocaleDateString() : "—") : "—"}</p>
+            <p><span className="text-muted-foreground">Enrolled:</span> <EthiopianDate date={student.enrollment_date} /></p>
             <p><span className="text-muted-foreground">Student #:</span> {student.student_number || "—"}</p>
             <p><span className="text-muted-foreground">Phone:</span> {student.phone || student.emergency_contact || "—"}</p>
           </CardContent>
@@ -304,7 +305,7 @@ export default function StudentDetailPage() {
           <CardContent className="text-sm space-y-1 [&_p]:break-words">
             <p><span className="text-muted-foreground">Full Name:</span> {student.first_name} {student.father_name || ""} {student.grandfather_name || ""} {student.last_name}</p>
             <p><span className="text-muted-foreground">Mother's Name:</span> {student.mother_name || "—"}</p>
-            <p><span className="text-muted-foreground">DOB:</span> {student.date_of_birth ? (!isNaN(new Date(student.date_of_birth).getTime()) ? new Date(student.date_of_birth).toLocaleDateString() : "—") : "—"}</p>
+            <p><span className="text-muted-foreground">DOB:</span> <EthiopianDate date={student.date_of_birth} /></p>
             <p><span className="text-muted-foreground">Gender:</span> {student.gender || "—"}</p>
             <p><span className="text-muted-foreground">Nationality:</span> {student.nationality || "—"}</p>
             <p><span className="text-muted-foreground">Country of Birth:</span> {student.country_of_birth || "—"}</p>
@@ -564,7 +565,7 @@ function HistoryTab({ history }) {
                   <p className="text-sm">
                     {h.from_status || "—"} <span className="text-muted-foreground">→</span> {h.to_status}
                   </p>
-                  <p className="text-xs text-muted-foreground">{!isNaN(new Date(h.created_at).getTime()) ? new Date(h.created_at).toLocaleDateString() : "—"}</p>
+                  <p className="text-xs text-muted-foreground"><EthiopianDate date={h.created_at} /></p>
                 </div>
               </div>
             ))}

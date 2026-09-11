@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { StudentAvatar } from "../components/ui/StudentAvatar";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { usePayments, useCreateBulkPayments, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
 import { useStudents } from "../hooks/useStudents";
@@ -530,7 +531,7 @@ export default function PaymentsPage() {
                     <TableCell>{c.transaction_count}</TableCell>
                     <TableCell>{c.total.toLocaleString()}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {c.first_paid_date ? `${new Date(c.first_paid_date).toLocaleDateString()} – ${new Date(c.last_paid_date).toLocaleDateString()}` : "—"}
+                      {c.first_paid_date ? <><EthiopianDate date={c.first_paid_date} showGregorian={false} /> – <EthiopianDate date={c.last_paid_date} showGregorian={false} /></> : "—"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -688,7 +689,7 @@ export default function PaymentsPage() {
                     <tbody>
                       {groupedPayments.map((g) => {
                         const key = `${g.student_id}::${g.dateKey}`;
-                        const day = g.dateKey ? new Date(g.dateKey + "T00:00:00").toLocaleDateString() : "—";
+                        const day = g.dateKey ? <EthiopianDate date={g.dateKey} /> : "—";
                         const avatar = <StudentAvatar student={{ user_id: g.student_id, first_name: g.first_name, last_name: g.last_name }} className="w-8 h-8" />;
                         const caption = (p) => p.collector_first_name ? `${p.collector_first_name} ${p.collector_last_name}` : "—";
 

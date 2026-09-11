@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useExpenses, useCreateExpense, useDeleteExpense, useExpenseTotals } from "../hooks/useExpenses";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -146,7 +147,7 @@ export default function ExpensesPage() {
                       <TableCell>{exp.description}</TableCell>
                       <TableCell>{parseFloat(exp.amount || 0).toLocaleString()}</TableCell>
                       <TableCell>{exp.paid_to || "—"}</TableCell>
-                      <TableCell>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell>{exp.expense_date ? <EthiopianDate date={exp.expense_date} /> : "—"}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => deleteExpense.mutate(exp.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
