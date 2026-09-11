@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import {
-  ShieldCheck, UserX, CalendarClock, Plus, Trash2, Users, Sun, Moon,
+  ShieldCheck, UserX, CalendarClock, Plus, Trash2, Users, Sun, Moon, X,
 } from "lucide-react";
 
 const POSTS = ["Main Gate", "KG Gate", "Admin Block", "Playground", "Dormitory"];

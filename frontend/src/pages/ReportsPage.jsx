@@ -1130,6 +1130,175 @@ const RUBRIC_LABELS = {
   rubAnswerKey: "Answer key completeness",
 };
 
+// ── Shift coordinator reports ──
+
+function ShiftReportsTab() {
+  const { data: reportData, isLoading: loadingReport } = useShiftReports();
+  const { data: subsData, isLoading: loadingSubs } = useSubstitutions();
+  const report = reportData?.data || {};
+  const subs = subsData?.data || [];
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+        <StatCard title="Total Substitutions" value={report.totalSubstitutions || 0} />
+        <StatCard title="Active Guard Shifts (today)" value={report.activeGuardShifts || 0} />
+      </div>
+
+      {!loadingReport && report.topSubstitutes?.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Top Substitutes</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow><TableHead>Teacher</TableHead><TableHead>Covers</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {report.topSubstitutes.map((s) => (
+                  <TableRow key={s.id}><TableCell className="font-medium">{s.teacher_name}</TableCell><TableCell>{s.coverage_count}</TableCell></TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold">Substitutions</h3>
+        {loadingSubs ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : subs.length === 0 ? (
+          <p className="text-muted-foreground">No substitutions yet</p>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead><TableHead>Period</TableHead><TableHead>Original</TableHead>
+                    <TableHead>Substitute</TableHead><TableHead>Reason</TableHead><TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {subs.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell><EthiopianDate date={s.date} /></TableCell>
+                      <TableCell>{s.period_name}</TableCell>
+                      <TableCell>{s.original_teacher_name}</TableCell>
+                      <TableCell>{s.substitute_teacher_name}</TableCell>
+                      <TableCell>{s.reason || "—"}</TableCell>
+                      <TableCell><Badge variant="outline">{s.status}</Badge></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Security reports ──
+
+function SecurityReportsTab() {
+  const { data: visitorsData, isLoading: loadingVisitors } = useVisitors();
+  const { data: passesData, isLoading: loadingPasses } = useGatePasses();
+  const { data: incidentsData, isLoading: loadingIncidents } = useIncidents();
+  const visitors = visitorsData?.data || [];
+  const passes = passesData?.data || [];
+  const incidents = incidentsData?.data || [];
+
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-4 md:grid-cols-3 sm:grid-cols-3">
+        <StatCard title="Visitors" value={visitors.length} />
+        <StatCard title="Gate Passes" value={passes.length} />
+        <StatCard title="Incidents" value={incidents.length} color="text-red-600" />
+      </div>
+
+      <ReportTable title="Visitor Log" loading={loadingVisitors} rows={visitors} empty="No visitor records"
+        cols={[["visitor_name", "Visitor"], ["person_visited", "Visiting"], ["badge_number", "Badge"]]}
+        dateCol="time_in" />
+
+      <ReportTable title="Student Gate Passes" loading={loadingPasses} rows={passes} empty="No gate passes"
+        cols={[["student_first_name", "First name"], ["student_last_name", "Last name"], ["student_code", "Student #"], ["pass_code", "Pass code"], ["status", "Status"]]}
+        dateCol="departure_date" />
+
+      <ReportTable title="Security Incidents" loading={loadingIncidents} rows={incidents} empty="No incidents"
+        cols={[["title", "Title"], ["location", "Location"], ["severity", "Severity"], ["status", "Status"]]}
+        dateCol="created_at" />
+    </div>
+  );
+}
+
+// ── Facilities reports ──
+
+function FacilitiesReportsTab() {
+  const { data: maintData, isLoading: loadingMaint } = useMaintenance();
+  const { data: purchasesData, isLoading: loadingPurchases } = usePurchases();
+  const { data: summaryData } = useMaintenanceSummary();
+  const maint = maintData?.data || [];
+  const purchases = purchasesData?.data || [];
+  const summary = summaryData?.data || {};
+
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+        <StatCard title="Open" value={summary.open || 0} />
+        <StatCard title="In Progress" value={summary.in_progress || 0} color="text-yellow-600" />
+        <StatCard title="Completed" value={summary.completed || 0} color="text-green-600" />
+        <StatCard title="Total Spent" value={Number(summary.total_spent || 0).toLocaleString()} color="text-red-600" />
+      </div>
+
+      <ReportTable title="Maintenance Requests" loading={loadingMaint} rows={maint} empty="No maintenance requests"
+        cols={[["title", "Title"], ["location", "Location"], ["category", "Category"], ["priority", "Priority"], ["status", "Status"]]}
+        dateCol="created_at" />
+
+      <ReportTable title="Purchase Requests" loading={loadingPurchases} rows={purchases} empty="No purchase requests"
+        cols={[["item_name", "Item"], ["quantity", "Qty"], ["estimated_cost", "Est. Cost"], ["status", "Status"]]}
+        dateCol="created_at" />
+    </div>
+  );
+}
+
+// Generic report table used by the security/facilities tabs.
+function ReportTable({ title, loading, rows, empty, cols, dateCol }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-lg font-semibold">{title}</h3>
+      {loading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-muted-foreground">{empty}</p>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto -mx-px">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {cols.map(([key, label]) => <TableHead key={key}>{label}</TableHead>)}
+                    {dateCol && <TableHead>Date</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r) => (
+                    <TableRow key={r.id}>
+                      {cols.map(([key, label]) => (
+                        <TableCell key={key}>{key === "status" || key === "severity" || key === "priority" ? <Badge variant="outline">{r[key] || "—"}</Badge> : (r[key] ?? "—")}</TableCell>
+                      ))}
+                      {dateCol && <TableCell><EthiopianDate date={r[dateCol]} /></TableCell>}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const { t } = useI18n();
