@@ -10,6 +10,7 @@ import { usePaymentSummary, usePayments, useMyFees, useCollectionReport, usePaym
 import { useExpenseTotals } from "../hooks/useExpenses";
 import { usePayroll } from "../hooks/usePayroll";
 import { useStudentGradeSummary, useStudentAttendanceSummary, useMyStudents, useMyClassSummary, useStaffDirectory, useEnrollmentReport, useHeadcount, usePayrollSummary, useRevenueVsExpenses, useTeacherWorkload } from "../hooks/useReports";
+import { useI18n } from "../i18n/I18nContext";
 import { useMaintenance, useMaintenanceSummary, usePurchases } from "../hooks/useRoleModules";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { BarChart, DonutChart, GroupedBarChart } from "../components/ui/charts";
@@ -120,6 +121,7 @@ function SuperAdminDashboard() {
 }
 
 function AdminDashboard() {
+  const { t } = useI18n();
   const { data: studentsData } = useStudents({ limit: 1 });
   const { data: classesData } = useClasses({ limit: 1 });
   const { data: subjectsData } = useSubjects({ limit: 1 });
@@ -176,38 +178,38 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-3xl font-bold">Dashboard</h1><p className="text-muted-foreground">School overview</p></div>
+      <div><h1 className="text-3xl font-bold">{t("Dashboard")}</h1><p className="text-muted-foreground">{t("School overview")}</p></div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard title="Students" value={studentsData?.meta?.total || "—"} icon={GraduationCap} sub={`${enrollmentData?.data?.total_enrolled ?? "—"} enrolled`} />
-        <StatCard title="Teachers" value={teachersData?.meta?.total || "—"} icon={Users} sub={`${workloadData?.data?.workload?.length || 0} with assignments`} />
-        <StatCard title="Classes" value={classesData?.meta?.total || "—"} icon={BookOpen} />
-        <StatCard title="Subjects" value={subjectsData?.meta?.total || "—"} icon={School} />
+        <StatCard title={t("Students")} value={studentsData?.meta?.total || "—"} icon={GraduationCap} sub={`${enrollmentData?.data?.total_enrolled ?? "—"} ${t("enrolled")}`} />
+        <StatCard title={t("Teachers")} value={teachersData?.meta?.total || "—"} icon={Users} sub={`${workloadData?.data?.workload?.length || 0} ${t("with assignments")}`} />
+        <StatCard title={t("Classes")} value={classesData?.meta?.total || "—"} icon={BookOpen} />
+        <StatCard title={t("Subjects")} value={subjectsData?.meta?.total || "—"} icon={School} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard title="Fees Collected" value={totalCollected ? `$${totalCollected.toLocaleString()}` : "—"} icon={DollarSign} color="text-green-600" />
-        <StatCard title="Total Expenses" value={totalExpenses ? `$${totalExpenses.toLocaleString()}` : "—"} icon={TrendingDown} color="text-red-600" />
-        <StatCard title="Net Balance" value={totalCollected ? `$${(totalCollected - totalExpenses).toLocaleString()}` : "—"} icon={BarChart3} color={totalCollected >= totalExpenses ? "text-green-600" : "text-red-600"} />
-        <StatCard title="Outstanding Fees" value={totalOutstanding ? `$${totalOutstanding.toLocaleString()}` : "$0"} icon={AlertTriangle} color={totalOutstanding > 0 ? "text-yellow-600" : "text-green-600"} />
+        <StatCard title={t("Fees Collected")} value={totalCollected ? `${totalCollected.toLocaleString()}` : "—"} icon={DollarSign} color="text-green-600" />
+        <StatCard title={t("Total Expenses")} value={totalExpenses ? `${totalExpenses.toLocaleString()}` : "—"} icon={TrendingDown} color="text-red-600" />
+        <StatCard title={t("Net Balance")} value={totalCollected ? `${(totalCollected - totalExpenses).toLocaleString()}` : "—"} icon={BarChart3} color={totalCollected >= totalExpenses ? "text-green-600" : "text-red-600"} />
+        <StatCard title={t("Outstanding Fees")} value={totalOutstanding ? `${totalOutstanding.toLocaleString()}` : "0"} icon={AlertTriangle} color={totalOutstanding > 0 ? "text-yellow-600" : "text-green-600"} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
-          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Students by Level</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4" /> {t("Students by Level")}</CardTitle></CardHeader>
           <CardContent><BarChart data={levelBars} height={200} /></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> Gender Distribution</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> {t("Gender Distribution")}</CardTitle></CardHeader>
           <CardContent><DonutChart total={enrollmentData?.data?.total_enrolled || 0} segments={genderSegments} /></CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
-          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4" /> Staff by Role</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4" /> {t("Staff by Role")}</CardTitle></CardHeader>
           <CardContent><DonutChart total={staffTotal} segments={staffSegments} /></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" /> Payroll by Month ({year})</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" /> {t("Payroll by Month")} ({year})</CardTitle></CardHeader>
           <CardContent><BarChart data={payrollBars} height={200} color="#6a8fd4" /></CardContent>
         </Card>
       </div>
@@ -216,28 +218,28 @@ function AdminDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Revenue vs Expenses ({year})</span>
+              <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> {t("Revenue vs Expenses")} ({year})</span>
               <span className="flex items-center gap-3 text-[11px] font-normal text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#2c5a5e" }} /> Revenue</span>
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#d47a6a" }} /> Expenses</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#2c5a5e" }} /> {t("Revenue")}</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#d47a6a" }} /> {t("Expenses")}</span>
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <GroupedBarChart data={revenueMonths} series={[{ key: "revenue", label: "Revenue", color: "#2c5a5e" }, { key: "expenses", label: "Expenses", color: "#d47a6a" }]} height={200} />
+            <GroupedBarChart data={revenueMonths} series={[{ key: "revenue", label: t("Revenue"), color: "#2c5a5e" }, { key: "expenses", label: t("Expenses"), color: "#d47a6a" }]} height={200} />
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BookOpen className="h-4 w-4" /> Top Teacher Workload</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BookOpen className="h-4 w-4" /> {t("Top Teacher Workload")}</CardTitle></CardHeader>
           <CardContent>
             {workloadTop.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No teaching assignments yet</p>
+              <p className="text-muted-foreground text-sm">{t("No teaching assignments yet")}</p>
             ) : (
               <div className="space-y-2">
                 {workloadTop.map((w) => (
                   <div key={w.teacher_id} className="flex items-center justify-between p-2 border rounded text-sm">
                     <span className="font-medium">{w.first_name} {w.last_name}</span>
-                    <span className="text-xs text-muted-foreground">{w.total_assignments} class-subject assignments</span>
+                    <span className="text-xs text-muted-foreground">{w.total_assignments} {t("class-subject assignments")}</span>
                   </div>
                 ))}
               </div>

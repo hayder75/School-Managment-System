@@ -1159,7 +1159,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Reports</h1>
+        <h1 className="text-3xl font-bold">{t("Reports")}</h1>
         <p className="text-muted-foreground">Comprehensive reports and analytics for your school</p>
       </div>
       <Tabs defaultValue={tabs[0]?.value}>

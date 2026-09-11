@@ -11,9 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import { useI18n } from "../i18n/I18nContext";
 import { Plus, Trash2, DollarSign } from "lucide-react";
 
 export default function FeeStructuresPage() {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useFeeStructures({ page, limit: 20 });
   const { data: summaryData } = usePaymentSummary();
@@ -50,37 +52,37 @@ export default function FeeStructuresPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Fee Structures</h1>
-          <p className="text-muted-foreground">Manage school fees and charges</p>
+          <h1 className="text-3xl font-bold">{t("Fee Structures")}</h1>
+          <p className="text-muted-foreground">{t("Manage school fees and charges")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Add Fee Structure</Button>
+            <Button><Plus className="h-4 w-4 mr-2" /> {t("Add Fee Structure")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Create Fee Structure</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Create Fee Structure")}</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
-                <Label>Fee Name</Label>
-                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Tuition Fee" />
+                <Label>{t("Fee Name")}</Label>
+                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("Tuition Fee")} />
               </div>
               <FieldError errors={fieldErrors} field="name" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Amount</Label>
+                  <Label>{t("Amount")}</Label>
                   <Input required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
                 </div>
                 <FieldError errors={fieldErrors} field="amount" />
                 <div className="space-y-2">
-                  <Label>Frequency</Label>
+                  <Label>{t("Frequency")}</Label>
                   <Select value={form.frequency} onValueChange={(v) => setForm({ ...form, frequency: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="termly">Termly</SelectItem>
-                      <SelectItem value="yearly">Yearly</SelectItem>
-                      <SelectItem value="one-time">One Time</SelectItem>
+                      <SelectItem value="monthly">{t("Monthly")}</SelectItem>
+                      <SelectItem value="termly">{t("Termly")}</SelectItem>
+                      <SelectItem value="yearly">{t("Yearly")}</SelectItem>
+                      <SelectItem value="one-time">{t("One Time")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -88,9 +90,9 @@ export default function FeeStructuresPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Class (optional)</Label>
+                  <Label>{t("Class (optional)")}</Label>
                   <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="All classes" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("All classes")} /></SelectTrigger>
                     <SelectContent>
                     {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
@@ -98,12 +100,12 @@ export default function FeeStructuresPage() {
               </div>
               <FieldError errors={fieldErrors} field="class_id" />
               <div className="space-y-2">
-                <Label>Late Fee</Label>
+                <Label>{t("Late Fee")}</Label>
                 <Input type="number" value={form.late_fee} onChange={(e) => setForm({ ...form, late_fee: e.target.value })} />
               </div>
               <FieldError errors={fieldErrors} field="late_fee" />
               </div>
-              <Button type="submit" className="w-full">Create Fee Structure</Button>
+              <Button type="submit" className="w-full">{t("Create Fee Structure")}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -111,19 +113,19 @@ export default function FeeStructuresPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Collected</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Total Collected")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5 text-green-500" />{summary.total_collected?.toLocaleString() || 0}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Outstanding</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Outstanding")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5 text-red-500" />{summary.outstanding?.toLocaleString() || 0}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Active Fees</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Active Fees")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fees.filter((f) => f.is_active).length}</div>
           </CardContent>
@@ -131,20 +133,20 @@ export default function FeeStructuresPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Fee Structures</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("Fee Structures")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Late Fee</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("Name")}</TableHead>
+                    <TableHead>{t("Amount")}</TableHead>
+                    <TableHead>{t("Frequency")}</TableHead>
+                    <TableHead>{t("Late Fee")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>

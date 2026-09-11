@@ -1,3 +1,5 @@
+import { amPhrases } from "./phrases.js";
+
 export const en = {
   common: { signIn: "Sign in", signOut: "Sign out", loading: "Loading...", save: "Save", cancel: "Cancel", delete: "Delete", edit: "Edit", create: "Create", search: "Search", noData: "No data", back: "Back" },
   nav: {
@@ -151,18 +153,6 @@ export const en = {
     shifts: "Duty & Substitution Reports",
     securityRep: "Security Reports",
     facilities: "Facilities Reports",
-  },
-  rep: {
-    quality: "የጥራት ሪፖርቶች",
-    school: "የትምህርት ቤት ሪፖርቶች",
-    semester: "የሴሚስተር ውጤቶች",
-    myReports: "የእኔ ሪፖርቶች",
-    finance: "የፋይናንስ ሪፖርቶች",
-    collection: "የገቢ አሰባሰብ ሪፖርት",
-    hr: "የሰው ሀብት ሪፖርቶች",
-    shifts: "የፈረቃ እና መተኪያ ሪፖርቶች",
-    securityRep: "የጥበቃ ሪፖርቶች",
-    facilities: "የጥገና ሪፖርቶች",
   },
   workspace: {
     title: "Teacher Workspace",
@@ -470,6 +460,18 @@ export const am = {
     reportByType: "በዓይነት የቀረቡ",
     reportSubmittedCol: "የቀረበ",
   },
+  rep: {
+    quality: "የጥራት ሪፖርቶች",
+    school: "የትምህርት ቤት ሪፖርቶች",
+    semester: "የሴሚስተር ውጤቶች",
+    myReports: "የእኔ ሪፖርቶች",
+    finance: "የፋይናንስ ሪፖርቶች",
+    collection: "የገቢ አሰባሰብ ሪፖርት",
+    hr: "የሰው ሀብት ሪፖርቶች",
+    shifts: "የፈረቃ እና መተኪያ ሪፖርቶች",
+    securityRep: "የጥበቃ ሪፖርቶች",
+    facilities: "የጥገና ሪፖርቶች",
+  },
   workspace: {
     title: "የመምህር ሥራ ቦታ",
     subtitle: "ፈተናዎችን እና ማስታወሻዎችን ያቅርቡ",
@@ -636,4 +638,5 @@ export const am = {
     san_warning: "ማስጠንቀቂያ", san_parent_conference: "የወላጅ ስብሰባ", san_detention: "ማቆየት",
     san_suspension: "ከትምህርት መንቀጥ", san_expulsion: "ማባረር",
   },
+  phrases: amPhrases,
 };

@@ -7,6 +7,7 @@ import { useTeacherAssignments } from "../hooks/useTeachers";
 import { useExamGrades, useEnterGrades } from "../hooks/useGrades";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
+import { useI18n } from "../i18n/I18nContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -82,6 +83,7 @@ function GradeEntry({ exam }) {
 }
 
 export default function ExamsPage() {
+  const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "teacher";
   const [page, setPage] = useState(1);
@@ -131,41 +133,41 @@ export default function ExamsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Exams & Grades</h1>
-          <p className="text-muted-foreground">Create exams and enter grades</p>
+          <h1 className="text-3xl font-bold">{t("Exams & Grades")}</h1>
+          <p className="text-muted-foreground">{t("Create exams and enter grades")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> New Exam</Button>
+            <Button><Plus className="h-4 w-4 mr-2" /> {t("New Exam")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Create Exam</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Create Exam")}</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label>{t("Name")}</Label>
                 <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Type</Label>
+                  <Label>{t("Type")}</Label>
                   <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="quiz">Quiz</SelectItem>
-                      <SelectItem value="midterm">Midterm</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
-                      <SelectItem value="assignment">Assignment</SelectItem>
-                      <SelectItem value="exam">Exam</SelectItem>
+                      <SelectItem value="quiz">{t("Quiz")}</SelectItem>
+                      <SelectItem value="midterm">{t("Midterm")}</SelectItem>
+                      <SelectItem value="final">{t("Final")}</SelectItem>
+                      <SelectItem value="assignment">{t("Assignment")}</SelectItem>
+                      <SelectItem value="exam">{t("Exam")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Date</Label>
+                  <Label>{t("Date")}</Label>
                   <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Classes (select one or more)</Label>
+                <Label>{t("Classes (select one or more)")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {classes.map((c) => {
                     const active = form.class_ids.includes(c.id);
@@ -182,60 +184,60 @@ export default function ExamsPage() {
                   })}
                 </div>
                 {form.class_ids.length > 1 && (
-                  <p className="text-xs text-muted-foreground">Exam will be created for {form.class_ids.length} classes and notify all their students.</p>
+                  <p className="text-xs text-muted-foreground">{t("Exam will be created for these classes and notify all their students.")}</p>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Subject</Label>
+                  <Label>{t("Subject")}</Label>
                   <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("Select subject")} /></SelectTrigger>
                     <SelectContent>
                       {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Date</Label>
+                  <Label>{t("Date")}</Label>
                   <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Total Marks</Label>
+                  <Label>{t("Total Marks")}</Label>
                   <Input type="number" value={form.total_marks} onChange={(e) => setForm({ ...form, total_marks: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Pass Marks</Label>
+                  <Label>{t("Pass Marks")}</Label>
                   <Input type="number" value={form.pass_marks} onChange={(e) => setForm({ ...form, pass_marks: e.target.value })} />
                 </div>
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.mark_test_day} onChange={(e) => setForm({ ...form, mark_test_day: e.target.checked })} />
-                Mark this day as a <span className="font-semibold">test class</span> in the timetable
+                {t("Mark this day as a test class in the timetable")}
               </label>
-              <Button type="submit" className="w-full" disabled={form.class_ids.length === 0}>Create Exam</Button>
+              <Button type="submit" className="w-full" disabled={form.class_ids.length === 0}>{t("Create Exam")}</Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Exams</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("Exams")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Marks</TableHead>
+                    <TableHead>{t("Name")}</TableHead>
+                    <TableHead>{t("Type")}</TableHead>
+                    <TableHead>{t("Class")}</TableHead>
+                    <TableHead>{t("Subject")}</TableHead>
+                    <TableHead>{t("Date")}</TableHead>
+                    <TableHead>{t("Marks")}</TableHead>
                     <TableHead className="w-24"></TableHead>
                   </TableRow>
                 </TableHeader>

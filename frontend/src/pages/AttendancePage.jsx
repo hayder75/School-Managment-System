@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import AdminAttendancePage from "./AdminAttendancePage";
+import { useI18n } from "../i18n/I18nContext";
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Present", active: "bg-emerald-500 text-white border-emerald-500", idle: "text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
@@ -30,6 +31,7 @@ export default function AttendancePage() {
 }
 
 function StatusButtons({ value, onChange }) {
+  const { t } = useI18n();
   return (
     <div className="flex gap-1">
       {STATUS_OPTIONS.map((opt) => {
@@ -41,7 +43,7 @@ function StatusButtons({ value, onChange }) {
             onClick={() => onChange(opt.value)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${selected ? opt.active : opt.idle}`}
           >
-            {opt.label}
+            {t(opt.label)}
           </button>
         );
       })}
@@ -50,6 +52,7 @@ function StatusButtons({ value, onChange }) {
 }
 
 function TeacherAttendanceView() {
+  const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "teacher";
   const today = new Date().toISOString().split("T")[0];
@@ -114,16 +117,16 @@ function TeacherAttendanceView() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold">Attendance</h1>
-        <p className="text-muted-foreground">Mark daily attendance and track your classes at a glance</p>
+        <h1 className="text-3xl font-bold">{t("Attendance")}</h1>
+        <p className="text-muted-foreground">{t("Mark daily attendance and track your classes at a glance")}</p>
       </div>
 
       {/* Marking controls */}
       <div className="flex flex-wrap gap-4 items-end">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Class</label>
+          <label className="text-sm font-medium">{t("Class")}</label>
           <Select value={classId} onValueChange={setClassId}>
-            <SelectTrigger className="w-64"><SelectValue placeholder="All my classes" /></SelectTrigger>
+            <SelectTrigger className="w-64"><SelectValue placeholder={t("All my classes")} /></SelectTrigger>
             <SelectContent>
               {classes.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -132,17 +135,17 @@ function TeacherAttendanceView() {
           </Select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Date</label>
+          <label className="text-sm font-medium">{t("Date")}</label>
           <EthiopianDateInput className="w-56" value={date} onChange={setDate} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Range</label>
+          <label className="text-sm font-medium">{t("Range")}</label>
           <Select value={String(rangeWeeks)} onValueChange={(v) => setRangeWeeks(Number(v))}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">1 week</SelectItem>
-              <SelectItem value="4">4 weeks</SelectItem>
-              <SelectItem value="12">12 weeks</SelectItem>
+              <SelectItem value="1">{t("1 week")}</SelectItem>
+              <SelectItem value="4">{t("4 weeks")}</SelectItem>
+              <SelectItem value="12">{t("12 weeks")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -152,28 +155,28 @@ function TeacherAttendanceView() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6 text-center">
-            <p className="text-xs font-medium text-emerald-600 uppercase">Present</p>
+            <p className="text-xs font-medium text-emerald-600 uppercase">{t("Present")}</p>
             <p className="text-2xl font-bold text-emerald-600">{summary.present || 0}</p>
             <p className="text-xs text-muted-foreground">{summary.present_rate || 0}%</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <p className="text-xs font-medium text-rose-600 uppercase">Absent</p>
+            <p className="text-xs font-medium text-rose-600 uppercase">{t("Absent")}</p>
             <p className="text-2xl font-bold text-rose-600">{summary.absent || 0}</p>
             <p className="text-xs text-muted-foreground">{summary.absent_rate || 0}%</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <p className="text-xs font-medium text-amber-600 uppercase">Late</p>
+            <p className="text-xs font-medium text-amber-600 uppercase">{t("Late")}</p>
             <p className="text-2xl font-bold text-amber-600">{summary.late || 0}</p>
             <p className="text-xs text-muted-foreground">{summary.late_rate || 0}%</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <p className="text-xs font-medium text-blue-600 uppercase">Excused</p>
+            <p className="text-xs font-medium text-blue-600 uppercase">{t("Excused")}</p>
             <p className="text-2xl font-bold text-blue-600">{summary.excused || 0}</p>
             <p className="text-xs text-muted-foreground">{summary.excused_rate || 0}%</p>
           </CardContent>
@@ -185,7 +188,7 @@ function TeacherAttendanceView() {
         focusClass && (
           <Card>
             <CardHeader>
-              <CardTitle>{focusClass.class_name} — Overview</CardTitle>
+              <CardTitle>{focusClass.class_name} — {t("Overview")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
@@ -195,19 +198,19 @@ function TeacherAttendanceView() {
                 <div className="bg-blue-500" style={{ width: `${(focusClass.excused_rate) || 0}%` }} />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span className="text-emerald-600">Present {focusClass.present}</span>
-                <span className="text-amber-600">Late {focusClass.late}</span>
-                <span className="text-rose-600">Absent {focusClass.absent}</span>
-                <span className="text-blue-600">Excused {focusClass.excused}</span>
+                <span className="text-emerald-600">{t("Present")} {focusClass.present}</span>
+                <span className="text-amber-600">{t("Late")} {focusClass.late}</span>
+                <span className="text-rose-600">{t("Absent")} {focusClass.absent}</span>
+                <span className="text-blue-600">{t("Excused")} {focusClass.excused}</span>
               </div>
             </CardContent>
           </Card>
         )
       ) : (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Your Classes</h2>
+          <h2 className="text-lg font-semibold mb-3">{t("Your Classes")}</h2>
           {overview.classes?.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No attendance recorded for your classes yet.</p>
+            <p className="text-muted-foreground text-sm">{t("No attendance recorded for your classes yet.")}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {overview.classes?.map((c) => (
@@ -223,9 +226,9 @@ function TeacherAttendanceView() {
                       <div className="bg-blue-500" style={{ width: `${(c.excused_rate) || 0}%` }} />
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span className="text-emerald-600">Present {c.present}</span>
-                      <span className="text-amber-600">Late {c.late}</span>
-                      <span className="text-rose-600">Absent {c.absent}</span>
+                      <span className="text-emerald-600">{t("Present")} {c.present}</span>
+                      <span className="text-amber-600">{t("Late")} {c.late}</span>
+                      <span className="text-rose-600">{t("Absent")} {c.absent}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -239,17 +242,17 @@ function TeacherAttendanceView() {
       {overview.top_absent?.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>{classId ? `${focusClass?.class_name || "Class"} — Students Missing Most` : "Students Missing Class Most"}</CardTitle>
+            <CardTitle>{classId ? `${focusClass?.class_name || t("Class")} — ${t("Students Missing Most")}` : t("Students Missing Class Most")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Absent</TableHead>
-                  <TableHead>Late</TableHead>
-                  <TableHead>Rate</TableHead>
+                  <TableHead>{t("Student")}</TableHead>
+                  <TableHead>{t("Class")}</TableHead>
+                  <TableHead>{t("Absent")}</TableHead>
+                  <TableHead>{t("Late")}</TableHead>
+                  <TableHead>{t("Rate")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -276,25 +279,25 @@ function TeacherAttendanceView() {
       {classId && (
         <Card className="max-md:order-first">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Mark Attendance</CardTitle>
+            <CardTitle>{t("Mark Attendance")}</CardTitle>
             {displayRecords.length > 0 && (
               <Button onClick={handleSave} disabled={markAttendance.isPending}>
-                {markAttendance.isPending ? "Saving..." : "Save Attendance"}
+                {markAttendance.isPending ? t("Saving...") : t("Save Attendance")}
               </Button>
             )}
           </CardHeader>
           <CardContent>
             {loadingAttendance ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <p className="text-muted-foreground">{t("Loading...")}</p>
             ) : displayRecords.length === 0 ? (
-              <p className="text-muted-foreground">No students found</p>
+              <p className="text-muted-foreground">{t("No students found")}</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Student #</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("Name")}</TableHead>
+                    <TableHead>{t("Student #")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

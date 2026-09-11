@@ -4,6 +4,7 @@ import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
+import { useI18n } from "../i18n/I18nContext";
 import { usePayments, useCreateBulkPayments, useUpdatePayment, useDeletePayment, usePaymentSummary, useStudentLedger } from "../hooks/useFees";
 import { useFeeStructures } from "../hooks/useFees";
 import { useStudents } from "../hooks/useStudents";
@@ -19,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, DollarSign, Download, Pencil, RotateCcw, Trash2, Search, X, Check, Users, ChevronDown, ChevronRight } from "lucide-react";
 
 export default function PaymentsPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
@@ -239,55 +241,55 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Payments</h1>
-          <p className="text-muted-foreground">Record and track student payments</p>
+          <h1 className="text-3xl font-bold">{t("Payments")}</h1>
+          <p className="text-muted-foreground">{t("Record and track student payments")}</p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditPayment(null); setSelectedStudent(null); setStudentSearch(""); setSearchOpen(false); resetBulk(); } }}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Record Payment</Button>
+            <Button><Plus className="h-4 w-4 mr-2" /> {t("Record Payment")}</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-3xl">
-            <DialogHeader><DialogTitle>{editPayment ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editPayment ? t("Edit Payment") : t("Record Payment")}</DialogTitle></DialogHeader>
             <form onSubmit={editPayment ? handleEdit : handleBulkCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
 
               {editPayment ? (
                 <>
                   <div className="space-y-2">
-                    <Label>Student</Label>
+                    <Label>{t("Student")}</Label>
                     <Input value={`${selectedStudent?.first_name || ""} ${selectedStudent?.last_name || ""}`} disabled />
                   </div>
                   <FieldError errors={fieldErrors} field="student_id" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Amount Paid</Label>
+                      <Label>{t("Amount Paid")}</Label>
                       <Input required type="number" value={form.amount_paid} onChange={(e) => setForm({ ...form, amount_paid: e.target.value })} />
                       <FieldError errors={fieldErrors} field="amount_paid" />
                     </div>
                     <div className="space-y-2">
-                      <Label>Method</Label>
+                      <Label>{t("Method")}</Label>
                       <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="bank">Bank Transfer</SelectItem>
-                          <SelectItem value="card">Card</SelectItem>
-                          <SelectItem value="mobile">Mobile Money</SelectItem>
+                          <SelectItem value="cash">{t("Cash")}</SelectItem>
+                          <SelectItem value="bank">{t("Bank Transfer")}</SelectItem>
+                          <SelectItem value="card">{t("Card")}</SelectItem>
+                          <SelectItem value="mobile">{t("Mobile Money")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FieldError errors={fieldErrors} field="payment_method" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Remarks</Label>
+                    <Label>{t("Remarks")}</Label>
                     <Input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
                   </div>
-                  <Button type="submit" className="w-full">Save Changes</Button>
+                  <Button type="submit" className="w-full">{t("Save Changes")}</Button>
                 </>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> Students <span className="text-muted-foreground font-normal">(add one or more kids — e.g. siblings)</span></Label>
+                    <Label className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {t("Students")} <span className="text-muted-foreground font-normal">({t("add one or more kids — e.g. siblings")})</span></Label>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -299,7 +301,7 @@ export default function PaymentsPage() {
                         }}
                         onFocus={() => setSearchOpen(true)}
                         onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-                        placeholder="Search by name, student number, or guardian phone…"
+                        placeholder={t("Search by name, student number, or guardian phone…")}
                         className="pl-9 pr-9"
                       />
                       {studentSearch && (
@@ -314,7 +316,7 @@ export default function PaymentsPage() {
                       {searchOpen && (
                         <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-md border bg-background shadow-lg">
                           {searching ? (
-                            <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                            <p className="px-3 py-2 text-sm text-muted-foreground">{t("Searching…")}</p>
                           ) : studentSearch.trim() === "" ? (
                             <p className="px-3 py-2 text-sm text-muted-foreground">Type to search by name, number, or guardian phone</p>
                           ) : searchResults.length === 0 ? (
@@ -478,19 +480,19 @@ export default function PaymentsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Collected</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Total Collected")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5 text-green-500" />{summary.total_collected?.toLocaleString() || 0}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Outstanding</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Outstanding")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5 text-red-500" />{summary.outstanding?.toLocaleString() || 0}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Transactions</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Transactions")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{meta.total || 0}</div>
           </CardContent>
@@ -500,10 +502,10 @@ export default function PaymentsPage() {
       {summary.by_collector?.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Collected By</CardTitle>
+            <CardTitle>{t("Collected By")}</CardTitle>
             {filterCollectorId && (
               <Button variant="outline" size="sm" className="mt-2" onClick={() => { setFilterCollectorId(""); setPage(1); }}>
-                <X className="h-3 w-3 mr-1" /> Clear collector filter
+                <X className="h-3 w-3 mr-1" /> {t("Clear collector filter")}
               </Button>
             )}
           </CardHeader>
@@ -511,10 +513,10 @@ export default function PaymentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Collector</TableHead>
-                  <TableHead>Transactions</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Period</TableHead>
+                  <TableHead>{t("Collector")}</TableHead>
+                  <TableHead>{t("Transactions")}</TableHead>
+                  <TableHead>{t("Total")}</TableHead>
+                  <TableHead>{t("Period")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -544,7 +546,7 @@ export default function PaymentsPage() {
       {ledger.structures?.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Fee Statement — {ledger.student?.first_name} {ledger.student?.last_name} ({ledger.student?.student_number || "—"})</CardTitle>
+            <CardTitle>{t("Fee Statement")} — {ledger.student?.first_name} {ledger.student?.last_name} ({ledger.student?.student_number || "—"})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -592,7 +594,7 @@ export default function PaymentsPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <CardTitle>Payment History</CardTitle>
+            <CardTitle>{t("Payment History")}</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={filterMonth} onValueChange={(v) => { setFilterMonth(v === "all" ? "" : v); setPage(1); }}>
                 <SelectTrigger className="w-32"><SelectValue placeholder="Month" /></SelectTrigger>
@@ -672,18 +674,18 @@ export default function PaymentsPage() {
           ) : (
             <>
               {payments.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">No payments yet</div>
+                <div className="py-8 text-center text-muted-foreground">{t("No payments yet")}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/40 text-left">
-                        <th className="p-3 font-medium">Student</th>
-                        <th className="p-3 font-medium">Day</th>
-                        <th className="p-3 font-medium">Details</th>
-                        <th className="p-3 font-medium">Amount</th>
-                        <th className="p-3 font-medium">Status</th>
-                        <th className="p-3 font-medium text-right">Actions</th>
+                        <th className="p-3 font-medium">{t("Student")}</th>
+                        <th className="p-3 font-medium">{t("Day")}</th>
+                        <th className="p-3 font-medium">{t("Details")}</th>
+                        <th className="p-3 font-medium">{t("Amount")}</th>
+                        <th className="p-3 font-medium">{t("Status")}</th>
+                        <th className="p-3 font-medium text-right">{t("Actions")}</th>
                       </tr>
                     </thead>
                     <tbody>

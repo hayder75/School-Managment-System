@@ -4,6 +4,7 @@ import { extractApiErrors } from "../lib/form-utils";
 import { useExpenses, useCreateExpense, useDeleteExpense, useExpenseTotals } from "../hooks/useExpenses";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
+import { useI18n } from "../i18n/I18nContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -16,6 +17,7 @@ import { Plus, Trash2, TrendingDown } from "lucide-react";
 const CATEGORIES = ["Utilities", "Supplies", "Maintenance", "Salaries", "Transport", "Food", "Events", "Technology", "Other"];
 
 export default function ExpensesPage() {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useExpenses({ page, limit: 20 });
   const { data: totalsData } = useExpenseTotals();
@@ -51,21 +53,21 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Expenses</h1>
-          <p className="text-muted-foreground">Track school expenses</p>
+          <h1 className="text-3xl font-bold">{t("Expenses")}</h1>
+          <p className="text-muted-foreground">{t("Track school expenses")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Add Expense</Button>
+            <Button><Plus className="h-4 w-4 mr-2" /> {t("Add Expense")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add Expense</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Add Expense")}</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>{t("Category")}</Label>
                 <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("Select category")} /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
@@ -73,28 +75,28 @@ export default function ExpensesPage() {
               </div>
               <FieldError errors={fieldErrors} field="category" />
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label>{t("Description")}</Label>
                 <Input required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <FieldError errors={fieldErrors} field="description" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Amount</Label>
+                  <Label>{t("Amount")}</Label>
                   <Input required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
                 </div>
                 <FieldError errors={fieldErrors} field="amount" />
                 <div className="space-y-2">
-                  <Label>Date</Label>
+                  <Label>{t("Date")}</Label>
                   <EthiopianDateInput value={form.expense_date} onChange={(iso) => setForm({ ...form, expense_date: iso })} />
                 </div>
               </div>
               <FieldError errors={fieldErrors} field="expense_date" />
               <div className="space-y-2">
-                <Label>Paid To</Label>
-                <Input value={form.paid_to} onChange={(e) => setForm({ ...form, paid_to: e.target.value })} placeholder="Vendor name" />
+                <Label>{t("Paid To")}</Label>
+                <Input value={form.paid_to} onChange={(e) => setForm({ ...form, paid_to: e.target.value })} placeholder={t("Vendor name")} />
               </div>
               <FieldError errors={fieldErrors} field="paid_to" />
-              <Button type="submit" className="w-full">Add Expense</Button>
+              <Button type="submit" className="w-full">{t("Add Expense")}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -102,13 +104,13 @@ export default function ExpensesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Spent</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Total Spent")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-2"><TrendingDown className="h-5 w-5 text-red-500" />{totalSpent.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Categories</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Categories")}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1">
               {totals.slice(0, 5).map((t) => (
@@ -117,27 +119,27 @@ export default function ExpensesPage() {
                   <span className="font-medium">{parseFloat(t.total || 0).toLocaleString()}</span>
                 </div>
               ))}
-              {totals.length === 0 && <p className="text-sm text-muted-foreground">No expenses yet</p>}
+              {totals.length === 0 && <p className="text-sm text-muted-foreground">{t("No expenses yet")}</p>}
             </div>
           </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Expense List</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("Expense List")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Paid To</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>{t("Category")}</TableHead>
+                    <TableHead>{t("Description")}</TableHead>
+                    <TableHead>{t("Amount")}</TableHead>
+                    <TableHead>{t("Paid To")}</TableHead>
+                    <TableHead>{t("Date")}</TableHead>
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
