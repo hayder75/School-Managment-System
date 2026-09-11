@@ -165,8 +165,15 @@ async function listReconciliationBatches(req, res) {
 }
 
 async function createReconciliationBatch(req, res) {
-  const batch = await feeService.createReconciliationBatch(req.tenant.id, req.user.userId, req.body);
-  res.status(201).json({ success: true, data: batch });
+  try {
+    const batch = await feeService.createReconciliationBatch(req.tenant.id, req.user.userId, req.body);
+    res.status(201).json({ success: true, data: batch });
+  } catch (err) {
+    if (err.code === 'NOTHING_TO_RECONCILE') {
+      return res.status(400).json({ success: false, error: { code: 'NOTHING_TO_RECONCILE', message: 'No unlocked payments found for this date' } });
+    }
+    throw err;
+  }
 }
 
 async function getDefaultersAging(req, res) {

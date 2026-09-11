@@ -532,12 +532,18 @@ async function createReconciliationBatch(tenantId, userId, data) {
   const cashierId = data.cashierId || null;
 
   let paymentsQuery = db('payments')
-    .where({ tenant_id: tenantId, is_locked: false })
+    .where({ tenant_id: tenantId, reconciliation_locked: false })
     .whereRaw('DATE(paid_date) = ?', [batchDate]);
 
   if (cashierId) paymentsQuery = paymentsQuery.where('collected_by', cashierId);
 
   const payments = await paymentsQuery.select('*');
+
+  if (payments.length === 0) {
+    const err = new Error('NOTHING_TO_RECONCILE');
+    err.code = 'NOTHING_TO_RECONCILE';
+    throw err;
+  }
 
   let totalCash = 0;
   let totalTelebirr = 0;
@@ -578,6 +584,7 @@ async function createReconciliationBatch(tenantId, userId, data) {
       .whereIn('id', paymentIds)
       .update({
         is_locked: true,
+        reconciliation_locked: true,
         reconciliation_batch_id: batch.id,
       });
   }
