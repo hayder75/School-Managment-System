@@ -1,6 +1,7 @@
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
+import { useI18n } from "../i18n/I18nContext";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
@@ -25,6 +26,7 @@ const TABS = [
 ];
 
 export default function StudentDetailPage() {
+  const { t } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -163,9 +165,9 @@ export default function StudentDetailPage() {
     }
   }
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (loading) return <div className="p-8 text-muted-foreground">{t("Loading...")}</div>;
   if (loadError) return <div className="p-8 text-red-500">{loadError}</div>;
-  if (!student) return <div className="p-8 text-muted-foreground">Student not found</div>;
+  if (!student) return <div className="p-8 text-muted-foreground">{t("Student not found")}</div>;
 
   return (
     <div className="space-y-6">
@@ -180,17 +182,17 @@ export default function StudentDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{student.first_name} {student.last_name}</h1>
           <p className="text-sm text-muted-foreground">
-            {student.student_number} &middot; {student.class_name || "No class"} &middot;
+            {student.student_number} &middot; {student.class_name || t("No class")} &middot;
             <Badge variant={student.status === "active" ? "success" : "secondary"} className="ml-1">
-              {student.status}
+              {t(student.status)}
             </Badge>
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => window.open(`/api/pdf/report-card/${id}`, "_blank")}>
-          <Download className="h-4 w-4 mr-1" /> Report Card
+          <Download className="h-4 w-4 mr-1" /> {t("Report Card")}
         </Button>
         <Button variant="outline" size="sm" onClick={() => window.open(`/api/pdf/invoice/${id}`, "_blank")}>
-          <Download className="h-4 w-4 mr-1" /> Invoice
+          <Download className="h-4 w-4 mr-1" /> {t("Invoice")}
         </Button>
       </div>
 
@@ -330,18 +332,18 @@ export default function StudentDetailPage() {
       </div>
 
       <div className="flex gap-1 border-b overflow-x-auto">
-        {TABS.map((t) => (
+        {TABS.map((tab) => (
           <button
-            key={t.key}
-            onClick={() => switchTab(t.key)}
+            key={tab.key}
+            onClick={() => switchTab(tab.key)}
             className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === t.key
+              activeTab === tab.key
                 ? "border-primary text-primary font-medium"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            <t.icon className="h-4 w-4" />
-            {t.label}
+            <tab.icon className="h-4 w-4" />
+            {t(tab.label)}
           </button>
         ))}
       </div>
@@ -357,6 +359,7 @@ export default function StudentDetailPage() {
 }
 
 function DocumentsTab({ documents, studentId, newDoc, setNewDoc, onReload }) {
+  const { t } = useI18n();
   async function addDoc() {
     try {
       await api.post(`/students/${studentId}/documents`, newDoc);
@@ -366,27 +369,27 @@ function DocumentsTab({ documents, studentId, newDoc, setNewDoc, onReload }) {
   }
   return (
     <Card>
-      <CardHeader><CardTitle>Documents</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{t("Documents")}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2 items-end">
           <div>
-            <Label>Type</Label>
+            <Label>{t("Type")}</Label>
             <select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={newDoc.type} onChange={(e) => setNewDoc({ ...newDoc, type: e.target.value })}>
-              <option value="birth_certificate">Birth Certificate</option>
-              <option value="report_card">Report Card</option>
-              <option value="photo">Photo</option>
-              <option value="medical">Medical</option>
-              <option value="other">Other</option>
+              <option value="birth_certificate">{t("Birth Certificate")}</option>
+              <option value="report_card">{t("Report Card")}</option>
+              <option value="photo">{t("Photo")}</option>
+              <option value="medical">{t("Medical")}</option>
+              <option value="other">{t("Other")}</option>
             </select>
           </div>
           <div>
-            <Label>Name</Label>
-            <Input value={newDoc.name} onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })} placeholder="Document name" />
+            <Label>{t("Name")}</Label>
+            <Input value={newDoc.name} onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })} placeholder={t("Document name")} />
           </div>
-          <Button onClick={addDoc}><Plus className="h-4 w-4 mr-1" /> Add</Button>
+          <Button onClick={addDoc}><Plus className="h-4 w-4 mr-1" /> {t("Add")}</Button>
         </div>
         {documents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No documents</p>
+          <p className="text-sm text-muted-foreground">{t("No documents")}</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {documents.map((d) => (
@@ -408,6 +411,7 @@ function DocumentsTab({ documents, studentId, newDoc, setNewDoc, onReload }) {
 }
 
 function MedicalTab({ medical, studentId, newMed, setNewMed, onReload }) {
+  const { t } = useI18n();
   async function saveMedical() {
     try {
       await api.put(`/students/${studentId}/medical`, newMed);
@@ -416,28 +420,28 @@ function MedicalTab({ medical, studentId, newMed, setNewMed, onReload }) {
   }
   return (
     <Card>
-      <CardHeader><CardTitle>Medical Information</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{t("Medical Information")}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label>Blood Group</Label>
+            <Label>{t("Blood Group")}</Label>
             <Input value={newMed.blood_group} onChange={(e) => setNewMed({ ...newMed, blood_group: e.target.value })} placeholder="e.g. O+" />
           </div>
           <div>
-            <Label>Allergies</Label>
+            <Label>{t("Allergies")}</Label>
             <Input value={newMed.allergies} onChange={(e) => setNewMed({ ...newMed, allergies: e.target.value })} placeholder="e.g. Peanuts" />
           </div>
           <div className="col-span-2">
-            <Label>Chronic Conditions</Label>
+            <Label>{t("Chronic Conditions")}</Label>
             <Input value={newMed.chronic_conditions} onChange={(e) => setNewMed({ ...newMed, chronic_conditions: e.target.value })} placeholder="e.g. Asthma" />
           </div>
         </div>
         {medical && (
           <div className="bg-muted rounded-md p-3 text-sm">
-            <p><strong>Current:</strong> {medical.blood_group && `${medical.blood_group} | `}{medical.allergies || "No allergies"}{medical.chronic_conditions && ` | ${medical.chronic_conditions}`}</p>
+            <p><strong>{t("Current")}:</strong> {medical.blood_group && `${medical.blood_group} | `}{medical.allergies || t("No allergies")}{medical.chronic_conditions && ` | ${medical.chronic_conditions}`}</p>
           </div>
         )}
-        <Button onClick={saveMedical}>Save Medical Info</Button>
+        <Button onClick={saveMedical}>{t("Save Medical Info")}</Button>
       </CardContent>
     </Card>
   );
