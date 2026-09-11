@@ -3,6 +3,7 @@ import api from "../lib/api";
 import { useAuthStore } from "../store/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -33,8 +34,8 @@ export default function LeaveManagementPage() {
           <div><Label>Type</Label><select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.leave_type} onChange={e => setForm({...form,leave_type:e.target.value})}>
             {["annual","sick","maternity","paternity","emergency","unpaid"].map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
           </select></div>
-          <div><Label>Start</Label><Input type="date" value={form.start_date} onChange={e => setForm({...form,start_date:e.target.value})} /></div>
-          <div><Label>End</Label><Input type="date" value={form.end_date} onChange={e => setForm({...form,end_date:e.target.value})} /></div>
+          <div><Label>Start</Label><EthiopianDateInput value={form.start_date} onChange={iso => setForm({...form,start_date:iso})} /></div>
+          <div><Label>End</Label><EthiopianDateInput value={form.end_date} onChange={iso => setForm({...form,end_date:iso})} /></div>
           <div><Label>Reason</Label><Input value={form.reason} onChange={e => setForm({...form,reason:e.target.value})} /></div>
           <Button onClick={submitLeave}>Submit</Button>
         </div></CardContent>

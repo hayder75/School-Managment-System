@@ -8,6 +8,7 @@ import {
 } from "../hooks/useRoleModules";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Label } from "../components/ui/label";
 import { Card, CardContent } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -94,6 +95,7 @@ function NewCaseDialog() {
   const [studentSearch, setStudentSearch] = useState("");
   const debouncedStudentSearch = useDebouncedValue(studentSearch);
   const [studentId, setStudentId] = useState("");
+  const [hearingDate, setHearingDate] = useState("");
 
   const { data: studentsData } = useQuery({
     queryKey: ["discipline-student-search", debouncedStudentSearch],
@@ -132,7 +134,10 @@ function NewCaseDialog() {
                 <SelectContent>{INCIDENT_TYPES.map((ty) => <SelectItem key={ty} value={ty}>{t.disc[`inc_${ty}`]}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1"><Label>{t.disc.hearingDate}</Label><Input name="hearing_date" type="date" /></div>
+            <div className="space-y-1"><Label>{t.disc.hearingDate}</Label>
+              <input type="hidden" name="hearing_date" value={hearingDate} />
+              <EthiopianDateInput value={hearingDate} onChange={setHearingDate} />
+            </div>
           </div>
           <div className="space-y-1"><Label>{t.security.descriptionCol}</Label><textarea name="description" rows={4} required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
           <Button type="submit" className="w-full" disabled={create.isPending || !studentId}>{t.common.save}</Button>

@@ -6,6 +6,7 @@ import { useSubjects } from "../hooks/useSubjects";
 import { useTeacherAssignments } from "../hooks/useTeachers";
 import { useExamGrades, useEnterGrades } from "../hooks/useGrades";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -160,7 +161,7 @@ export default function ExamsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Date</Label>
-                  <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                  <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -196,7 +197,7 @@ export default function ExamsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Date</Label>
-                  <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                  <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

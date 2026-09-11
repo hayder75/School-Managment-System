@@ -6,6 +6,7 @@ import { useStudentsByClass } from "../hooks/useStudents";
 import { useTeacherAssignments } from "../hooks/useTeachers";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -132,7 +133,7 @@ function TeacherAttendanceView() {
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium">Date</label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-48" />
+          <EthiopianDateInput className="w-56" value={date} onChange={setDate} />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium">Range</label>

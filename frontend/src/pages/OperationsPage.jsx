@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { BookOpen, Bus, BedDouble } from "lucide-react";
@@ -71,7 +72,7 @@ function LibraryTab() {
           <div><Label>Student</Label><select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={borrowForm.student_id} onChange={e => setBorrowForm({...borrowForm,student_id:e.target.value})}>
             <option value="">Select student</option>{students.map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
           </select></div>
-          <div><Label>Due</Label><Input type="date" value={borrowForm.due_date} onChange={e => setBorrowForm({...borrowForm,due_date:e.target.value})} /></div>
+          <div><Label>Due</Label><EthiopianDateInput value={borrowForm.due_date} onChange={iso => setBorrowForm({...borrowForm, due_date: iso})} /></div>
           <Button onClick={borrowBook}>Borrow</Button>
         </div></CardContent>
       </Card>

@@ -10,6 +10,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { ShieldCheck, UserCheck, AlertTriangle, LogOut } from "lucide-react";
 
 export default function SecurityHubPage() {
@@ -235,7 +236,7 @@ function IncidentRegister() {
                 <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${SEV_STYLES[i.severity]}`}>{t.security[`sev_${i.severity}`]}</span></td>
                 <td className="p-3">{i.location || "—"}</td>
                 <td className="p-3">{i.status}</td>
-                <td className="p-3 text-xs">{new Date(i.created_at).toLocaleDateString()}</td>
+                <td className="p-3 text-xs"><EthiopianDate date={i.created_at} /></td>
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}

@@ -5,6 +5,7 @@ import {
 } from "../hooks/useRoleModules";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { TrendingUp, TrendingDown, Users, GraduationCap, CheckCircle2, Wallet } from "lucide-react";
 
 export default function ExecutiveDashboardPage() {
@@ -64,7 +65,7 @@ export default function ExecutiveDashboardPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-medium text-sm">{e.description}</p>
-                    <p className="text-xs text-muted-foreground">{e.category} · {e.paid_to} · {new Date(e.expense_date).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">{e.category} · {e.paid_to} · <EthiopianDate date={e.expense_date} /></p>
                   </div>
                   <span className="font-bold text-red-600 whitespace-nowrap">{Number(e.amount).toLocaleString()} ETB</span>
                 </div>

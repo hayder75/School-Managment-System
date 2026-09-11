@@ -1,5 +1,6 @@
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
@@ -521,7 +522,7 @@ function AchievementsTab({ achievements, studentId, newAch, setNewAch, onReload 
           </div>
           <div>
             <Label>Date</Label>
-            <Input type="date" value={newAch.achieved_date} onChange={(e) => setNewAch({ ...newAch, achieved_date: e.target.value })} />
+            <EthiopianDateInput value={newAch.achieved_date} onChange={(iso) => setNewAch({ ...newAch, achieved_date: iso })} />
           </div>
           <Button onClick={addAchievement}><Plus className="h-4 w-4 mr-1" /> Add</Button>
         </div>

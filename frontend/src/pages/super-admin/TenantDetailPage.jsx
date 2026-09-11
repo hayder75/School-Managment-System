@@ -9,6 +9,7 @@ import { Badge } from "../../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Skeleton } from "../../components/ui/skeleton";
+import { EthiopianDate } from "../../components/ui/EthiopianDate";
 import { ArrowLeft, Building2, Users, GraduationCap, BookOpen, Pencil, Trash2 } from "lucide-react";
 
 function DetailRow({ label, value }) {
@@ -143,7 +144,7 @@ export default function TenantDetailPage() {
             <DetailRow label="Address" value={tenant.address} />
             <DetailRow label="Status" value={tenant.status} />
             <DetailRow label="Plan" value={tenant.subscription_plan} />
-            <DetailRow label="Created" value={tenant.created_at ? new Date(tenant.created_at).toLocaleDateString() : null} />
+            <DetailRow label="Created" value={tenant.created_at ? <EthiopianDate date={tenant.created_at} /> : null} />
           </CardContent>
         </Card>
 

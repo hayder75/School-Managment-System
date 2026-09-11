@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "../store/auth";
 import { useConversations, useMessages, useCreateConversation, useTeachers, useMarkRead } from "../hooks/useChat";
 import { getSocket, connectSocket, disconnectSocket } from "../lib/socket";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
@@ -178,7 +179,7 @@ export default function ChatPage() {
               <p className="font-medium truncate">{conv.subject || "Conversation"}</p>
               <p className="text-xs opacity-70 truncate">
                 {conv.last_message_at
-                  ? new Date(conv.last_message_at).toLocaleDateString()
+                  ? <EthiopianDate date={conv.last_message_at} showGregorian={false} />
                   : "No messages"}
               </p>
             </button>

@@ -12,6 +12,7 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { FileCheck2, Library, ClipboardList, Star } from "lucide-react";
 
 const TYPES = ["test", "exam", "notes", "lesson_plan", "worksheet"];
@@ -266,7 +267,7 @@ function ReviewDialog({ id, onClose }) {
                   {sub.comments.map((c) => (
                     <div key={c.id} className="rounded border p-2 text-xs">
                       <span className="font-semibold">{c.author_name}</span>
-                      <span className="text-muted-foreground"> · {new Date(c.created_at).toLocaleDateString()}</span>
+                      <span className="text-muted-foreground"> · <EthiopianDate date={c.created_at} /></span>
                       <p className="mt-1">{c.comment}</p>
                     </div>
                   ))}

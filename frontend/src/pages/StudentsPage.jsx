@@ -9,6 +9,7 @@ import { useClasses } from "../hooks/useClasses";
 import { useUsers } from "../hooks/useUsers";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
@@ -228,7 +229,7 @@ export default function StudentsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>Date of Birth</Label>
-                      <Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
+                      <EthiopianDateInput value={form.date_of_birth} onChange={(iso) => setForm({ ...form, date_of_birth: iso })} />
                     </div>
                     <div className="space-y-2">
                       <Label>Gender</Label>

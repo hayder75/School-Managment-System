@@ -2,6 +2,7 @@ import { useState, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUser } from "../hooks/useUsers";
 import { usePayroll } from "../hooks/usePayroll";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -92,8 +93,8 @@ export default function StaffDetailPage() {
           <CardContent className="text-sm space-y-1">
             <p className="flex items-center gap-2"><Mail className="h-3 w-3 text-muted-foreground" />{user.email || "—"}</p>
             <p className="flex items-center gap-2"><Phone className="h-3 w-3 text-muted-foreground" />{user.phone || "—"}</p>
-            <p><span className="text-muted-foreground">Joined:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}</p>
-            <p><span className="text-muted-foreground">Last Login:</span> {user.last_login ? new Date(user.last_login).toLocaleDateString() : "—"}</p>
+            <p><span className="text-muted-foreground">Joined:</span> <EthiopianDate date={user.created_at} /></p>
+            <p><span className="text-muted-foreground">Last Login:</span> <EthiopianDate date={user.last_login} /></p>
           </CardContent>
         </Card>
       </div>

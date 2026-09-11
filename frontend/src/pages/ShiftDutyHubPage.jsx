@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useGuardShiftsList, useCreateGuardShift } from "../hooks/useShiftHub";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -28,7 +29,7 @@ export default function ShiftDutyHubPage() {
           <h1 className="text-3xl font-bold">{t.shift.title}</h1>
           <p className="text-muted-foreground">{t.shift.subtitle}</p>
         </div>
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+        <EthiopianDateInput className="w-56" value={date} onChange={setDate} />
       </div>
 
       <div className="flex gap-2 border-b pb-2 flex-wrap">
@@ -139,7 +140,7 @@ function SubstitutionBoard() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><Label>{t.shift.dateCol}</Label>
-                  <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+                  <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} /></div>
                 <div><Label>{t.shift.periodCol}</Label>
                   <Input value={form.periodName} onChange={(e) => setForm({ ...form, periodName: e.target.value })} /></div>
               </div>
@@ -296,7 +297,7 @@ function NewGuardShiftDialog({ open, onClose, defaultDate }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t.shift.dateCol}</Label>
-              <Input type="date" value={form.shift_date} onChange={(e) => setForm({ ...form, shift_date: e.target.value })} required />
+              <EthiopianDateInput value={form.shift_date} onChange={(iso) => setForm({ ...form, shift_date: iso })} />
             </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">

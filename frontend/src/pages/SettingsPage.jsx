@@ -3,17 +3,21 @@ import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useI18n } from "../i18n/I18nContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Save, Languages, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useCalendarStore } from "../store/calendar";
 
 export default function SettingsPage() {
   const { data, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
   const { lang, switchLang } = useI18n();
   const [form, setForm] = useState({});
+  const setCalendar = useCalendarStore((s) => s.setCalendar);
 
   const settings = data?.data || {};
 
@@ -29,6 +33,7 @@ export default function SettingsPage() {
 
   async function handleSave() {
     await updateSettings.mutateAsync(form);
+    if (form.calendar) setCalendar(form.calendar);
   }
 
   if (isLoading) return <p className="text-muted-foreground p-8">Loading...</p>;
@@ -81,6 +86,18 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label>Week Start Day</Label>
                 <Input value={form.week_start_day || "Monday"} onChange={(e) => handleChange("week_start_day", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Calendar</Label>
+                <Select value={form.calendar || "both"} onValueChange={(v) => handleChange("calendar", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Ethiopian + Gregorian (side by side)</SelectItem>
+                    <SelectItem value="ethiopian">Ethiopian only</SelectItem>
+                    <SelectItem value="gregorian">Gregorian only</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Controls how dates are displayed across the system.</p>
               </div>
             </CardContent>
           </Card>
@@ -406,8 +423,8 @@ function TermsManager() {
             <Label>Term name *</Label>
             <Input placeholder="Semester 1 / Q1…" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </div>
-          <div><Label>Starts *</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required /></div>
-          <div><Label>Ends *</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} required /></div>
+          <div><Label>Starts *</Label><EthiopianDateInput value={form.start_date} onChange={(iso) => setForm({ ...form, start_date: iso })} /></div>
+          <div><Label>Ends *</Label><EthiopianDateInput value={form.end_date} onChange={(iso) => setForm({ ...form, end_date: iso })} /></div>
           {error && <p className="col-span-full text-sm text-red-600">{error}</p>}
           <div className="col-span-full flex justify-end">
             <Button type="submit"><Plus className="h-4 w-4 mr-2" />Add term</Button>

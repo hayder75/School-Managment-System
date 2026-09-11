@@ -6,6 +6,7 @@ import {
 } from "../hooks/useRoleModules";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
 export default function AccountantReconciliationPage() {
@@ -48,7 +49,7 @@ function DailyTab({ today }) {
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <label className="text-xs font-semibold text-neutral-600 block">{t.shift.dateCol}</label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+          <EthiopianDateInput className="w-56" value={date} onChange={setDate} />
         </div>
         <Button
           disabled={reconcile.isPending || !rows.length}

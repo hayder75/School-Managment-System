@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../lib/api";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 
 function useAssetSummary() {
   return useQuery({ queryKey: ["asset-summary"], queryFn: () => api.get("/assets/summary") });
@@ -53,7 +54,7 @@ function AnnouncementsList({ data }) {
               <div key={a.id} className="p-3 border rounded-lg">
                 <p className="font-medium text-sm">{a.title}</p>
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.content}</p>
-                <p className="text-xs text-muted-foreground mt-1">{new Date(a.created_at).toLocaleDateString()}</p>
+                <p className="text-xs text-muted-foreground mt-1"><EthiopianDate date={a.created_at} /></p>
               </div>
             ))}
           </div>
@@ -533,7 +534,7 @@ function CashierDashboard() {
                     <span className="font-medium">{p.first_name} {p.last_name}</span>
                     <span className="text-xs text-muted-foreground">{p.fee_name || ""}</span>
                     <span className="font-medium">${parseFloat(p.amount_paid || 0).toFixed(2)}</span>
-                    <span className="text-xs text-muted-foreground">{p.paid_date ? new Date(p.paid_date).toLocaleDateString() : ""}</span>
+                    <span className="text-xs text-muted-foreground">{p.paid_date ? <EthiopianDate date={p.paid_date} /> : ""}</span>
                   </div>
                 ))}
               </div>
@@ -699,7 +700,7 @@ function MinimalDashboard() {
             <div key={a.id} className="border-b pb-3 last:border-0 last:pb-0">
               <p className="font-medium text-sm">{a.title}</p>
               <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{a.body}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">{a.created_at ? new Date(a.created_at).toLocaleDateString() : ""}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{a.created_at ? <EthiopianDate date={a.created_at} /> : ""}</p>
             </div>
           ))}
           {!(ann?.data || []).length && <p className="text-sm text-muted-foreground">No announcements yet.</p>}

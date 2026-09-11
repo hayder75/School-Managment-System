@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { Menu, KeyRound } from "lucide-react";
 import Sidebar from "./Sidebar";
@@ -6,9 +6,15 @@ import NotificationBell from "./NotificationBell";
 import LanguageToggle from "./LanguageToggle";
 import { Sheet, SheetContent } from "../ui/sheet";
 import { Button } from "../ui/button";
+import { useCalendarStore } from "../../store/calendar";
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const loadCalendar = useCalendarStore((s) => s.load);
+
+  useEffect(() => {
+    loadCalendar();
+  }, [loadCalendar]);
 
   return (
     <div className="flex h-screen">

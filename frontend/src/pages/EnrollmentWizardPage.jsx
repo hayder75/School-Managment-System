@@ -10,6 +10,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { CheckCircle2, ChevronLeft, ChevronRight, UserPlus, Search, FileUp, Trash2, PartyPopper, KeyRound, CreditCard, UserCheck } from "lucide-react";
 
 const STEPS = ["Student", "Class", "Guardian", "Medical & Docs", "Review"];
@@ -182,7 +183,7 @@ function StepCards({ step, student, setStudent, classId, setClassId, classes, se
           <div><Label>Father name *</Label><Input className="mt-1" required value={student.father_name} onChange={set("father_name")} /></div>
           <div><Label>Grandfather name</Label><Input className="mt-1" value={student.grandfather_name} onChange={set("grandfather_name")} /></div>
           <div><Label>Gender</Label><Select value={student.gender} onValueChange={setv("gender")}><SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select></div>
-          <div><Label>Date of birth</Label><Input type="date" className="mt-1" value={student.date_of_birth} onChange={set("date_of_birth")} /></div>
+          <div><Label>Date of birth</Label><EthiopianDateInput className="mt-1" value={student.date_of_birth} onChange={(iso) => setStudent({ ...student, date_of_birth: iso })} /></div>
         </div>
         <div className="border-t pt-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Place of birth</p>

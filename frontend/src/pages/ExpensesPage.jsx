@@ -3,6 +3,7 @@ import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useExpenses, useCreateExpense, useDeleteExpense, useExpenseTotals } from "../hooks/useExpenses";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -84,7 +85,7 @@ export default function ExpensesPage() {
                 <FieldError errors={fieldErrors} field="amount" />
                 <div className="space-y-2">
                   <Label>Date</Label>
-                  <Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
+                  <EthiopianDateInput value={form.expense_date} onChange={(iso) => setForm({ ...form, expense_date: iso })} />
                 </div>
               </div>
               <FieldError errors={fieldErrors} field="expense_date" />

@@ -6,6 +6,7 @@ import { BarChart, DonutChart, GroupedBarChart } from "../components/ui/charts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Input } from "../components/ui/input";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Button } from "../components/ui/button";
 import { UserCheck, AlertTriangle, Clock, CheckCircle, CalendarDays, BarChart3, Users, GraduationCap, TrendingDown, Search, X } from "lucide-react";
 
@@ -116,11 +117,11 @@ export default function AdminAttendancePage() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="space-y-2">
               <label className="text-sm font-medium">From</label>
-              <Input type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} className="w-44" />
+              <EthiopianDateInput className="w-56" value={draftFrom} onChange={setDraftFrom} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">To</label>
-              <Input type="date" value={draftTo} onChange={(e) => setDraftTo(e.target.value)} className="w-44" />
+              <EthiopianDateInput className="w-56" value={draftTo} onChange={setDraftTo} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Class</label>

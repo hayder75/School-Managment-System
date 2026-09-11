@@ -10,6 +10,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Plus, Edit, Trash2, Megaphone } from "lucide-react";
 
 export default function AnnouncementsPage() {
@@ -138,7 +139,7 @@ export default function AnnouncementsPage() {
                 <div>
                   <CardTitle className="text-lg">{a.title}</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">
-                    By {a.first_name} {a.last_name} · {!isNaN(new Date(a.created_at).getTime()) ? new Date(a.created_at).toLocaleDateString() : "—"} · Audience: <span className="capitalize">{a.audience}</span>
+                    By {a.first_name} {a.last_name} · <EthiopianDate date={a.created_at} /> · Audience: <span className="capitalize">{a.audience}</span>
                   </p>
                 </div>
                 {canManage && (

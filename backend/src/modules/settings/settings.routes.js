@@ -8,6 +8,10 @@ const router = Router();
 
 router.use(auth);
 router.use(tenant);
+
+// Calendar display preference is readable by any authenticated tenant user.
+router.get('/calendar', controller.getCalendar);
+
 router.use(requireAccess(['admin', 'owner'], ['settings.manage']));
 
 router.get('/', controller.getAll);

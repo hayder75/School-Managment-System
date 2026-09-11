@@ -5,6 +5,8 @@ import {
   AlertTriangle, Wrench, Building, X, DollarSign, FileText, History, Archive, Download, ClipboardCheck
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 
 function exportCsv(rows) {
   const header = ["Asset Code", "Name", "Category", "Location", "Qty", "Counted Qty", "Unit Cost", "Total Cost", "Condition", "Status", "Purchase Date"];
@@ -337,7 +339,7 @@ export default function AssetManagementPage() {
                     <td className="px-6 py-4">
                       {getStatusBadge(item.status)}
                       {item.status === "Disposed" && item.disposal_date && (
-                        <div className="text-[11px] text-gray-400 mt-1">{new Date(item.disposal_date).toLocaleDateString()} · {item.disposal_method}</div>
+                        <div className="text-[11px] text-gray-400 mt-1"><EthiopianDate date={item.disposal_date} /> · {item.disposal_method}</div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -648,8 +650,7 @@ function DisposeDialog({ asset, onClose, onDone }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Disposal Date</label>
-              <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm bg-white" />
+              <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Method</label>
@@ -711,8 +712,8 @@ function HistoryDialog({ asset, onClose }) {
                   <p className="text-xs text-muted-foreground capitalize">{(r.holder_role || "").replace(/_/g, " ")}</p>
                 </div>
                 <div className="text-right text-xs text-gray-500">
-                  <p>from {new Date(r.assigned_at).toLocaleDateString()}</p>
-                  <p>{r.unassigned_at ? `to ${new Date(r.unassigned_at).toLocaleDateString()}` : <span className="text-green-600 font-medium">current holder</span>}</p>
+                  <p>from <EthiopianDate date={r.assigned_at} /></p>
+                  <p>{r.unassigned_at ? <>to <EthiopianDate date={r.unassigned_at} /></> : <span className="text-green-600 font-medium">current holder</span>}</p>
                 </div>
               </div>
             ))}
@@ -755,7 +756,7 @@ function InventoryReportModal({ onClose }) {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Fixed Asset Inventory Report — {selectedYear}</h2>
-              <p className="text-sm text-gray-500">Mount Olive School · Generated {new Date().toLocaleString()}</p>
+              <p className="text-sm text-gray-500">Mount Olive School · Generated <EthiopianDate date={new Date()} /></p>
             </div>
             <div className="flex gap-2 no-print">
               <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
@@ -937,8 +938,7 @@ function CountDialog({ asset, onClose, onDone }) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Count date</label>
-              <input type="date" value={form.countedDate} onChange={(e) => setForm({ ...form, countedDate: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
+              <EthiopianDateInput value={form.countedDate} onChange={(iso) => setForm({ ...form, countedDate: iso })} />
             </div>
           </div>
           {discrepancy && (

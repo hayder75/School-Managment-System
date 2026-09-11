@@ -4,6 +4,7 @@ import {
   XCircle, Save, Filter, Search, UserMinus
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 
 export default function TeacherAttendancePage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -118,12 +119,7 @@ export default function TeacherAttendancePage() {
         <div className="flex items-center gap-3">
           <Calendar className="w-5 h-5 text-gray-400" />
           <span className="text-sm font-semibold text-gray-700">Attendance Date:</span>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
-          />
+          <EthiopianDateInput className="w-56" value={selectedDate} onChange={setSelectedDate} />
         </div>
       </div>
 

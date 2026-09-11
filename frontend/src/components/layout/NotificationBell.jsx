@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications, useUnreadCount, useMarkNotificationRead, useMarkAllRead } from "../../hooks/useNotifications";
 import { useAuthStore } from "../../store/auth";
 import { connectSocket } from "../../lib/socket";
+import { EthiopianDate } from "../ui/EthiopianDate";
 import { Button } from "../ui/button";
 import { Bell, CheckCheck } from "lucide-react";
 
@@ -77,7 +78,7 @@ export default function NotificationBell() {
                   <p className="font-medium">{n.title}</p>
                   {n.message && <p className="text-muted-foreground text-xs mt-1">{n.message}</p>}
                   <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(n.created_at).toLocaleDateString()}
+                    <EthiopianDate date={n.created_at} />
                   </p>
                 </div>
               ))

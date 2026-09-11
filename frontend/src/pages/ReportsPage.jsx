@@ -17,6 +17,7 @@ import api from "../lib/api";
 import { useSubmissionSummary, useTeacherKpis, useVisitors, useGatePasses, useIncidents, useMaintenance, usePurchases, useMaintenanceSummary } from "../hooks/useRoleModules";
 import { useShiftReports, useSubstitutions } from "../hooks/useShiftHub";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -299,7 +300,7 @@ function MyAttendanceReport() {
                 {records.map((r, i) => (
                   <TableRow key={i}>
                     <TableCell className="font-medium">{r.class_name}</TableCell>
-                    <TableCell>{new Date(r.date).toLocaleDateString()}</TableCell>
+                    <TableCell><EthiopianDate date={r.date} /></TableCell>
                     <TableCell className="text-green-600">{r.present}</TableCell>
                     <TableCell className="text-red-600">{r.absent}</TableCell>
                     <TableCell>{r.total}</TableCell>
