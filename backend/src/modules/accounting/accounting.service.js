@@ -27,15 +27,23 @@ async function reconcileDay(tenantId, accountantId, { date, notes }) {
       .select(
         'p.payment_method as method',
         'p.collected_by',
-        'p.amount'
+        'p.amount_paid'
       );
     if (!rows.length) {
       throw Object.assign(new Error('NOTHING_TO_RECONCILE'), { code: 'NOTHING_TO_RECONCILE' });
     }
 
     const sumBy = (method) => rows
-      .filter((r) => r.method === method)
-      .reduce((acc, r) => acc + parseFloat(r.amount || 0), 0);
+      .filter((r) => (r.method || '').toLowerCase() === method)
+      .reduce((acc, r) => acc + parseFloat(r.amount_paid || 0), 0);
+
+    // Map the stored lowercase methods onto the batch categories.
+    const totalCash = sumBy('cash');
+    const totalMobile = sumBy('mobile') + sumBy('telebirr');
+    const totalCbe = sumBy('cbe') + sumBy('cbebirr');
+    const totalOther = rows
+      .filter((r) => !['cash', 'mobile', 'telebirr', 'cbe', 'cbebirr'].includes((r.method || '').toLowerCase()))
+      .reduce((a, r) => a + parseFloat(r.amount_paid || 0), 0);
 
     // One consolidated daily batch, then lock all payments for that date
     const [batch] = await trx('payment_reconciliation_batches')
@@ -44,12 +52,12 @@ async function reconcileDay(tenantId, accountantId, { date, notes }) {
         batch_date: date,
         reconciled_by: accountantId,
         cashier_id: null,
-        total_cash: sumBy('Cash'),
-        total_telebirr: sumBy('Telebirr'),
-        total_cbe: sumBy('CBE Birr'),
-        total_other: rows
-          .filter((r) => !['Cash', 'Telebirr', 'CBE Birr'].includes(r.method))
-          .reduce((a, r) => a + parseFloat(r.amount || 0), 0),
+        total_cash: totalCash,
+        total_telebirr: totalMobile,
+        total_cbe: totalCbe,
+        total_other: totalOther,
+        total_amount: rows.reduce((a, r) => a + parseFloat(r.amount_paid || 0), 0),
+        transaction_count: rows.length,
         notes: notes || null,
       })
       .returning('*');

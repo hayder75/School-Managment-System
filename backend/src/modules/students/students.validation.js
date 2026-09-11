@@ -138,7 +138,7 @@ const enrollmentSchema = z.object({
 
 const promoteSchema = z.object({
   body: z.object({
-    student_ids: z.array(z.string().uuid()).min(1),
+    student_ids: z.array(z.string().uuid()).optional().default([]),
     from_class_id: z.string().uuid(),
     to_class_id: z.string().uuid(),
     academic_year: z.string().optional(),

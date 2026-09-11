@@ -20,18 +20,42 @@ async function uniqueUsername(trx, tenantId, base) {
 
 const DEFAULT_HASH = "$2b$10$wWA7YLyqHZS86hcYSnGIuuMMLEJOF5S17ly/2.BUvuZZOS1UUs6ia"; // "1234"
 
+// Derive the next sequential student number for the current year, based on the
+// highest existing number (rather than a count), so deletions and concurrent
+// creates cannot collide.
+async function nextStudentNumber(trx, tenantId) {
+  const prefix = `ST-${new Date().getFullYear()}-`;
+  const row = await trx('students')
+    .where('tenant_id', tenantId)
+    .whereRaw('student_number ~ ?', [`^${prefix}\\d+$`])
+    .whereNotNull('student_number')
+    .orderBy('student_number', 'desc')
+    .select('student_number')
+    .first();
+  let seq = 0;
+  if (row && row.student_number) {
+    const m = row.student_number.match(/-(\d+)$/);
+    if (m) seq = parseInt(m[1], 10);
+  }
+  return `${prefix}${String(seq + 1).padStart(4, '0')}`;
+}
+
 
 async function enroll(tenantId, userId, data) {
-  const creds = { student: null, guardians: [] };
   const { guardians = [], new_guardians = [], enrollment, first_name, last_name, student_email, ...studentData } = data;
+  const providedNumber = studentData.student_number;
 
-  return db.transaction(async (trx) => {
-    // Generate a student number when missing (also becomes the login username)
-    if (!studentData.student_number) {
-      const [{ c }] = await trx('students').where('tenant_id', tenantId).count('* as c');
-      const seq = String(Number(c) + 1).padStart(4, '0');
-      studentData.student_number = `ST-${new Date().getFullYear()}-${seq}`;
-    }
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // On a collision retry, let the auto-number regenerate.
+    if (attempt > 0 && !providedNumber) delete studentData.student_number;
+    const creds = { student: null, guardians: [] };
+    try {
+      return await db.transaction(async (trx) => {
+        // Generate a student number when missing (also becomes the login username)
+        if (!studentData.student_number) {
+          studentData.student_number = await nextStudentNumber(trx, tenantId);
+        }
 
     // Auto-create the student's login account when not linked to an existing user
     let studentUserId = studentData.user_id;
@@ -125,26 +149,44 @@ async function enroll(tenantId, userId, data) {
       }
     }
 
-    if (enrollment && Object.keys(enrollment).length > 0) {
-      await trx('enrollments').insert({
-        tenant_id: tenantId,
-        student_id: student.id,
-        academic_year_id: enrollment.academic_year_id || null,
-        class_id: enrollment.class_id || studentData.class_id || null,
-        grade_level: enrollment.grade_level ?? null,
-        section: enrollment.section || null,
-        admission_category: enrollment.admission_category || null,
-        admission_modality: enrollment.admission_modality || null,
-        education_stream: enrollment.education_stream || null,
-        cte_field_1: enrollment.cte_field_1 || null,
-        cte_field_2: enrollment.cte_field_2 || null,
-        num_textbooks: enrollment.num_textbooks ?? null,
-        instructional_language: enrollment.instructional_language || null,
-        school_feeding: enrollment.school_feeding || false,
-        food_ration_home: enrollment.food_ration_home || false,
-        meals_per_week: enrollment.meals_per_week ?? null,
-      });
+    // Always record academic enrollment history (even when the wizard did not
+    // send an explicit enrollment object), deriving class/grade/year details.
+    const enrollClassId = enrollment?.class_id || studentData.class_id || null;
+    let cls = null;
+    if (enrollClassId) {
+      cls = await trx('classes')
+        .where({ tenant_id: tenantId, id: enrollClassId })
+        .select('id', 'grade_level', 'section', 'academic_year_id')
+        .first();
     }
+    let academicYearId = enrollment?.academic_year_id || cls?.academic_year_id || null;
+    if (!academicYearId) {
+      const cy = await trx('academic_years')
+        .where({ tenant_id: tenantId, is_current: true })
+        .select('id')
+        .orderBy('start_date', 'desc')
+        .first();
+      academicYearId = cy?.id || null;
+    }
+    const gradeLevel = enrollment?.grade_level ?? cls?.grade_level ?? null;
+    await trx('enrollments').insert({
+      tenant_id: tenantId,
+      student_id: student.id,
+      academic_year_id: academicYearId,
+      class_id: enrollClassId,
+      grade_level: gradeLevel === null || gradeLevel === undefined ? null : String(gradeLevel),
+      section: enrollment?.section || cls?.section || null,
+      admission_category: enrollment?.admission_category || null,
+      admission_modality: enrollment?.admission_modality || null,
+      education_stream: enrollment?.education_stream || null,
+      cte_field_1: enrollment?.cte_field_1 || null,
+      cte_field_2: enrollment?.cte_field_2 || null,
+      num_textbooks: enrollment?.num_textbooks ?? null,
+      instructional_language: enrollment?.instructional_language || null,
+      school_feeding: enrollment?.school_feeding || false,
+      food_ration_home: enrollment?.food_ration_home || false,
+      meals_per_week: enrollment?.meals_per_week ?? null,
+    });
 
     await trx('student_status_history').insert({
       tenant_id: tenantId,
@@ -154,8 +196,16 @@ async function enroll(tenantId, userId, data) {
       changed_by: userId,
     });
 
-    return { ...student, __credentials: creds };
-  });
+        return { ...student, __credentials: creds };
+      });
+    } catch (err) {
+      lastErr = err;
+      const isNumberCollision = err.code === '23505' && String(err.constraint || '').includes('student_number');
+      if (isNumberCollision && attempt < 2) continue;
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 async function findAll(tenantId, { page = 1, limit = 20, class_id, status, search, user_id } = {}) {
@@ -320,29 +370,73 @@ async function findByClass(tenantId, classId) {
 }
 
 async function promote(tenantId, userId, data) {
-  const { student_ids, from_class_id, to_class_id, academic_year } = data;
+  const { student_ids = [], from_class_id, to_class_id, academic_year } = data;
 
   return db.transaction(async (trx) => {
-    const updated = await trx('students')
-      .whereIn('id', student_ids)
-      .where({ tenant_id: tenantId, class_id: from_class_id, status: 'active' })
+    // If no explicit students are given, promote the whole class (all active).
+    let query = trx('students')
+      .where({ tenant_id: tenantId, class_id: from_class_id, status: 'active' });
+    if (student_ids.length > 0) query = query.whereIn('id', student_ids);
+    const targets = await query.select('id');
+    const ids = targets.map((r) => r.id);
+
+    if (ids.length === 0) return { promoted: 0 };
+
+    await trx('students')
+      .where({ tenant_id: tenantId })
+      .whereIn('id', ids)
       .update({ class_id: to_class_id });
 
-    if (updated > 0) {
-      const records = student_ids.map((sid) => ({
-        tenant_id: tenantId,
-        student_id: sid,
-        from_class_id,
-        to_class_id,
-        academic_year: academic_year || null,
-        promoted_by: userId,
-      }));
-      await trx('student_promotions').insert(records);
+    const records = ids.map((sid) => ({
+      tenant_id: tenantId,
+      student_id: sid,
+      from_class_id,
+      to_class_id,
+      academic_year: academic_year || null,
+      promoted_by: userId,
+    }));
+    await trx('student_promotions').insert(records);
 
-      await reconcileAttendance(trx, tenantId, student_ids, from_class_id, to_class_id);
+    await reconcileAttendance(trx, tenantId, ids, from_class_id, to_class_id);
+
+    // Keep the enrolment history in sync with the new class / academic year.
+    const targetClass = await trx('classes')
+      .where({ tenant_id: tenantId, id: to_class_id })
+      .select('grade_level', 'section', 'academic_year_id')
+      .first();
+    let yearId = targetClass?.academic_year_id || null;
+    if (!yearId) {
+      const cy = await trx('academic_years')
+        .where({ tenant_id: tenantId, is_current: true })
+        .select('id')
+        .orderBy('start_date', 'desc')
+        .first();
+      yearId = cy?.id || null;
+    }
+    const grade = targetClass?.grade_level ?? null;
+    const gradeStr = grade === null || grade === undefined ? null : String(grade);
+
+    for (const sid of ids) {
+      const existing = await trx('enrollments')
+        .where({ tenant_id: tenantId, student_id: sid, academic_year_id: yearId })
+        .first();
+      if (existing) {
+        await trx('enrollments')
+          .where({ id: existing.id })
+          .update({ class_id: to_class_id, grade_level: gradeStr, section: targetClass?.section || existing.section });
+      } else {
+        await trx('enrollments').insert({
+          tenant_id: tenantId,
+          student_id: sid,
+          academic_year_id: yearId,
+          class_id: to_class_id,
+          grade_level: gradeStr,
+          section: targetClass?.section || null,
+        });
+      }
     }
 
-    return { promoted: updated };
+    return { promoted: ids.length };
   });
 }
 

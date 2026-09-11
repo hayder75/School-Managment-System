@@ -3,6 +3,22 @@ const { paginatedResult } = require('../../shared/pagination');
 const broadcast = require('../../socket/broadcast');
 const logger = require('../../config/logger');
 
+// Per-tenant sequential receipt number, derived from the highest existing one.
+async function nextReceiptNo(trx, tenantId) {
+  const row = await trx('payments')
+    .where({ tenant_id: tenantId })
+    .whereNotNull('receipt_no')
+    .orderBy('receipt_no', 'desc')
+    .select('receipt_no')
+    .first();
+  let seq = 0;
+  if (row && row.receipt_no) {
+    const m = row.receipt_no.match(/(\d+)$/);
+    if (m) seq = parseInt(m[1], 10);
+  }
+  return `RCT-${String(seq + 1).padStart(6, '0')}`;
+}
+
 async function createFeeStructure(tenantId, data) {
   const [fee] = await db('fee_structures').insert({ ...data, tenant_id: tenantId }).returning('*');
   return fee;
@@ -48,11 +64,26 @@ async function createPayment(tenantId, data, collectedBy) {
       throw err;
     }
   }
-  const [payment] = await db('payments')
-    .insert({ ...data, tenant_id: tenantId, collected_by: collectedBy || null })
-    .returning('*');
-  await notifyPaymentRecorded(tenantId, payment);
-  return payment;
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const payment = await db.transaction(async (trx) => {
+        const receipt_no = await nextReceiptNo(trx, tenantId);
+        const [row] = await trx('payments')
+          .insert({ ...data, tenant_id: tenantId, collected_by: collectedBy || null, receipt_no })
+          .returning('*');
+        return row;
+      });
+      await notifyPaymentRecorded(tenantId, payment);
+      return payment;
+    } catch (err) {
+      lastErr = err;
+      const isReceiptCollision = err.code === '23505' && String(err.constraint || '').includes('receipt_no');
+      if (isReceiptCollision && attempt < 2) continue;
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 async function createBulkPayments(tenantId, payments, collectedBy) {
@@ -86,8 +117,9 @@ async function createBulkPayments(tenantId, payments, collectedBy) {
   const created = await db.transaction(async (trx) => {
     const rows = [];
     for (const p of payments) {
+      const receipt_no = await nextReceiptNo(trx, tenantId);
       const [row] = await trx('payments')
-        .insert({ ...p, tenant_id: tenantId, collected_by: collectedBy || null })
+        .insert({ ...p, tenant_id: tenantId, collected_by: collectedBy || null, receipt_no })
         .returning('*');
       rows.push(row);
     }

@@ -76,7 +76,7 @@ async function getStaffAttendanceSummary(tenantId, { date }) {
   const staffList = await knex('users')
     .where('tenant_id', tenantId)
     .whereIn('role', ['teacher', 'hr', 'admin', 'finance', 'cashier'])
-    .where('is_active', true)
+    .where('status', 'active')
     .select('id', 'first_name', 'last_name', 'role', 'email');
 
   const attendanceRecords = await knex('staff_attendance')

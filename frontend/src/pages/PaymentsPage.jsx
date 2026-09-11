@@ -711,6 +711,7 @@ export default function PaymentsPage() {
                               <td className="p-3">
                                 <p>{p.fee_name || "—"}</p>
                                 <p className="text-xs text-muted-foreground">{caption(p)}</p>
+                                {p.receipt_no && <p className="text-xs font-mono text-muted-foreground">#{p.receipt_no}</p>}
                               </td>
                               <td className="p-3">
                                 <span className="font-medium">{parseFloat(p.amount_paid || 0).toLocaleString()}</span>
