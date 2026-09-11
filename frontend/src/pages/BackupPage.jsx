@@ -3,8 +3,10 @@ import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Download } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 export default function BackupPage() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [restoreFile, setRestoreFile] = useState(null);
   const [restoring, setRestoring] = useState(false);
@@ -31,13 +33,13 @@ export default function BackupPage() {
       try {
         payload = JSON.parse(text);
       } catch {
-        setRestoreError("Invalid backup file — expected JSON.");
+        setRestoreError(t("Invalid backup file — expected JSON."));
         return;
       }
       await api.post("/operations/restore", payload);
-      alert("Restore complete");
+      alert(t("Restore complete"));
     } catch (err) {
-      setRestoreError(err?.error?.message || err?.message || "Restore failed");
+      setRestoreError(err?.error?.message || err?.message || t("Restore failed"));
     } finally {
       setRestoring(false);
     }
@@ -45,20 +47,20 @@ export default function BackupPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Backup & Restore</h1>
+      <h1 className="text-3xl font-bold">{t("Backup & Restore")}</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card><CardHeader><CardTitle>Export Backup</CardTitle></CardHeader>
+        <Card><CardHeader><CardTitle>{t("Export Backup")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">Download all school data as JSON</p>
-            <Button onClick={handleBackup} disabled={loading}><Download className="h-4 w-4 mr-2" />{loading ? "Exporting..." : "Download Backup"}</Button>
+            <p className="text-sm text-muted-foreground">{t("Download all school data as JSON")}</p>
+            <Button onClick={handleBackup} disabled={loading}><Download className="h-4 w-4 mr-2" />{loading ? t("Exporting...") : t("Download Backup")}</Button>
           </CardContent>
         </Card>
-        <Card><CardHeader><CardTitle>Restore</CardTitle></CardHeader>
+        <Card><CardHeader><CardTitle>{t("Restore")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">Upload a backup file to restore</p>
+            <p className="text-sm text-muted-foreground">{t("Upload a backup file to restore")}</p>
             <input type="file" accept=".json" onChange={e => setRestoreFile(e.target.files[0])} className="text-sm" />
             {restoreError && <p className="text-sm text-red-500">{restoreError}</p>}
-            {restoreFile && <Button variant="outline" className="text-destructive" onClick={handleRestore} disabled={restoring}>{restoring ? "Restoring..." : "Restore"}</Button>}
+            {restoreFile && <Button variant="outline" className="text-destructive" onClick={handleRestore} disabled={restoring}>{restoring ? t("Restoring...") : t("Restore")}</Button>}
           </CardContent>
         </Card>
       </div>

@@ -10,8 +10,10 @@ import { Badge } from "../../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Plus, Trash2, Pencil, ExternalLink } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 
 export default function TenantsPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useTenants({ page, limit: 20 });
@@ -61,69 +63,69 @@ export default function TenantsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Schools</h1>
-          <p className="text-muted-foreground">Manage all schools in the system</p>
+          <h1 className="text-3xl font-bold">{t("Schools")}</h1>
+          <p className="text-muted-foreground">{t("Manage all schools in the system")}</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" /> Add School
+              <Plus className="h-4 w-4 mr-2" /> {t("Add School")}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Create New School</DialogTitle>
+              <DialogTitle>{t("Create New School")}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>School Name *</Label>
+                  <Label>{t("School Name *")}</Label>
                   <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Slug *</Label>
+                  <Label>{t("Slug *")}</Label>
                   <Input required value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="my-school" />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>{t("Email")}</Label>
                   <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone</Label>
+                  <Label>{t("Phone")}</Label>
                   <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Address</Label>
+                <Label>{t("Address")}</Label>
                 <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
               </div>
               <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-3">School Owner (optional)</p>
+                <p className="text-sm font-medium mb-3">{t("School Owner (optional)")}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Owner Email</Label>
+                    <Label>{t("Owner Email")}</Label>
                     <Input type="email" value={form.owner_email} onChange={(e) => setForm({ ...form, owner_email: e.target.value })} placeholder="owner@school.com" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Owner Phone</Label>
+                    <Label>{t("Owner Phone")}</Label>
                     <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                   <div className="space-y-2">
-                    <Label>First Name</Label>
+                    <Label>{t("First Name")}</Label>
                     <Input value={form.owner_first_name} onChange={(e) => setForm({ ...form, owner_first_name: e.target.value })} placeholder="School" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Last Name</Label>
+                    <Label>{t("Last Name")}</Label>
                     <Input value={form.owner_last_name} onChange={(e) => setForm({ ...form, owner_last_name: e.target.value })} placeholder="Owner" />
                   </div>
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={createTenant.isPending}>
-                {createTenant.isPending ? "Creating..." : "Create School"}
+                {createTenant.isPending ? t("Creating...") : t("Create School")}
               </Button>
             </form>
           </DialogContent>
@@ -132,21 +134,21 @@ export default function TenantsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Schools</CardTitle>
+          <CardTitle>{t("All Schools")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Plan</TableHead>
+                    <TableHead>{t("Name")}</TableHead>
+                    <TableHead>{t("Slug")}</TableHead>
+                    <TableHead>{t("Email")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
+                    <TableHead>{t("Plan")}</TableHead>
                     <TableHead className="w-28"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -171,13 +173,13 @@ export default function TenantsPage() {
                       <TableCell className="capitalize">{tenant.subscription_plan}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(tenant)} title="Edit">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(tenant)} title={t("Edit")}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/tenants/${tenant.id}`)} title="View details">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/tenants/${tenant.id}`)} title={t("View details")}>
                             <ExternalLink className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteTenant.mutate(tenant.id)} title="Delete">
+                          <Button variant="ghost" size="icon" onClick={() => deleteTenant.mutate(tenant.id)} title={t("Delete")}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
@@ -187,7 +189,7 @@ export default function TenantsPage() {
                   {tenants.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        No schools yet
+                        {t("No schools yet")}
                       </TableCell>
                     </TableRow>
                   )}
@@ -197,11 +199,11 @@ export default function TenantsPage() {
               {meta.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-muted-foreground">
-                    Page {meta.page} of {meta.totalPages}
+                    {t("Page {page} of {total}", { page: meta.page, total: meta.totalPages })}
                   </p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("Previous")}</Button>
+                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>{t("Next")}</Button>
                   </div>
                 </div>
               )}
@@ -213,61 +215,61 @@ export default function TenantsPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit School</DialogTitle>
+            <DialogTitle>{t("Edit School")}</DialogTitle>
           </DialogHeader>
           {editTarget && (
             <form onSubmit={handleEdit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>School Name *</Label>
+                  <Label>{t("School Name *")}</Label>
                   <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Slug</Label>
+                  <Label>{t("Slug")}</Label>
                   <Input value={editForm.slug} disabled className="bg-muted" />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>{t("Email")}</Label>
                   <Input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone</Label>
+                  <Label>{t("Phone")}</Label>
                   <Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Address</Label>
+                <Label>{t("Address")}</Label>
                 <Input value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label>{t("Status")}</Label>
                   <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-                      <SelectItem value="trial">Trial</SelectItem>
+                      <SelectItem value="active">{t("Active")}</SelectItem>
+                      <SelectItem value="suspended">{t("Suspended")}</SelectItem>
+                      <SelectItem value="trial">{t("Trial")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Subscription Plan</Label>
+                  <Label>{t("Subscription Plan")}</Label>
                   <Select value={editForm.subscription_plan} onValueChange={(v) => setEditForm({ ...editForm, subscription_plan: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="free">Free</SelectItem>
-                      <SelectItem value="basic">Basic</SelectItem>
-                      <SelectItem value="premium">Premium</SelectItem>
-                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                      <SelectItem value="free">{t("Free")}</SelectItem>
+                      <SelectItem value="basic">{t("Basic")}</SelectItem>
+                      <SelectItem value="premium">{t("Premium")}</SelectItem>
+                      <SelectItem value="enterprise">{t("Enterprise")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={updateTenant.isPending}>
-                {updateTenant.isPending ? "Saving..." : "Save Changes"}
+                {updateTenant.isPending ? t("Saving...") : t("Save Changes")}
               </Button>
             </form>
           )}

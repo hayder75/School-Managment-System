@@ -11,8 +11,10 @@ import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
 import { Send, MessageSquare, Plus } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 export default function ChatPage() {
+  const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const [selectedConv, setSelectedConv] = useState(null);
@@ -119,7 +121,7 @@ export default function ChatPage() {
   async function handleCreateConv(e) {
     e.preventDefault();
     await createConv.mutateAsync({
-      subject: form.subject || `Chat with ${teachers.find((t) => t.id === form.teacher_id)?.first_name || "Teacher"}`,
+      subject: form.subject || `${t("Chat with")} ${teachers.find((teacher) => teacher.id === form.teacher_id)?.first_name || t("Teacher")}`,
       participant_ids: [form.teacher_id],
     });
     setOpen(false);
@@ -136,37 +138,37 @@ export default function ChatPage() {
     <div className="flex h-[calc(100vh-4rem)] gap-4">
       <div className="w-80 border rounded-lg flex flex-col">
         <div className="p-4 border-b flex items-center justify-between">
-          <h2 className="font-semibold">Conversations</h2>
+          <h2 className="font-semibold">{t("Conversations")}</h2>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="ghost"><Plus className="h-4 w-4" /></Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>New Conversation</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t("New Conversation")}</DialogTitle></DialogHeader>
               <form onSubmit={handleCreateConv} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Teacher</Label>
+                  <Label>{t("Teacher")}</Label>
                   <Select value={form.teacher_id} onValueChange={(v) => setForm({ ...form, teacher_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("Select teacher")} /></SelectTrigger>
                     <SelectContent>
-                      {teachers.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>
+                      {teachers.map((teacher) => (
+                        <SelectItem key={teacher.id} value={teacher.id}>{teacher.first_name} {teacher.last_name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Subject (optional)</Label>
+                  <Label>{t("Subject (optional)")}</Label>
                   <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
                 </div>
-                <Button type="submit" className="w-full">Start Conversation</Button>
+                <Button type="submit" className="w-full">{t("Start Conversation")}</Button>
               </form>
             </DialogContent>
           </Dialog>
         </div>
         <div className="flex-1 overflow-auto p-2 space-y-1">
           {conversations.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center p-4">No conversations yet</p>
+            <p className="text-sm text-muted-foreground text-center p-4">{t("No conversations yet")}</p>
           )}
           {conversations.map((conv) => (
             <button
@@ -176,11 +178,11 @@ export default function ChatPage() {
                 selectedConv?.id === conv.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"
               }`}
             >
-              <p className="font-medium truncate">{conv.subject || "Conversation"}</p>
+              <p className="font-medium truncate">{conv.subject || t("Conversation")}</p>
               <p className="text-xs opacity-70 truncate">
                 {conv.last_message_at
                   ? <EthiopianDate date={conv.last_message_at} showGregorian={false} />
-                  : "No messages"}
+                  : t("No messages")}
               </p>
             </button>
           ))}
@@ -192,13 +194,13 @@ export default function ChatPage() {
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Select a conversation</p>
+              <p>{t("Select a conversation")}</p>
             </div>
           </div>
         ) : (
           <>
             <div className="p-4 border-b">
-              <h2 className="font-semibold">{selectedConv.subject || "Conversation"}</h2>
+              <h2 className="font-semibold">{selectedConv.subject || t("Conversation")}</h2>
             </div>
             <div className="flex-1 overflow-auto p-4 space-y-4">
               {messages.map((msg) => (
@@ -226,7 +228,7 @@ export default function ChatPage() {
                 </div>
               ))}
               {selectedConv && typingUsers[selectedConv.id] && (
-                <p className="text-xs text-muted-foreground italic pl-2">Someone is typing...</p>
+                <p className="text-xs text-muted-foreground italic pl-2">{t("Someone is typing...")}</p>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -238,7 +240,7 @@ export default function ChatPage() {
                 <Input
                   value={message}
                   onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
-                  placeholder="Type a message..."
+                  placeholder={t("Type a message...")}
                   className="flex-1"
                 />
                 <Button type="submit" disabled={!message.trim()}>

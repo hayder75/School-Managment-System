@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Plus, Edit, Trash2, Megaphone } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 export default function AnnouncementsPage() {
+  const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const canManage = user?.role === "admin" || user?.role === "owner";
   const [page, setPage] = useState(1);
@@ -67,25 +69,25 @@ export default function AnnouncementsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Announcements</h1>
-          <p className="text-muted-foreground">Broadcast messages to the school</p>
+          <h1 className="text-3xl font-bold">{t("Announcements")}</h1>
+          <p className="text-muted-foreground">{t("Broadcast messages to the school")}</p>
         </div>
         {canManage && (
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />New Announcement</Button>
+              <Button><Plus className="h-4 w-4 mr-2" />{t("New Announcement")}</Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
-              <DialogHeader><DialogTitle>{editing ? "Edit Announcement" : "New Announcement"}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editing ? t("Edit Announcement") : t("New Announcement")}</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
                 <div className="space-y-2">
-                  <Label>Title</Label>
+                  <Label>{t("Title")}</Label>
                   <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
                 </div>
                 <FieldError errors={fieldErrors} field="title" />
                 <div className="space-y-2">
-                  <Label>Content</Label>
+                  <Label>{t("Content")}</Label>
                   <textarea
                     className="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     value={form.content}
@@ -96,32 +98,32 @@ export default function AnnouncementsPage() {
                 <FieldError errors={fieldErrors} field="content" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Audience</Label>
+                    <Label>{t("Audience")}</Label>
                     <Select value={form.audience} onValueChange={(v) => setForm({ ...form, audience: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Everyone</SelectItem>
-                        <SelectItem value="teachers">Teachers</SelectItem>
-                        <SelectItem value="students">Students</SelectItem>
-                        <SelectItem value="parents">Parents</SelectItem>
-                        <SelectItem value="class">Specific Class</SelectItem>
+                        <SelectItem value="all">{t("Everyone")}</SelectItem>
+                        <SelectItem value="teachers">{t("Teachers")}</SelectItem>
+                        <SelectItem value="students">{t("Students")}</SelectItem>
+                        <SelectItem value="parents">{t("Parents")}</SelectItem>
+                        <SelectItem value="class">{t("Specific Class")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <FieldError errors={fieldErrors} field="audience" />
                   <div className="space-y-2">
-                    <Label>Class (if applicable)</Label>
+                    <Label>{t("Class (if applicable)")}</Label>
                     <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="All classes" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t("All classes")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All classes</SelectItem>
+                        <SelectItem value="">{t("All classes")}</SelectItem>
                         {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <FieldError errors={fieldErrors} field="class_id" />
                 </div>
-                <Button type="submit" className="w-full">{editing ? "Update" : "Publish"}</Button>
+                <Button type="submit" className="w-full">{editing ? t("Update") : t("Publish")}</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -130,7 +132,7 @@ export default function AnnouncementsPage() {
 
       <div className="space-y-4">
         {announcements.length === 0 && !loading && (
-          <Card><CardContent className="text-center py-12 text-muted-foreground"><Megaphone className="h-12 w-12 mx-auto mb-2 opacity-50" /><p>No announcements yet</p></CardContent></Card>
+          <Card><CardContent className="text-center py-12 text-muted-foreground"><Megaphone className="h-12 w-12 mx-auto mb-2 opacity-50" /><p>{t("No announcements yet")}</p></CardContent></Card>
         )}
         {announcements.map((a) => (
           <Card key={a.id}>
@@ -139,13 +141,13 @@ export default function AnnouncementsPage() {
                 <div>
                   <CardTitle className="text-lg">{a.title}</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">
-                    By {a.first_name} {a.last_name} · <EthiopianDate date={a.created_at} /> · Audience: <span className="capitalize">{a.audience}</span>
+                    {t("By")} {a.first_name} {a.last_name} · <EthiopianDate date={a.created_at} /> · {t("Audience")}: <span className="capitalize">{a.audience}</span>
                   </p>
                 </div>
                 {canManage && (
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(a)}><Edit className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm("Delete this announcement?")) deleteAnnouncement.mutate(a.id); }}><Trash2 className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm(t("Delete this announcement?"))) deleteAnnouncement.mutate(a.id); }}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 )}
               </div>
@@ -159,10 +161,10 @@ export default function AnnouncementsPage() {
 
       {canManage && meta.totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</p>
+          <p className="text-sm text-muted-foreground">{t("Page")} {meta.page} {t("of")} {meta.totalPages}</p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("Previous")}</Button>
+            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(p => p + 1)}>{t("Next")}</Button>
           </div>
         </div>
       )}

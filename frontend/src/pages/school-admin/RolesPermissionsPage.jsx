@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 import { Plus, Pencil, Trash2, ShieldCheck, Users } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 
 const PERMISSION_GROUPS = [
   { label: "Academic", keys: ["students.view", "students.manage", "parents.manage", "classes.manage", "subjects.manage", "attendance.manage", "exams.manage", "grades.manage", "timetable.view", "timetable.manage", "academics.manage"] },
@@ -56,6 +57,7 @@ const MATRIX_KEYS = [
 ];
 
 function PermissionCheckbox({ label, description, checked, onChange }) {
+  const { t } = useI18n();
   return (
     <label className="flex items-start gap-2 p-2 rounded border hover:bg-muted cursor-pointer">
       <input
@@ -73,6 +75,7 @@ function PermissionCheckbox({ label, description, checked, onChange }) {
 }
 
 function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLabel }) {
+  const { t } = useI18n();
   const [name, setName] = useState(role?.name || "");
   const [description, setDescription] = useState(role?.description || "");
   const [keys, setKeys] = useState(() => new Set(role?.permission_keys || []));
@@ -96,7 +99,7 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
     e.preventDefault();
     setError("");
     if (!name.trim()) {
-      setError("Role name is required");
+      setError(t("Role name is required"));
       return;
     }
     try {
@@ -104,7 +107,7 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
       onOpenChange(false);
       reset();
     } catch (err) {
-      setError(err?.error?.message || err?.message || "Failed to save role");
+      setError(err?.error?.message || err?.message || t("Failed to save role"));
     }
   }
 
@@ -112,26 +115,26 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{submitLabel}</DialogTitle>
+          <DialogTitle>{t(submitLabel)}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Role Name</Label>
-              <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Teacher Leader" />
+              <Label>{t("Role Name")}</Label>
+              <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder={t("e.g. Teacher Leader")} />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this role is for" />
+              <Label>{t("Description")}</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("What this role is for")} />
             </div>
           </div>
           <div>
-            <Label>Permissions</Label>
+            <Label>{t("Permissions")}</Label>
             <div className="mt-2 space-y-3 max-h-[50vh] overflow-y-auto pr-1">
               {groupPermissions(permissions).map((g) => (
                 <div key={g.label}>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{g.label}</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{t(g.label)}</p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {g.items.map((p) => (
                       <PermissionCheckbox
@@ -148,7 +151,7 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
             </div>
           </div>
           <Button type="submit" className="w-full">
-            {submitLabel}
+            {t(submitLabel)}
           </Button>
         </form>
       </DialogContent>
@@ -157,22 +160,23 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
 }
 
 function AccessMatrixTab() {
+  const { t } = useI18n();
   const { data, isLoading } = useRoles();
   const roles = (data?.data || []).filter((r) => MATRIX_ROLES.includes(r.name));
   const byName = Object.fromEntries(roles.map((r) => [r.name, new Set(r.permission_keys || [])]));
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading matrix…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground">{t("Loading matrix…")}</p>;
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Role Access Matrix — what each role can do</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> {t("Role Access Matrix — what each role can do")}</CardTitle>
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <div className="overflow-x-auto -mx-px"><table className="w-full text-xs min-w-[720px] table-sticky-col">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="p-2 text-left font-medium sticky left-0 bg-muted/50">Capability</th>
+              <th className="p-2 text-left font-medium sticky left-0 bg-muted/50">{t("Capability")}</th>
               {MATRIX_ROLES.map((r) => (
                 <th key={r} className="p-2 font-semibold text-center align-bottom" title={r}>
                   <span className="block max-w-[64px] mx-auto leading-tight">{r.replace(/_/g, " ")}</span>
@@ -183,7 +187,7 @@ function AccessMatrixTab() {
           <tbody>
             {MATRIX_KEYS.map(([key, label]) => (
               <tr key={key} className="border-b hover:bg-muted/30">
-                <td className="p-2 font-medium sticky left-0 bg-white">{label}</td>
+                <td className="p-2 font-medium sticky left-0 bg-white">{t(label)}</td>
                 {MATRIX_ROLES.map((r) => {
                   const has = byName[r]?.has(key);
                   return (
@@ -204,6 +208,7 @@ function AccessMatrixTab() {
 }
 
 function RolesTab({ permissions }) {
+  const { t } = useI18n();
   const { data, isLoading } = useRoles();
   const createRole = useCreateRole();
   const updateRole = useUpdateRole();
@@ -219,20 +224,20 @@ function RolesTab({ permissions }) {
       <AccessMatrixTab />
       <div className="flex justify-end">
         <Button onClick={() => { setEditing(null); setDialog(true); }}>
-          <Plus className="h-4 w-4 mr-2" /> New Role
+          <Plus className="h-4 w-4 mr-2" /> {t("New Role")}
         </Button>
       </div>
       <Card>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground py-6">Loading...</p>
+            <p className="text-muted-foreground py-6">{t("Loading...")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Permissions</TableHead>
+                  <TableHead>{t("Role")}</TableHead>
+                  <TableHead>{t("Type")}</TableHead>
+                  <TableHead>{t("Permissions")}</TableHead>
                   <TableHead className="w-24"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -245,7 +250,7 @@ function RolesTab({ permissions }) {
                     </TableCell>
                     <TableCell>
                       <Badge variant={r.is_system ? "secondary" : "default"}>
-                        {r.is_system ? "System" : "Custom"}
+                        {r.is_system ? t("System") : t("Custom")}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -254,10 +259,10 @@ function RolesTab({ permissions }) {
                           <Badge key={p.key} variant="outline">{p.label}</Badge>
                         ))}
                         {(r.permissions || []).length > 6 && (
-                          <Badge variant="outline">+{(r.permissions || []).length - 6} more</Badge>
+                          <Badge variant="outline">{t("+{count} more", { count: (r.permissions || []).length - 6 })}</Badge>
                         )}
                         {(r.permissions || []).length === 0 && (
-                          <span className="text-xs text-muted-foreground">No permissions</span>
+                          <span className="text-xs text-muted-foreground">{t("No permissions")}</span>
                         )}
                       </div>
                     </TableCell>
@@ -277,7 +282,7 @@ function RolesTab({ permissions }) {
                 ))}
                 {roles.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">No roles found</TableCell>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">{t("No roles found")}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -300,6 +305,7 @@ function RolesTab({ permissions }) {
 }
 
 function UserOverridesTab({ permissions, customRoles }) {
+  const { t } = useI18n();
   const [userId, setUserId] = useState("");
   const { data: usersData } = useUsers({ limit: 200 });
   const { data: userAccess } = useUserRoles(userId);
@@ -348,9 +354,9 @@ function UserOverridesTab({ permissions, customRoles }) {
         role_ids: [...selectedRoles],
         permission_keys: [...selectedPerms],
       });
-      setMessage("Saved successfully");
+      setMessage(t("Saved successfully"));
     } catch (err) {
-      setMessage(err?.error?.message || err?.message || "Failed to save");
+      setMessage(err?.error?.message || err?.message || t("Failed to save"));
     } finally {
       setSaving(false);
     }
@@ -360,14 +366,14 @@ function UserOverridesTab({ permissions, customRoles }) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Assign extra roles & permissions to a user</CardTitle>
+          <CardTitle>{t("Assign extra roles & permissions to a user")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>User</Label>
+            <Label>{t("User")}</Label>
             <Select value={userId} onValueChange={selectUser}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a user" />
+                <SelectValue placeholder={t("Choose a user")} />
               </SelectTrigger>
               <SelectContent>
                 {users.map((u) => (
@@ -382,12 +388,12 @@ function UserOverridesTab({ permissions, customRoles }) {
           {access && (
             <>
               <div className="text-sm">
-                <span className="text-muted-foreground">Base role: </span>
+                <span className="text-muted-foreground">{t("Base role: ")}</span>
                 <Badge variant="secondary">{access.user.role}</Badge>
               </div>
 
               <div>
-                <Label>Extra roles</Label>
+                <Label>{t("Extra roles")}</Label>
                 <div className="grid gap-2 mt-2 sm:grid-cols-2">
                   {customRoles.map((r) => {
                     const checked = selectedRoles.has(r.id);
@@ -407,13 +413,13 @@ function UserOverridesTab({ permissions, customRoles }) {
                     );
                   })}
                   {customRoles.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No custom roles yet. Create one in the Roles tab.</p>
+                    <p className="text-xs text-muted-foreground">{t("No custom roles yet. Create one in the Roles tab.")}</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <Label>Direct permissions</Label>
+                <Label>{t("Direct permissions")}</Label>
                 <div className="grid gap-2 mt-2 sm:grid-cols-2">
                   {permissions.map((p) => {
                     const checked = selectedPerms.has(p.key);
@@ -437,7 +443,7 @@ function UserOverridesTab({ permissions, customRoles }) {
 
               <div className="flex items-center gap-3">
                 <Button onClick={save} disabled={saving || !isDirty}>
-                  {saving ? "Saving..." : "Save"}
+                  {saving ? t("Saving...") : t("Save")}
                 </Button>
                 {message && <span className="text-sm text-muted-foreground">{message}</span>}
               </div>
@@ -450,6 +456,7 @@ function UserOverridesTab({ permissions, customRoles }) {
 }
 
 export default function RolesPermissionsPage() {
+  const { t } = useI18n();
   const { data: permsData, isLoading } = useRolePermissions();
   const { data: rolesData } = useRoles();
   const permissions = permsData?.data || [];
@@ -459,22 +466,22 @@ export default function RolesPermissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Roles & Permissions</h1>
+        <h1 className="text-3xl font-bold">{t("Roles & Permissions")}</h1>
         <p className="text-muted-foreground">
-          Control what each role can do in your school. Changes take effect immediately.
+          {t("Control what each role can do in your school. Changes take effect immediately.")}
         </p>
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">{t("Loading...")}</p>
       ) : (
         <Tabs defaultValue="roles">
           <TabsList>
             <TabsTrigger value="roles">
-              <ShieldCheck className="h-4 w-4 mr-1" /> Roles
+              <ShieldCheck className="h-4 w-4 mr-1" /> {t("Roles")}
             </TabsTrigger>
             <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-1" /> User Overrides
+              <Users className="h-4 w-4 mr-1" /> {t("User Overrides")}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="roles">
