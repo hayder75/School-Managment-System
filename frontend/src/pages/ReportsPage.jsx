@@ -1347,6 +1347,9 @@ export default function ReportsPage() {
         <TabsContent value="security"><SecurityReportsTab /></TabsContent>
         <TabsContent value="facilities"><FacilitiesReportsTab /></TabsContent>
       </Tabs>
+      {tabs.length === 0 && (
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{t("No reports are available for your role.")}</CardContent></Card>
+      )}
     </div>
   );
 }

@@ -53,7 +53,7 @@ router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student
   }
 });
 
-router.get('/invoice/:studentId', rbac('admin', 'owner', 'finance', 'student', 'parent'), async (req, res) => {
+router.get('/invoice/:studentId', rbac('admin', 'owner', 'finance', 'cashier', 'accountant', 'student', 'parent'), async (req, res) => {
   try {
     const userId = await resolveStudentUserId(req.tenant.id, req.params.studentId);
     if (!userId) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });

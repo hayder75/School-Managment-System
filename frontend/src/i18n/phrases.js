@@ -953,4 +953,5 @@ export const amPhrases = {
   "Payroll Audit Log": "የደመወዝ ኦዲት መዝገብ",
   "No audit records yet": "እስካሁን የኦዲት መዝገብ የለም",
   "by": "በ",
+  "No reports are available for your role.": "ለእርስዎ ሚና የሚገኙ ሪፖርቶች የሉም።",
 };
