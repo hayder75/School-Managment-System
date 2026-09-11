@@ -37,25 +37,79 @@ async function assertNotDuplicate(trx, tenantId, p) {
   }
 }
 
+async function attachAmounts(tenantId, fees) {
+  if (!fees || fees.length === 0) return fees;
+  const ids = fees.map((f) => f.id);
+  const rows = await db('fee_structure_amounts')
+    .where({ tenant_id: tenantId })
+    .whereIn('fee_structure_id', ids)
+    .orderBy('grade_level');
+  const map = {};
+  for (const r of rows) {
+    (map[r.fee_structure_id] = map[r.fee_structure_id] || []).push({ grade_level: r.grade_level, amount: parseFloat(r.amount) });
+  }
+  return fees.map((f) => ({ ...f, amounts: map[f.id] || [] }));
+}
+
+async function replaceAmounts(trx, tenantId, feeId, amounts) {
+  await trx('fee_structure_amounts').where({ tenant_id: tenantId, fee_structure_id: feeId }).del();
+  if (amounts && amounts.length) {
+    // De-duplicate by grade (last wins) to satisfy the unique constraint.
+    const byGrade = new Map();
+    for (const a of amounts) byGrade.set(a.grade_level, a.amount);
+    await trx('fee_structure_amounts').insert(
+      [...byGrade.entries()].map(([grade_level, amount]) => ({
+        tenant_id: tenantId,
+        fee_structure_id: feeId,
+        grade_level,
+        amount,
+      }))
+    );
+  }
+}
+
 async function createFeeStructure(tenantId, data) {
-  const [fee] = await db('fee_structures').insert({ ...data, tenant_id: tenantId }).returning('*');
-  return fee;
+  const { amounts, ...feeData } = data;
+  return db.transaction(async (trx) => {
+    const [fee] = await trx('fee_structures').insert({ ...feeData, tenant_id: tenantId }).returning('*');
+    await replaceAmounts(trx, tenantId, fee.id, amounts);
+    const rows = await trx('fee_structure_amounts').where({ tenant_id: tenantId, fee_structure_id: fee.id }).orderBy('grade_level');
+    return { ...fee, amounts: rows.map((r) => ({ grade_level: r.grade_level, amount: parseFloat(r.amount) })) };
+  });
 }
 
 async function findAllFeeStructures(tenantId, { page = 1, limit = 20, class_id, is_active } = {}) {
   let query = db('fee_structures').where({ tenant_id: tenantId });
   if (class_id) query = query.where({ class_id });
   if (is_active !== undefined) query = query.where({ is_active });
-  return paginatedResult(query.orderBy('created_at', 'desc'), page, limit);
+  const result = await paginatedResult(query.orderBy('created_at', 'desc'), page, limit);
+  result.data = await attachAmounts(tenantId, result.data);
+  return result;
 }
 
 async function findFeeStructureById(tenantId, id) {
-  return db('fee_structures').where({ tenant_id: tenantId, id }).first();
+  const fee = await db('fee_structures').where({ tenant_id: tenantId, id }).first();
+  if (!fee) return null;
+  const [withAmounts] = await attachAmounts(tenantId, [fee]);
+  return withAmounts;
 }
 
 async function updateFeeStructure(tenantId, id, data) {
-  const [fee] = await db('fee_structures').where({ tenant_id: tenantId, id }).update(data).returning('*');
-  return fee;
+  const { amounts, ...feeData } = data;
+  return db.transaction(async (trx) => {
+    let fee;
+    if (Object.keys(feeData).length > 0) {
+      [fee] = await trx('fee_structures').where({ tenant_id: tenantId, id }).update(feeData).returning('*');
+    } else {
+      fee = await trx('fee_structures').where({ tenant_id: tenantId, id }).first();
+    }
+    if (!fee) return null;
+    if (amounts !== undefined) {
+      await replaceAmounts(trx, tenantId, id, amounts);
+    }
+    const rows = await trx('fee_structure_amounts').where({ tenant_id: tenantId, fee_structure_id: id }).orderBy('grade_level');
+    return { ...fee, amounts: rows.map((r) => ({ grade_level: r.grade_level, amount: parseFloat(r.amount) })) };
+  });
 }
 
 async function removeFeeStructure(tenantId, id) {

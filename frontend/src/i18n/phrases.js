@@ -954,4 +954,11 @@ export const amPhrases = {
   "No audit records yet": "እስካሁን የኦዲት መዝገብ የለም",
   "by": "በ",
   "No reports are available for your role.": "ለእርስዎ ሚና የሚገኙ ሪፖርቶች የሉም።",
+  "Mandatory (billed to every student)": "ግዴታ (ለሁሉም ተማሪ የሚከፈል)",
+  "Different amount per grade": "በደረጃ የተለያየ መጠን",
+  "Set the amount for each grade. Grades left blank use the default amount above.": "ለእያንዳንዱ ደረጃ መጠን ያስገቡ። ባዶ የተተዉ ደረጃዎች ከላይ ያለውን ነባሪ መጠን ይጠቀማሉ።",
+  "No graded classes found.": "የደረጃ ክፍሎች አልተገኙም።",
+  "Optional": "አማራጭ",
+  "per grade": "በደረጃ",
+  "grades": "ደረጃዎች",
 };

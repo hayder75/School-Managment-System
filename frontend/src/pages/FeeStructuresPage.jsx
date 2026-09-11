@@ -23,7 +23,9 @@ export default function FeeStructuresPage() {
   const createFee = useCreateFeeStructure();
   const deleteFee = useDeleteFeeStructure();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", amount: "", frequency: "termly", class_id: "", late_fee: "0" });
+  const [form, setForm] = useState({ name: "", amount: "", frequency: "termly", class_id: "", late_fee: "0", is_mandatory: true });
+  const [perGrade, setPerGrade] = useState(false);
+  const [gradeAmounts, setGradeAmounts] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
 
   const fees = data?.data || [];
@@ -31,18 +33,32 @@ export default function FeeStructuresPage() {
   const classes = classesData?.data || [];
   const summary = summaryData?.data || {};
 
+  const gradeLevels = [...new Set(classes.map((c) => c.grade_level).filter((g) => g !== null && g !== undefined))].sort((a, b) => a - b);
+
+  function resetForm() {
+    setForm({ name: "", amount: "", frequency: "termly", class_id: "", late_fee: "0", is_mandatory: true });
+    setPerGrade(false);
+    setGradeAmounts({});
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     setFieldErrors({});
     try {
+      const amounts = perGrade
+        ? gradeLevels
+            .filter((g) => gradeAmounts[g] !== undefined && gradeAmounts[g] !== "")
+            .map((g) => ({ grade_level: Number(g), amount: parseFloat(gradeAmounts[g]) }))
+        : undefined;
       await createFee.mutateAsync({
         ...form,
         amount: parseFloat(form.amount),
         late_fee: parseFloat(form.late_fee),
         class_id: form.class_id || null,
+        amounts,
       });
       setOpen(false);
-      setForm({ name: "", amount: "", frequency: "termly", class_id: "", late_fee: "0" });
+      resetForm();
     } catch (err) {
       setFieldErrors(extractApiErrors(err));
     }
@@ -55,7 +71,7 @@ export default function FeeStructuresPage() {
           <h1 className="text-3xl font-bold">{t("Fee Structures")}</h1>
           <p className="text-muted-foreground">{t("Manage school fees and charges")}</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> {t("Add Fee Structure")}</Button>
           </DialogTrigger>
@@ -88,6 +104,28 @@ export default function FeeStructuresPage() {
                 </div>
                 <FieldError errors={fieldErrors} field="frequency" />
               </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.is_mandatory} onChange={(e) => setForm({ ...form, is_mandatory: e.target.checked })} />
+                {t("Mandatory (billed to every student)")}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={perGrade} onChange={(e) => setPerGrade(e.target.checked)} />
+                {t("Different amount per grade")}
+              </label>
+              {perGrade && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">{t("Set the amount for each grade. Grades left blank use the default amount above.")}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {gradeLevels.length === 0 && <p className="text-sm text-muted-foreground col-span-full">{t("No graded classes found.")}</p>}
+                    {gradeLevels.map((g) => (
+                      <div key={g} className="space-y-1">
+                        <Label className="text-xs">{t("Grade")} {g}</Label>
+                        <Input type="number" value={gradeAmounts[g] ?? ""} onChange={(e) => setGradeAmounts({ ...gradeAmounts, [g]: e.target.value })} placeholder={form.amount || "0"} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("Class (optional)")}</Label>
@@ -153,8 +191,16 @@ export default function FeeStructuresPage() {
                 <TableBody>
                   {fees.map((fee) => (
                     <TableRow key={fee.id}>
-                      <TableCell className="font-medium">{fee.name}</TableCell>
-                      <TableCell>{parseFloat(fee.amount || 0).toLocaleString()}</TableCell>
+                      <TableCell className="font-medium">
+                        {fee.name}
+                        {fee.is_mandatory === false && <Badge variant="outline" className="ml-2">{t("Optional")}</Badge>}
+                        {fee.amounts?.length > 0 && <span className="ml-2 text-xs text-muted-foreground">{t("per grade")}</span>}
+                      </TableCell>
+                      <TableCell>
+                        {fee.amounts?.length > 0
+                          ? `${parseFloat(fee.amount || 0).toLocaleString()} (${fee.amounts.length} ${t("grades")})`
+                          : parseFloat(fee.amount || 0).toLocaleString()}
+                      </TableCell>
                       <TableCell className="capitalize">{fee.frequency}</TableCell>
                       <TableCell>{parseFloat(fee.late_fee || 0).toLocaleString()}</TableCell>
                       <TableCell><Badge variant={fee.is_active ? "success" : "secondary"}>{fee.is_active ? "Active" : "Inactive"}</Badge></TableCell>

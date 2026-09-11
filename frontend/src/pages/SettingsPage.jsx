@@ -164,6 +164,32 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Fees &amp; Penalties</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Grace period (days)</Label>
+                <Input type="number" min="0" value={form.fee_grace_days ?? "5"} onChange={(e) => handleChange("fee_grace_days", e.target.value)} />
+                <p className="text-xs text-muted-foreground">Days into the month before a penalty starts (5 = first 5 days are free).</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Penalty type</Label>
+                <Select value={form.fee_penalty_type || "fixed"} onValueChange={(v) => handleChange("fee_penalty_type", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed amount</SelectItem>
+                    <SelectItem value="daily">Per day (accumulates)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Penalty amount (ETB)</Label>
+                <Input type="number" min="0" value={form.fee_penalty_amount ?? "100"} onChange={(e) => handleChange("fee_penalty_amount", e.target.value)} />
+                <p className="text-xs text-muted-foreground">Per day if "Per day", otherwise a one-time amount.</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="grading" className="space-y-4">

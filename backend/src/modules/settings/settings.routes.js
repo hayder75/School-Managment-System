@@ -12,6 +12,9 @@ router.use(tenant);
 // Calendar display preference is readable by any authenticated tenant user.
 router.get('/calendar', controller.getCalendar);
 
+// Fee/penalty settings are readable by any authenticated tenant user (cashier).
+router.get('/fees', controller.getFeeSettings);
+
 router.use(requireAccess(['admin', 'owner'], ['settings.manage']));
 
 router.get('/', controller.getAll);
