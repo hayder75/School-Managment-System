@@ -10,8 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 
 export default function SubjectsPage() {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useSubjects({ page, limit: 20 });
   const createSubject = useCreateSubject();
@@ -39,34 +41,34 @@ export default function SubjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Subjects</h1>
-          <p className="text-muted-foreground">Manage subjects offered at your school</p>
+          <h1 className="text-3xl font-bold">{t("Subjects")}</h1>
+          <p className="text-muted-foreground">{t("Manage subjects offered at your school")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Add Subject</Button>
+            <Button><Plus className="h-4 w-4 mr-2" /> {t("Add Subject")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Create Subject</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Create Subject")}</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
-                <Label>Subject Name</Label>
-                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Mathematics" />
+                <Label>{t("Subject Name")}</Label>
+                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("Mathematics")} />
               </div>
               <FieldError errors={fieldErrors} field="name" />
               <div className="space-y-2">
-                <Label>Code</Label>
+                <Label>{t("Code")}</Label>
                 <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="MATH101" />
               </div>
               <FieldError errors={fieldErrors} field="code" />
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label>{t("Description")}</Label>
                 <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <FieldError errors={fieldErrors} field="description" />
               <Button type="submit" className="w-full" disabled={createSubject.isPending}>
-                {createSubject.isPending ? "Creating..." : "Create Subject"}
+                {createSubject.isPending ? t("Creating...") : t("Create Subject")}
               </Button>
             </form>
           </DialogContent>
@@ -74,18 +76,18 @@ export default function SubjectsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>All Subjects</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("All Subjects")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("Name")}</TableHead>
+                    <TableHead>{t("Code")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -96,7 +98,7 @@ export default function SubjectsPage() {
                       <TableCell>{subject.code || "—"}</TableCell>
                       <TableCell>
                         <Badge variant={subject.is_active ? "success" : "secondary"}>
-                          {subject.is_active ? "Active" : "Inactive"}
+                          {subject.is_active ? t("Active") : t("Inactive")}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -107,17 +109,17 @@ export default function SubjectsPage() {
                     </TableRow>
                   ))}
                   {subjects.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No subjects yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">{t("No subjects yet")}</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
 
               {meta.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</p>
+                  <p className="text-sm text-muted-foreground">{t("Page {page} of {total}", { page: meta.page, total: meta.totalPages })}</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("Previous")}</Button>
+                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>{t("Next")}</Button>
                   </div>
                 </div>
               )}

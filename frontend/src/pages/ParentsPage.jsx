@@ -11,8 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Search, Plus, Link, Unlink, Users } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 export default function ParentsPage() {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
@@ -48,8 +50,8 @@ export default function ParentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Parents</h1>
-          <p className="text-muted-foreground">Manage parents and guardians</p>
+          <h1 className="text-3xl font-bold">{t("Parents")}</h1>
+          <p className="text-muted-foreground">{t("Manage parents and guardians")}</p>
         </div>
       </div>
 
@@ -60,13 +62,13 @@ export default function ParentsPage() {
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-9" placeholder="Search parents..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+                  <Input className="pl-9" placeholder={t("Search parents...")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y">
-                {parents.length === 0 && <p className="text-sm text-muted-foreground p-4 text-center">No parents found</p>}
+                {parents.length === 0 && <p className="text-sm text-muted-foreground p-4 text-center">{t("No parents found")}</p>}
                 {parents.map((p) => (
                   <button
                     key={p.id}
@@ -82,8 +84,8 @@ export default function ParentsPage() {
             </CardContent>
             {meta.totalPages > 1 && (
               <CardContent className="flex justify-between pt-4">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Prev</Button>
-                <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("Prev")}</Button>
+                <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(p => p + 1)}>{t("Next")}</Button>
               </CardContent>
             )}
           </Card>
@@ -92,20 +94,20 @@ export default function ParentsPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>{selectedParent ? `${selectedParent.first_name} ${selectedParent.last_name}` : "Select a Parent"}</CardTitle>
+              <CardTitle>{selectedParent ? `${selectedParent.first_name} ${selectedParent.last_name}` : t("Select a Parent")}</CardTitle>
               {selectedParent && (
                 <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm"><Link className="h-4 w-4 mr-2" />Link Student</Button>
+                    <Button size="sm"><Link className="h-4 w-4 mr-2" />{t("Link Student")}</Button>
                   </DialogTrigger>
                   <DialogContent>
-                    <DialogHeader><DialogTitle>Link Student to Parent</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{t("Link Student to Parent")}</DialogTitle></DialogHeader>
                     <form onSubmit={handleLink} className="space-y-4">
                       {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
                       <div className="space-y-2">
-                        <Label>Student</Label>
+                        <Label>{t("Student")}</Label>
                         <Select value={linkForm.student_id} onValueChange={(v) => setLinkForm({ ...linkForm, student_id: v })}>
-                          <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder={t("Select student")} /></SelectTrigger>
                           <SelectContent>
                             {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
                           </SelectContent>
@@ -113,24 +115,24 @@ export default function ParentsPage() {
                       </div>
                       <FieldError errors={fieldErrors} field="student_id" />
                       <div className="space-y-2">
-                        <Label>Relationship</Label>
+                        <Label>{t("Relationship")}</Label>
                         <Select value={linkForm.relationship} onValueChange={(v) => setLinkForm({ ...linkForm, relationship: v })}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="father">Father</SelectItem>
-                            <SelectItem value="mother">Mother</SelectItem>
-                            <SelectItem value="guardian">Guardian</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="father">{t("Father")}</SelectItem>
+                            <SelectItem value="mother">{t("Mother")}</SelectItem>
+                            <SelectItem value="guardian">{t("Guardian")}</SelectItem>
+                            <SelectItem value="other">{t("Other")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <FieldError errors={fieldErrors} field="relationship" />
                       <div className="space-y-2">
-                        <Label>Education Level (optional)</Label>
+                        <Label>{t("Education Level (optional)")}</Label>
                         <Input
                           value={linkForm.education_level}
                           onChange={(e) => setLinkForm({ ...linkForm, education_level: e.target.value })}
-                          placeholder="e.g. Grade 8, Diploma"
+                          placeholder={t("e.g. Grade 8, Diploma")}
                         />
                       </div>
                       <FieldError errors={fieldErrors} field="education_level" />
@@ -141,10 +143,10 @@ export default function ParentsPage() {
                           onChange={(e) => setLinkForm({ ...linkForm, is_primary: e.target.checked })}
                           className="w-4 h-4 rounded border-gray-300 text-[#538a8d] focus:ring-0 cursor-pointer"
                         />
-                        <span>Set as primary guardian</span>
+                        <span>{t("Set as primary guardian")}</span>
                       </label>
                       <FieldError errors={fieldErrors} field="is_primary" />
-                      <Button type="submit" className="w-full">Link</Button>
+                      <Button type="submit" className="w-full">{t("Link")}</Button>
                     </form>
                   </DialogContent>
                 </Dialog>
@@ -152,21 +154,21 @@ export default function ParentsPage() {
             </CardHeader>
             <CardContent>
               {!selectedParent ? (
-                <p className="text-muted-foreground text-center py-12">Select a parent from the list to view details</p>
+                <p className="text-muted-foreground text-center py-12">{t("Select a parent from the list to view details")}</p>
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><Label className="text-xs">Email</Label><p className="text-sm">{selectedParent.email}</p></div>
-                    <div><Label className="text-xs">Phone</Label><p className="text-sm">{selectedParent.phone || "—"}</p></div>
+                    <div><Label className="text-xs">{t("Email")}</Label><p className="text-sm">{selectedParent.email}</p></div>
+                    <div><Label className="text-xs">{t("Phone")}</Label><p className="text-sm">{selectedParent.phone || "—"}</p></div>
                   </div>
                   <div>
-                    <h3 className="font-medium text-sm mb-2">Linked Children</h3>
+                    <h3 className="font-medium text-sm mb-2">{t("Linked Children")}</h3>
                     <div className="rounded-md border">
                       <div className="overflow-x-auto -mx-px"><table className="w-full text-sm">
-                        <thead><tr className="border-b bg-muted/50"><th className="text-left p-2 font-medium">Name</th><th className="text-left p-2 font-medium">Student #</th><th className="text-left p-2 font-medium">Relationship</th><th className="text-left p-2 font-medium">Primary</th><th className="text-right p-2 font-medium">Actions</th></tr></thead>
+                        <thead><tr className="border-b bg-muted/50"><th className="text-left p-2 font-medium">{t("Name")}</th><th className="text-left p-2 font-medium">{t("Student #")}</th><th className="text-left p-2 font-medium">{t("Relationship")}</th><th className="text-left p-2 font-medium">{t("Primary")}</th><th className="text-right p-2 font-medium">{t("Actions")}</th></tr></thead>
                         <tbody>
                           {(!parentDetail?.data?.children || parentDetail.data.children.length === 0) && (
-                            <tr><td colSpan={5} className="text-center p-4 text-muted-foreground">No children linked</td></tr>
+                            <tr><td colSpan={5} className="text-center p-4 text-muted-foreground">{t("No children linked")}</td></tr>
                           )}
                           {(parentDetail?.data?.children || []).map((child) => (
                             <tr key={child.student_id} className="border-b last:border-0">
@@ -179,16 +181,16 @@ export default function ParentsPage() {
                                   size="sm"
                                   onClick={() => {
                                     if (child.is_primary) return;
-                                    if (confirm("Set this parent as primary guardian for this child?")) {
+                                    if (confirm(t("Set this parent as primary guardian for this child?"))) {
                                       updateLink.mutate({ id: child.link_id, is_primary: true });
                                     }
                                   }}
                                 >
-                                  {child.is_primary ? "Primary" : "Set primary"}
+                                  {child.is_primary ? t("Primary") : t("Set primary")}
                                 </Button>
                               </td>
                               <td className="p-2 text-right">
-                                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm("Unlink this child?")) unlinkParent.mutate(child.link_id); }}>
+                                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm(t("Unlink this child?"))) unlinkParent.mutate(child.link_id); }}>
                                   <Unlink className="h-3 w-3" />
                                 </Button>
                               </td>

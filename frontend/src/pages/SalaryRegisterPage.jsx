@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Download, Users } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 const money = (v) => (parseFloat(v) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -30,6 +31,7 @@ const DEDUCTION_COLS = [
 ];
 
 export default function SalaryRegisterPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -52,62 +54,62 @@ export default function SalaryRegisterPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Salary Register</h1>
-          <p className="text-muted-foreground">Monthly payroll sheet with each employee's earnings and deductions</p>
+          <h1 className="text-3xl font-bold">{t("Salary Register")}</h1>
+          <p className="text-muted-foreground">{t("Monthly payroll sheet with each employee's earnings and deductions")}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Month</Label>
+            <Label className="text-sm">{t("Month")}</Label>
             <Select value={month.toString()} onValueChange={(v) => setMonth(parseInt(v))}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Array.from({ length: 12 }, (_, i) => (
                   <SelectItem key={i + 1} value={(i + 1).toString()}>
-                    {new Date(2000, i).toLocaleString("default", { month: "long" })}
+                    {t(new Date(2000, i).toLocaleString("default", { month: "long" }))}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Year</Label>
+            <Label className="text-sm">{t("Year")}</Label>
             <Input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-24 h-9" />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Employees</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("Employees")}</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{rows.length}</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total Gross</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("Total Gross")}</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{money(totals.basic + totals.allowances)}</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total Deductions</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("Total Deductions")}</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{money(totals.deductions)}</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total Net Pay</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("Total Net Pay")}</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{money(totals.net)}</p></CardContent></Card>
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Salary Sheet — {new Date(2000, month - 1).toLocaleString("default", { month: "long" })} {year}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> {t("Salary Sheet")} — {t(new Date(2000, month - 1).toLocaleString("default", { month: "long" }))} {year}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : rows.length === 0 ? (
-            <p className="text-muted-foreground">No payroll entries for this period</p>
+            <p className="text-muted-foreground">{t("No payroll entries for this period")}</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="whitespace-nowrap">Name</TableHead>
-                    <TableHead className="whitespace-nowrap">Job Title</TableHead>
-                    <TableHead className="whitespace-nowrap text-right">Basic</TableHead>
-                    {ALLOWANCE_COLS.map((c) => <TableHead key={c.key} className="whitespace-nowrap text-right">{c.label}</TableHead>)}
-                    <TableHead className="whitespace-nowrap text-right">Gross</TableHead>
-                    {DEDUCTION_COLS.map((c) => <TableHead key={c.key} className="whitespace-nowrap text-right">{c.label}</TableHead>)}
-                    <TableHead className="whitespace-nowrap text-right">Total Ded</TableHead>
-                    <TableHead className="whitespace-nowrap text-right">Net Pay</TableHead>
-                    <TableHead className="whitespace-nowrap">Bank Acct</TableHead>
+                    <TableHead className="whitespace-nowrap">{t("Name")}</TableHead>
+                    <TableHead className="whitespace-nowrap">{t("Job Title")}</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">{t("Basic")}</TableHead>
+                    {ALLOWANCE_COLS.map((c) => <TableHead key={c.key} className="whitespace-nowrap text-right">{t(c.label)}</TableHead>)}
+                    <TableHead className="whitespace-nowrap text-right">{t("Gross")}</TableHead>
+                    {DEDUCTION_COLS.map((c) => <TableHead key={c.key} className="whitespace-nowrap text-right">{t(c.label)}</TableHead>)}
+                    <TableHead className="whitespace-nowrap text-right">{t("Total Ded")}</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">{t("Net Pay")}</TableHead>
+                    <TableHead className="whitespace-nowrap">{t("Bank Acct")}</TableHead>
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -138,7 +140,7 @@ export default function SalaryRegisterPage() {
                     );
                   })}
                   <TableRow className="bg-muted/50 font-semibold">
-                    <TableCell colSpan={2}>Totals</TableCell>
+                    <TableCell colSpan={2}>{t("Totals")}</TableCell>
                     <TableCell className="text-right">{money(totals.basic)}</TableCell>
                     {ALLOWANCE_COLS.map((c) => <TableCell key={c.key}></TableCell>)}
                     <TableCell className="text-right">{money(totals.basic + totals.allowances)}</TableCell>

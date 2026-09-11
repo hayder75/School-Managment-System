@@ -11,8 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 
 export default function ClassesPage() {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useClasses({ page, limit: 20 });
   const { data: teachersData } = useTeachers({ limit: 200 });
@@ -49,66 +51,66 @@ export default function ClassesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Classes</h1>
-          <p className="text-muted-foreground">Manage classes and sections</p>
+          <h1 className="text-3xl font-bold">{t("Classes")}</h1>
+          <p className="text-muted-foreground">{t("Manage classes and sections")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Add Class</Button>
+            <Button><Plus className="h-4 w-4 mr-2" /> {t("Add Class")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Create Class</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Create Class")}</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
-                <Label>Class Name</Label>
-                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Grade 7A" />
+                <Label>{t("Class Name")}</Label>
+                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("Grade 7A")} />
               </div>
               <FieldError errors={fieldErrors} field="name" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Level Group</Label>
+                  <Label>{t("Level Group")}</Label>
                   <Select value={form.level_group} onValueChange={(v) => setForm({ ...form, level_group: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="nursery">Nursery</SelectItem>
-                      <SelectItem value="kg">KG</SelectItem>
-                      <SelectItem value="primary">Primary</SelectItem>
-                      <SelectItem value="secondary">Secondary</SelectItem>
+                      <SelectItem value="nursery">{t("Nursery")}</SelectItem>
+                      <SelectItem value="kg">{t("KG")}</SelectItem>
+                      <SelectItem value="primary">{t("Primary")}</SelectItem>
+                      <SelectItem value="secondary">{t("Secondary")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <FieldError errors={fieldErrors} field="level_group" />
                 <div className="space-y-2">
-                  <Label>Grade Level</Label>
+                  <Label>{t("Grade Level")}</Label>
                   <Input type="number" value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: e.target.value })} />
                 </div>
                 <FieldError errors={fieldErrors} field="grade_level" />
                 <div className="space-y-2">
-                  <Label>Section</Label>
+                  <Label>{t("Section")}</Label>
                   <Input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} placeholder="A" />
                 </div>
                 <FieldError errors={fieldErrors} field="section" />
               </div>
               <div className="space-y-2">
-                <Label>Capacity</Label>
+                <Label>{t("Capacity")}</Label>
                 <Input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
               </div>
               <FieldError errors={fieldErrors} field="capacity" />
               <div className="space-y-2">
-                <Label>Class Teacher</Label>
+                <Label>{t("Class Teacher")}</Label>
                 <Select value={form.class_teacher_id} onValueChange={(v) => setForm({ ...form, class_teacher_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("Select teacher")} /></SelectTrigger>
                   <SelectContent>
-                    {teachers.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>
+                    {teachers.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>{teacher.first_name} {teacher.last_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <FieldError errors={fieldErrors} field="class_teacher_id" />
               <Button type="submit" className="w-full" disabled={createClass.isPending}>
-                {createClass.isPending ? "Creating..." : "Create Class"}
+                {createClass.isPending ? t("Creating...") : t("Create Class")}
               </Button>
             </form>
           </DialogContent>
@@ -116,21 +118,21 @@ export default function ClassesPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>All Classes</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("All Classes")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Section</TableHead>
-                    <TableHead>Teacher</TableHead>
-                    <TableHead>Capacity</TableHead>
+                    <TableHead>{t("Name")}</TableHead>
+                    <TableHead>{t("Level")}</TableHead>
+                    <TableHead>{t("Grade")}</TableHead>
+                    <TableHead>{t("Section")}</TableHead>
+                    <TableHead>{t("Teacher")}</TableHead>
+                    <TableHead>{t("Capacity")}</TableHead>
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -151,17 +153,17 @@ export default function ClassesPage() {
                     </TableRow>
                   ))}
                   {classes.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No classes yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("No classes yet")}</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
 
               {meta.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</p>
+                  <p className="text-sm text-muted-foreground">{t("Page {page} of {total}", { page: meta.page, total: meta.totalPages })}</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("Previous")}</Button>
+                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>{t("Next")}</Button>
                   </div>
                 </div>
               )}

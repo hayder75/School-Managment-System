@@ -9,6 +9,7 @@ import { Input } from "../components/ui/input";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Button } from "../components/ui/button";
 import { UserCheck, AlertTriangle, Clock, CheckCircle, CalendarDays, BarChart3, Users, GraduationCap, TrendingDown, Search, X } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const LEVEL_ORDER = ["Nursery", "LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8"];
@@ -21,10 +22,11 @@ function levelLabel(c) {
 }
 
 function StatCard({ title, value, icon: Icon, sub, color }) {
+  const { t } = useI18n();
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium">{t(title)}</CardTitle>
         {Icon && <Icon className={`h-4 w-4 ${color || "text-muted-foreground"}`} />}
       </CardHeader>
       <CardContent>
@@ -49,6 +51,7 @@ function RankBadge({ rank }) {
 }
 
 export default function AdminAttendancePage() {
+  const { t } = useI18n();
   const today = new Date().toISOString().split("T")[0];
   const [draftFrom, setDraftFrom] = useState("2026-01-01");
   const [draftTo, setDraftTo] = useState(today);
@@ -75,7 +78,7 @@ export default function AdminAttendancePage() {
     const label = levelLabel(c);
     levelAgg[label] = (levelAgg[label] || 0) + c.absent;
   }
-  const levelBars = LEVEL_ORDER.filter((l) => levelAgg[l] != null).map((l) => ({ label: l, value: levelAgg[l] }));
+  const levelBars = LEVEL_ORDER.filter((l) => levelAgg[l] != null).map((l) => ({ label: t(l), value: levelAgg[l] }));
 
   const monthAgg = {};
   for (const d of trend) {
@@ -90,10 +93,10 @@ export default function AdminAttendancePage() {
     .map((m) => ({ label: MONTHS[Number(m)], present: monthAgg[m].present, absent: monthAgg[m].absent }));
 
   const statusSegments = [
-    { label: "Present", value: summary.present || 0, color: "#2c5a5e" },
-    { label: "Absent", value: summary.absent || 0, color: "#d47a6a" },
-    { label: "Late", value: summary.late || 0, color: "#c9a86a" },
-    { label: "Excused", value: summary.excused || 0, color: "#8f9bb3" },
+    { label: t("Present"), value: summary.present || 0, color: "#2c5a5e" },
+    { label: t("Absent"), value: summary.absent || 0, color: "#d47a6a" },
+    { label: t("Late"), value: summary.late || 0, color: "#c9a86a" },
+    { label: t("Excused"), value: summary.excused || 0, color: "#8f9bb3" },
   ];
 
   function applyFilters() {
@@ -108,84 +111,84 @@ export default function AdminAttendancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Attendance Analytics</h1>
-        <p className="text-muted-foreground">School-wide attendance overview, absence hotspots and student-level breakdown</p>
+        <h1 className="text-3xl font-bold">{t("Attendance Analytics")}</h1>
+        <p className="text-muted-foreground">{t("School-wide attendance overview, absence hotspots and student-level breakdown")}</p>
       </div>
 
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-wrap gap-4 items-end">
             <div className="space-y-2">
-              <label className="text-sm font-medium">From</label>
+              <label className="text-sm font-medium">{t("From")}</label>
               <EthiopianDateInput className="w-56" value={draftFrom} onChange={setDraftFrom} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">To</label>
+              <label className="text-sm font-medium">{t("To")}</label>
               <EthiopianDateInput className="w-56" value={draftTo} onChange={setDraftTo} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Class</label>
+              <label className="text-sm font-medium">{t("Class")}</label>
               <Select value={classId || "__all__"} onValueChange={(v) => selectClass(v === "__all__" ? "" : v)}>
-                <SelectTrigger className="w-56"><SelectValue placeholder="All classes" /></SelectTrigger>
+                <SelectTrigger className="w-56"><SelectValue placeholder={t("All classes")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All classes</SelectItem>
+                  <SelectItem value="__all__">{t("All classes")}</SelectItem>
                   {allClasses.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={applyFilters} className="gap-2"><Search className="h-4 w-4" /> Apply</Button>
+            <Button onClick={applyFilters} className="gap-2"><Search className="h-4 w-4" /> {t("Apply")}</Button>
             {classId && (
-              <Button variant="outline" onClick={() => selectClass("")} className="gap-2"><X className="h-4 w-4" /> Clear class</Button>
+              <Button variant="outline" onClick={() => selectClass("")} className="gap-2"><X className="h-4 w-4" /> {t("Clear class")}</Button>
             )}
           </div>
         </CardContent>
       </Card>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading attendance analytics...</p>
+        <p className="text-muted-foreground">{t("Loading attendance analytics...")}</p>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-5 gap-4">
-            <StatCard title="Attendance Rate" value={summary.present_rate != null ? `${summary.present_rate}%` : "—"} icon={UserCheck} color="text-green-600" sub={`${summary.present || 0} present`} />
-            <StatCard title="Absent" value={summary.absent || "—"} icon={AlertTriangle} color="text-red-600" sub={`${summary.absent_rate}% absent rate`} />
-            <StatCard title="Late" value={summary.late || "—"} icon={Clock} color="text-yellow-600" sub={`${summary.late_rate}% late rate`} />
-            <StatCard title="Excused" value={summary.excused || "—"} icon={CheckCircle} color="text-blue-600" sub={`${summary.excused_rate}% excused rate`} />
-            <StatCard title="Total Records" value={summary.total?.toLocaleString() || "—"} icon={CalendarDays} color="text-neutral-600" sub={`${byClass.length} classes tracked`} />
+            <StatCard title="Attendance Rate" value={summary.present_rate != null ? `${summary.present_rate}%` : "—"} icon={UserCheck} color="text-green-600" sub={`${summary.present || 0} ${t("Present")}`} />
+            <StatCard title="Absent" value={summary.absent || "—"} icon={AlertTriangle} color="text-red-600" sub={`${summary.absent_rate}% ${t("absent rate")}`} />
+            <StatCard title="Late" value={summary.late || "—"} icon={Clock} color="text-yellow-600" sub={`${summary.late_rate}% ${t("late rate")}`} />
+            <StatCard title="Excused" value={summary.excused || "—"} icon={CheckCircle} color="text-blue-600" sub={`${summary.excused_rate}% ${t("excused rate")}`} />
+            <StatCard title="Total Records" value={summary.total?.toLocaleString() || "—"} icon={CalendarDays} color="text-neutral-600" sub={`${byClass.length} ${t("classes tracked")}`} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Attendance Status Mix</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> {t("Attendance Status Mix")}</CardTitle></CardHeader>
               <CardContent><DonutChart total={summary.students || 0} segments={statusSegments} /></CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2"><TrendingDown className="h-4 w-4" /> Monthly Present vs Absent</span>
+                  <span className="flex items-center gap-2"><TrendingDown className="h-4 w-4" /> {t("Monthly Present vs Absent")}</span>
                   <span className="flex items-center gap-3 text-[11px] font-normal text-muted-foreground">
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#2c5a5e" }} /> Present</span>
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#d47a6a" }} /> Absent</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#2c5a5e" }} /> {t("Present")}</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#d47a6a" }} /> {t("Absent")}</span>
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <GroupedBarChart data={trendBars} series={[{ key: "present", label: "Present", color: "#2c5a5e" }, { key: "absent", label: "Absent", color: "#d47a6a" }]} height={200} />
+                <GroupedBarChart data={trendBars} series={[{ key: "present", label: t("Present"), color: "#2c5a5e" }, { key: "absent", label: t("Absent"), color: "#d47a6a" }]} height={200} />
               </CardContent>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Absence by Level</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4" /> {t("Absence by Level")}</CardTitle></CardHeader>
               <CardContent><BarChart data={levelBars} height={200} color="#d47a6a" /></CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> Most Absent Students</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> {t("Most Absent Students")}</CardTitle></CardHeader>
               <CardContent>
                 {topAbsent.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No attendance records in this range</p>
+                  <p className="text-muted-foreground text-sm">{t("No attendance records in this range")}</p>
                 ) : (
                   <div className="space-y-2">
                     {topAbsent.map((s, i) => (
@@ -196,8 +199,8 @@ export default function AdminAttendancePage() {
                           <p className="text-xs text-muted-foreground truncate">{s.class_name}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-red-600">{s.absent} absent</p>
-                          <p className="text-xs text-muted-foreground">{s.absent_rate}% · {s.late} late</p>
+                          <p className="text-sm font-semibold text-red-600">{s.absent} {t("Absent")}</p>
+                          <p className="text-xs text-muted-foreground">{s.absent_rate}% · {s.late} {t("Late")}</p>
                         </div>
                       </div>
                     ))}
@@ -208,21 +211,21 @@ export default function AdminAttendancePage() {
           </div>
 
           <Card>
-            <CardHeader><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Absence by Class (highest first)</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> {t("Absence by Class (highest first)")}</CardTitle></CardHeader>
             <CardContent>
               {byClass.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No attendance records in this range</p>
+                <p className="text-muted-foreground text-sm">{t("No attendance records in this range")}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-8">#</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead>Level</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">Absent</TableHead>
-                      <TableHead className="text-right">Late</TableHead>
-                      <TableHead className="text-right">Absent %</TableHead>
+                      <TableHead>{t("Class")}</TableHead>
+                      <TableHead>{t("Level")}</TableHead>
+                      <TableHead className="text-right">{t("Total")}</TableHead>
+                      <TableHead className="text-right">{t("Absent")}</TableHead>
+                      <TableHead className="text-right">{t("Late")}</TableHead>
+                      <TableHead className="text-right">{t("Absent %")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -230,7 +233,7 @@ export default function AdminAttendancePage() {
                       <TableRow key={c.class_id} className="cursor-pointer hover:bg-neutral-50" onClick={() => selectClass(c.class_id)}>
                         <TableCell className="text-muted-foreground text-xs">{i + 1}</TableCell>
                         <TableCell className="font-medium">{c.class_name}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs">{levelLabel(c)}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{t(levelLabel(c))}</TableCell>
                         <TableCell className="text-right">{c.total}</TableCell>
                         <TableCell className="text-right font-semibold text-red-600">{c.absent}</TableCell>
                         <TableCell className="text-right">{c.late}</TableCell>
@@ -251,38 +254,38 @@ export default function AdminAttendancePage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> {classDetail.class.name} — Student Breakdown</CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => selectClass("")} className="gap-1"><X className="h-3 w-3" /> Clear</Button>
+                  <CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> {classDetail.class.name} — {t("Student Breakdown")}</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => selectClass("")} className="gap-1"><X className="h-3 w-3" /> {t("Clear")}</Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                   <div className="p-2 border rounded">
-                    <p className="text-xs text-muted-foreground">Attendance Rate</p>
+                    <p className="text-xs text-muted-foreground">{t("Attendance Rate")}</p>
                     <p className="text-lg font-bold text-green-600">{classDetail.summary.present_rate}%</p>
                   </div>
                   <div className="p-2 border rounded">
-                    <p className="text-xs text-muted-foreground">Absent</p>
+                    <p className="text-xs text-muted-foreground">{t("Absent")}</p>
                     <p className="text-lg font-bold text-red-600">{classDetail.summary.absent} ({classDetail.summary.absent_rate}%)</p>
                   </div>
                   <div className="p-2 border rounded">
-                    <p className="text-xs text-muted-foreground">Late</p>
+                    <p className="text-xs text-muted-foreground">{t("Late")}</p>
                     <p className="text-lg font-bold text-yellow-600">{classDetail.summary.late} ({classDetail.summary.late_rate}%)</p>
                   </div>
                   <div className="p-2 border rounded">
-                    <p className="text-xs text-muted-foreground">Records</p>
+                    <p className="text-xs text-muted-foreground">{t("Records")}</p>
                     <p className="text-lg font-bold">{classDetail.summary.total?.toLocaleString()}</p>
                   </div>
                 </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead className="text-right">Present</TableHead>
-                      <TableHead className="text-right">Absent</TableHead>
-                      <TableHead className="text-right">Late</TableHead>
-                      <TableHead className="text-right">Excused</TableHead>
-                      <TableHead className="text-right">Absent %</TableHead>
+                      <TableHead>{t("Student")}</TableHead>
+                      <TableHead className="text-right">{t("Present")}</TableHead>
+                      <TableHead className="text-right">{t("Absent")}</TableHead>
+                      <TableHead className="text-right">{t("Late")}</TableHead>
+                      <TableHead className="text-right">{t("Excused")}</TableHead>
+                      <TableHead className="text-right">{t("Absent %")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -15,11 +15,13 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Plus, Trash2, Wand2 } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const dayLabels = { monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu", friday: "Fri", saturday: "Sat" };
 
 export default function TimetablePage() {
+  const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === "student";
   const isTeacher = user?.role === "teacher";
@@ -112,22 +114,22 @@ export default function TimetablePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Timetable</h1>
+          <h1 className="text-3xl font-bold">{t("Timetable")}</h1>
           <p className="text-muted-foreground">
             {isStudent && myClass
-              ? `Your class schedule — ${myClass.name}`
+              ? t("Your class schedule — {name}", { name: myClass.name })
               : isTeacher && myClass
-                ? `Classes you teach — ${myClass.name}`
+                ? t("Classes you teach — {name}", { name: myClass.name })
                 : isParent && myClass
-                  ? `Your child's schedule — ${myClass.name}`
-                  : "Manage class schedules"
+                  ? t("Your child's schedule — {name}", { name: myClass.name })
+                  : t("Manage class schedules")
             }
           </p>
         </div>
         <div className="flex gap-4 items-center">
           {!isStudent && (
             <Select value={classId} onValueChange={(v) => { setClassId(v); setForm((f) => ({ ...f, class_id: v })); }}>
-              <SelectTrigger className="w-64"><SelectValue placeholder="Select class" /></SelectTrigger>
+              <SelectTrigger className="w-64"><SelectValue placeholder={t("Select class")} /></SelectTrigger>
               <SelectContent>
                 {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
@@ -136,29 +138,29 @@ export default function TimetablePage() {
           {classId && isAdmin && (
             <>
               <Button variant="outline" onClick={handleGenerate} disabled={generating}>
-                <Wand2 className="h-4 w-4 mr-2" /> {generating ? "Generating..." : "Auto Generate"}
+                <Wand2 className="h-4 w-4 mr-2" /> {generating ? t("Generating...") : t("Auto Generate")}
               </Button>
             </>
           )}
           {classId && (isAdmin || isTeacher) && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" /> Add Entry</Button>
+                <Button><Plus className="h-4 w-4 mr-2" /> {t("Add Entry")}</Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Add Timetable Entry</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{t("Add Timetable Entry")}</DialogTitle></DialogHeader>
                 <form onSubmit={handleCreate} className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Subject</Label>
+                    <Label>{t("Subject")}</Label>
                     <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t("Select subject")} /></SelectTrigger>
                       <SelectContent>
                         {subjectOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Teacher</Label>
+                    <Label>{t("Teacher")}</Label>
                     <Select
                       value={isTeacher ? user?.id : form.teacher_id}
                       disabled={isTeacher}
@@ -166,34 +168,34 @@ export default function TimetablePage() {
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}
+                        {teachers.map((teacher) => <SelectItem key={teacher.id} value={teacher.id}>{teacher.first_name} {teacher.last_name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Day</Label>
+                    <Label>{t("Day")}</Label>
                     <Select value={form.day_of_week} onValueChange={(v) => setForm({ ...form, day_of_week: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {days.map((d) => <SelectItem key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</SelectItem>)}
+                        {days.map((d) => <SelectItem key={d} value={d}>{t(d.charAt(0).toUpperCase() + d.slice(1))}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Start</Label>
+                      <Label>{t("Start")}</Label>
                       <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <Label>End</Label>
+                      <Label>{t("End")}</Label>
                       <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Room</Label>
+                    <Label>{t("Room")}</Label>
                     <Input value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })} />
                   </div>
-                  <Button type="submit" className="w-full">Add Entry</Button>
+                  <Button type="submit" className="w-full">{t("Add Entry")}</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -203,17 +205,17 @@ export default function TimetablePage() {
 
       {classId && (
         <Card>
-          <CardHeader><CardTitle>Weekly Schedule — {myClass?.name}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("Weekly Schedule — {name}", { name: myClass?.name })}</CardTitle></CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <p className="text-muted-foreground">{t("Loading...")}</p>
             ) : (
               <div className="overflow-x-auto -mx-4 px-4">
                 <div className="grid grid-cols-6 gap-2 min-w-[640px]">
                 {days.map((day) => (
                   <div key={day} className="border rounded-lg">
                     <div className="bg-muted p-2 text-center font-medium text-sm rounded-t-lg">
-                      {dayLabels[day]}
+                      {t(dayLabels[day])}
                     </div>
                     <div className="p-2 space-y-2 min-h-[200px]">
                       {timetableByDay[day].length === 0 && (
@@ -223,7 +225,7 @@ export default function TimetablePage() {
                          <div key={entry.id} className={`rounded p-2 text-xs space-y-1 group relative ${entry.is_test ? "bg-rose-50 border border-rose-200" : "bg-primary/5"}`}>
                            <div className="flex items-center justify-between">
                              <p className="font-medium">{entry.subject_name}</p>
-                             {entry.is_test && <span className="px-1.5 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold">TEST</span>}
+                             {entry.is_test && <span className="px-1.5 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold">{t("TEST")}</span>}
                            </div>
                            <p className="text-muted-foreground">
                              {entry.start_time?.slice(0, 5)}-{entry.end_time?.slice(0, 5)}
@@ -231,7 +233,7 @@ export default function TimetablePage() {
                            {entry.teacher_first_name && (
                              <p className="text-muted-foreground">{entry.teacher_first_name} {entry.teacher_last_name}</p>
                            )}
-                           {entry.room && <p className="text-muted-foreground">Room {entry.room}</p>}
+                           {entry.room && <p className="text-muted-foreground">{t("Room {room}", { room: entry.room })}</p>}
                            {isAdmin && (
                             <Button
                               variant="ghost"

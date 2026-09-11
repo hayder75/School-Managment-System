@@ -14,8 +14,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Label } from "../../components/ui/label";
 import { Plus, Trash2, BookOpen } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 
 function TeacherAssignments({ teacherId, teacherName }) {
+  const { t } = useI18n();
   const { data: assignments, isLoading } = useTeacherAssignments(teacherId);
   const { data: classesData } = useClasses({ limit: 200 });
   const { data: subjectsData } = useSubjects({ limit: 200 });
@@ -43,21 +45,21 @@ function TeacherAssignments({ teacherId, teacherName }) {
   return (
     <div>
       <DialogHeader>
-        <DialogTitle>{teacherName}'s Assignments</DialogTitle>
-        <DialogDescription>Subjects this teacher teaches and the classes they cover</DialogDescription>
+        <DialogTitle>{t("{name}'s Assignments", { name: teacherName })}</DialogTitle>
+        <DialogDescription>{t("Subjects this teacher teaches and the classes they cover")}</DialogDescription>
       </DialogHeader>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No assignments yet</p>
+        <p className="text-sm text-muted-foreground">{t("No assignments yet")}</p>
       ) : (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Subject</TableHead>
-                <TableHead>Class</TableHead>
+                <TableHead>{t("Subject")}</TableHead>
+                <TableHead>{t("Class")}</TableHead>
                 <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
@@ -83,9 +85,9 @@ function TeacherAssignments({ teacherId, teacherName }) {
       )}
 
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-sm">Assign Subject to Class</h3>
+        <h3 className="font-medium text-sm">{t("Assign Subject to Class")}</h3>
         <Button size="sm" variant="outline" onClick={() => setShowForm((s) => !s)}>
-          <Plus className="h-4 w-4 mr-1" /> {showForm ? "Hide" : "Assign"}
+          <Plus className="h-4 w-4 mr-1" /> {showForm ? t("Hide") : t("Assign")}
         </Button>
       </div>
 
@@ -93,9 +95,9 @@ function TeacherAssignments({ teacherId, teacherName }) {
         <form onSubmit={handleAssign} className="space-y-4">
           {fieldErrors.form && <p className="text-sm text-red-500">{fieldErrors.form}</p>}
           <div className="space-y-2">
-            <Label>Subject</Label>
+            <Label>{t("Subject")}</Label>
             <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("Select subject")} /></SelectTrigger>
               <SelectContent>
                 {subjects.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -105,9 +107,9 @@ function TeacherAssignments({ teacherId, teacherName }) {
           </div>
           <FieldError errors={fieldErrors} field="subject_id" />
           <div className="space-y-2">
-            <Label>Class</Label>
+            <Label>{t("Class")}</Label>
             <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("Select class")} /></SelectTrigger>
               <SelectContent>
                 {classes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -116,7 +118,7 @@ function TeacherAssignments({ teacherId, teacherName }) {
             </Select>
           </div>
           <FieldError errors={fieldErrors} field="class_id" />
-          <Button type="submit" className="w-full">Assign</Button>
+          <Button type="submit" className="w-full">{t("Assign")}</Button>
         </form>
       )}
     </div>
@@ -124,6 +126,7 @@ function TeacherAssignments({ teacherId, teacherName }) {
 }
 
 export default function TeachersPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -137,29 +140,29 @@ export default function TeachersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Teachers</h1>
-        <p className="text-muted-foreground">Manage teachers and their class/subject assignments</p>
+        <h1 className="text-3xl font-bold">{t("Teachers")}</h1>
+        <p className="text-muted-foreground">{t("Manage teachers and their class/subject assignments")}</p>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>All Teachers</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("All Teachers")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Gender</TableHead>
-                  <TableHead>Job Title</TableHead>
-                  <TableHead>Qualification</TableHead>
-                  <TableHead>Field of Study</TableHead>
-                  <TableHead>Sections</TableHead>
-                  <TableHead>P/W</TableHead>
-                  <TableHead>OT</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("Name")}</TableHead>
+                  <TableHead>{t("Email")}</TableHead>
+                  <TableHead>{t("Gender")}</TableHead>
+                  <TableHead>{t("Job Title")}</TableHead>
+                  <TableHead>{t("Qualification")}</TableHead>
+                  <TableHead>{t("Field of Study")}</TableHead>
+                  <TableHead>{t("Sections")}</TableHead>
+                  <TableHead>{t("P/W")}</TableHead>
+                  <TableHead>{t("OT")}</TableHead>
+                  <TableHead>{t("Status")}</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -188,7 +191,7 @@ export default function TeachersPage() {
                   </TableRow>
                 ))}
                 {teachers.length === 0 && (
-                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">No teachers found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">{t("No teachers found")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -209,10 +212,10 @@ export default function TeachersPage() {
 
       {meta.totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</p>
+          <p className="text-sm text-muted-foreground">{t("Page {page} of {total}", { page: meta.page, total: meta.totalPages })}</p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("Previous")}</Button>
+            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>{t("Next")}</Button>
           </div>
         </div>
       )}

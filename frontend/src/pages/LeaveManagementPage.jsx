@@ -8,8 +8,10 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Plus } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 export default function LeaveManagementPage() {
+  const { t } = useI18n();
   const { user } = useAuthStore();
   const [leaves, setLeaves] = useState([]);
   const [form, setForm] = useState({ leave_type: "annual", start_date: "", end_date: "", reason: "" });
@@ -26,21 +28,21 @@ export default function LeaveManagementPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold">Leave Management</h1><p className="text-muted-foreground text-sm">Staff leave requests</p></div>
-        <Button onClick={() => setShowForm(!showForm)}><Plus className="h-4 w-4 mr-1" /> Request Leave</Button>
+        <div><h1 className="text-3xl font-bold">{t("Leave Management")}</h1><p className="text-muted-foreground text-sm">{t("Staff leave requests")}</p></div>
+        <Button onClick={() => setShowForm(!showForm)}><Plus className="h-4 w-4 mr-1" /> {t("Request Leave")}</Button>
       </div>
-      {showForm && <Card><CardHeader><CardTitle>New Leave Request</CardTitle></CardHeader>
+      {showForm && <Card><CardHeader><CardTitle>{t("New Leave Request")}</CardTitle></CardHeader>
         <CardContent><div className="flex gap-2 items-end flex-wrap">
-          <div><Label>Type</Label><select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.leave_type} onChange={e => setForm({...form,leave_type:e.target.value})}>
-            {["annual","sick","maternity","paternity","emergency","unpaid"].map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+          <div><Label>{t("Type")}</Label><select className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.leave_type} onChange={e => setForm({...form,leave_type:e.target.value})}>
+            {["annual","sick","maternity","paternity","emergency","unpaid"].map(lt => <option key={lt} value={lt} className="capitalize">{t(lt.charAt(0).toUpperCase() + lt.slice(1))}</option>)}
           </select></div>
-          <div><Label>Start</Label><EthiopianDateInput value={form.start_date} onChange={iso => setForm({...form,start_date:iso})} /></div>
-          <div><Label>End</Label><EthiopianDateInput value={form.end_date} onChange={iso => setForm({...form,end_date:iso})} /></div>
-          <div><Label>Reason</Label><Input value={form.reason} onChange={e => setForm({...form,reason:e.target.value})} /></div>
-          <Button onClick={submitLeave}>Submit</Button>
+          <div><Label>{t("Start")}</Label><EthiopianDateInput value={form.start_date} onChange={iso => setForm({...form,start_date:iso})} /></div>
+          <div><Label>{t("End")}</Label><EthiopianDateInput value={form.end_date} onChange={iso => setForm({...form,end_date:iso})} /></div>
+          <div><Label>{t("Reason")}</Label><Input value={form.reason} onChange={e => setForm({...form,reason:e.target.value})} /></div>
+          <Button onClick={submitLeave}>{t("Submit")}</Button>
         </div></CardContent>
       </Card>}
-      <Card><CardHeader><CardTitle>Leave Requests</CardTitle></CardHeader>
+      <Card><CardHeader><CardTitle>{t("Leave Requests")}</CardTitle></CardHeader>
         <CardContent><div className="space-y-2">
           {leaves.map(l => <div key={l.id} className="flex items-center justify-between border rounded-md p-3">
             <div className="text-sm"><span className="font-medium capitalize">{l.staff_name}</span> — <span className="capitalize">{l.leave_type}</span><br/>
@@ -48,12 +50,12 @@ export default function LeaveManagementPage() {
             <div className="flex items-center gap-2">
               <Badge variant={badgeVariant(l.status)} className="capitalize">{l.status}</Badge>
               {(user?.role === "admin" || user?.role === "owner" || user?.role === "hr") && l.status === "pending" && <>
-                <Button size="sm" variant="outline" onClick={() => approve(l.id)}>Approve</Button>
-                <Button size="sm" variant="outline" className="text-destructive" onClick={() => reject(l.id)}>Reject</Button>
+                <Button size="sm" variant="outline" onClick={() => approve(l.id)}>{t("Approve")}</Button>
+                <Button size="sm" variant="outline" className="text-destructive" onClick={() => reject(l.id)}>{t("Reject")}</Button>
               </>}
             </div>
           </div>)}
-          {leaves.length === 0 && <p className="text-muted-foreground">No leave requests</p>}
+          {leaves.length === 0 && <p className="text-muted-foreground">{t("No leave requests")}</p>}
         </div></CardContent>
       </Card>
     </div>

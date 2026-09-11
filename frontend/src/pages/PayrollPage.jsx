@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Plus, Trash2, Wallet, Download, ChevronDown, ChevronRight } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 const ALLOWANCE_FIELDS = [
   { key: "transport_allowance", label: "Transport Allowance" },
@@ -56,6 +57,7 @@ function computeTotals(form) {
 }
 
 function SalaryGradesTab() {
+  const { t } = useI18n();
   const { data: gradesData, isLoading } = useSalaryGrades();
   const createGrade = useCreateSalaryGrade();
   const deleteGrade = useDeleteSalaryGrade();
@@ -82,23 +84,23 @@ function SalaryGradesTab() {
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-2" /> Add Grade</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-2" /> {t("Add Grade")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Create Salary Grade</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Create Salary Grade")}</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
-                <Label>Grade Name</Label>
-                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Teacher Grade 1" />
+                <Label>{t("Grade Name")}</Label>
+                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("Teacher Grade 1")} />
               </div>
               <FieldError errors={fieldErrors} field="name" />
               <div className="space-y-2">
-                <Label>Basic Salary</Label>
+                <Label>{t("Basic Salary")}</Label>
                 <Input required type="number" value={form.basic_salary} onChange={(e) => setForm({ ...form, basic_salary: e.target.value })} />
               </div>
               <FieldError errors={fieldErrors} field="basic_salary" />
-              <Button type="submit" className="w-full">Create</Button>
+              <Button type="submit" className="w-full">{t("Create")}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -106,14 +108,14 @@ function SalaryGradesTab() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <p className="text-muted-foreground p-4">Loading...</p>
+            <p className="text-muted-foreground p-4">{t("Loading...")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Grade Name</TableHead>
-                  <TableHead>Basic Salary</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("Grade Name")}</TableHead>
+                  <TableHead>{t("Basic Salary")}</TableHead>
+                  <TableHead>{t("Status")}</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -122,7 +124,7 @@ function SalaryGradesTab() {
                   <TableRow key={g.id}>
                     <TableCell className="font-medium">{g.name}</TableCell>
                     <TableCell>{parseFloat(g.basic_salary || 0).toLocaleString()}</TableCell>
-                    <TableCell><Badge variant={g.is_active ? "success" : "secondary"}>{g.is_active ? "Active" : "Inactive"}</Badge></TableCell>
+                    <TableCell><Badge variant={g.is_active ? "success" : "secondary"}>{g.is_active ? t("Active") : t("Inactive")}</Badge></TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => deleteGrade.mutate(g.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -131,7 +133,7 @@ function SalaryGradesTab() {
                   </TableRow>
                 ))}
                 {grades.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No grades yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">{t("No grades yet")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -143,6 +145,7 @@ function SalaryGradesTab() {
 }
 
 function PayrollEntriesTab() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const now = new Date();
   const [page, setPage] = useState(1);
@@ -217,7 +220,7 @@ function PayrollEntriesTab() {
       const totals = computeTotals(next);
       setForm({ ...next, ...totals });
     } catch {
-      setFieldErrors({ form: "Could not calculate tax. Check tax brackets are configured." });
+      setFieldErrors({ form: t("Could not calculate tax. Check tax brackets are configured.") });
     }
   }
 
@@ -232,35 +235,35 @@ function PayrollEntriesTab() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Month</Label>
+            <Label className="text-sm">{t("Month")}</Label>
             <Select value={month.toString()} onValueChange={(v) => setMonth(parseInt(v))}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Array.from({ length: 12 }, (_, i) => (
                   <SelectItem key={i + 1} value={(i + 1).toString()}>
-                    {new Date(2000, i).toLocaleString("default", { month: "long" })}
+                    {t(new Date(2000, i).toLocaleString("default", { month: "long" }))}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Year</Label>
+            <Label className="text-sm">{t("Year")}</Label>
             <Input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-24 h-9" />
           </div>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-2" /> Add Entry</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-2" /> {t("Add Entry")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add Payroll Entry</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Add Payroll Entry")}</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               {fieldErrors.form && <p className="text-sm text-red-500 mb-2">{fieldErrors.form}</p>}
               <div className="space-y-2">
-                <Label>Employee</Label>
+                <Label>{t("Employee")}</Label>
                 <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("Select employee")} /></SelectTrigger>
                   <SelectContent>
                     {staff.map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
                   </SelectContent>
@@ -268,9 +271,9 @@ function PayrollEntriesTab() {
               </div>
               <FieldError errors={fieldErrors} field="user_id" />
               <div className="space-y-2">
-                <Label>Salary Grade (optional, auto-fills pay)</Label>
+                <Label>{t("Salary Grade (optional, auto-fills pay)")}</Label>
                 <Select onValueChange={handleGradeSelect}>
-                  <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("Select grade")} /></SelectTrigger>
                   <SelectContent>
                     {grades.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                   </SelectContent>
@@ -278,45 +281,45 @@ function PayrollEntriesTab() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Basic Pay</Label>
+                  <Label>{t("Basic Pay")}</Label>
                   <Input required type="number" value={form.basic_pay} onChange={(e) => handleFormField("basic_pay", e.target.value)} />
                 </div>
                 <FieldError errors={fieldErrors} field="basic_pay" />
                 <div className="space-y-2">
-                  <Label>Work Days</Label>
+                  <Label>{t("Work Days")}</Label>
                   <Input type="number" value={form.work_days} onChange={(e) => handleFormField("work_days", e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Absent Days</Label>
+                  <Label>{t("Absent Days")}</Label>
                   <Input type="number" value={form.absent_days} onChange={(e) => handleFormField("absent_days", e.target.value)} />
                 </div>
               </div>
               <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
                 <div className="text-sm">
-                  <p className="font-medium">Auto calculate tax & pension</p>
-                  <p className="text-muted-foreground text-xs">Fills income tax (from tax brackets) and pension 7% / 11% from basic + overtime. You can still edit them after.</p>
+                  <p className="font-medium">{t("Auto calculate tax & pension")}</p>
+                  <p className="text-muted-foreground text-xs">{t("Fills income tax (from tax brackets) and pension 7% / 11% from basic + overtime. You can still edit them after.")}</p>
                 </div>
                 <Button type="button" size="sm" onClick={handleCalculateTax} disabled={calculatePayroll.isPending}>
-                  {calculatePayroll.isPending ? "Calculating..." : "Calculate Tax & Pension"}
+                  {calculatePayroll.isPending ? t("Calculating...") : t("Calculate Tax & Pension")}
                 </Button>
               </div>
               <div className="border-t pt-4">
-                <Label className="text-sm font-semibold">Allowances</Label>
+                <Label className="text-sm font-semibold">{t("Allowances")}</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   {ALLOWANCE_FIELDS.map((f) => (
                     <div key={f.key} className="space-y-1">
-                      <Label className="text-xs">{f.label}</Label>
+                      <Label className="text-xs">{t(f.label)}</Label>
                       <Input type="number" value={form[f.key]} onChange={(e) => handleFormField(f.key, e.target.value)} />
                     </div>
                   ))}
                 </div>
               </div>
               <div className="border-t pt-4">
-                <Label className="text-sm font-semibold">Deductions</Label>
+                <Label className="text-sm font-semibold">{t("Deductions")}</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   {DEDUCTION_FIELDS.map((f) => (
                     <div key={f.key} className="space-y-1">
-                      <Label className="text-xs">{f.label}</Label>
+                      <Label className="text-xs">{t(f.label)}</Label>
                       <Input type="number" value={form[f.key]} onChange={(e) => handleFormField(f.key, e.target.value)} />
                     </div>
                   ))}
@@ -324,29 +327,29 @@ function PayrollEntriesTab() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Bank Account</Label>
+                  <Label>{t("Bank Account")}</Label>
                   <Input value={form.bank_account} onChange={(e) => setForm({ ...form, bank_account: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Bank Name</Label>
+                  <Label>{t("Bank Name")}</Label>
                   <Input value={form.bank_name} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-muted rounded-md p-3">
                 <div>
-                  <Label className="text-xs">Allowances Total</Label>
+                  <Label className="text-xs">{t("Allowances Total")}</Label>
                   <p className="text-lg font-semibold">{parseFloat(form.allowances_total || 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-xs">Deductions Total</Label>
+                  <Label className="text-xs">{t("Deductions Total")}</Label>
                   <p className="text-lg font-semibold">{parseFloat(form.deductions_total || 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-xs">Net Pay</Label>
+                  <Label className="text-xs">{t("Net Pay")}</Label>
                   <p className="text-lg font-bold">{parseFloat(form.net_pay || 0).toLocaleString()}</p>
                 </div>
               </div>
-              <Button type="submit" className="w-full">Add Entry</Button>
+              <Button type="submit" className="w-full">{t("Add Entry")}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -354,11 +357,11 @@ function PayrollEntriesTab() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Employees</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Employees")}</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{summary.employee_count || 0}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Gross</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Total Gross")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-2">
               <Wallet className="h-5 w-5" />{summary.total_gross?.toLocaleString() || 0}
@@ -366,7 +369,7 @@ function PayrollEntriesTab() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Net</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t("Total Net")}</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summary.total_net?.toLocaleString() || 0}</div>
           </CardContent>
@@ -376,20 +379,20 @@ function PayrollEntriesTab() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <p className="text-muted-foreground p-4">Loading...</p>
+            <p className="text-muted-foreground p-4">{t("Loading...")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead></TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Basic Pay</TableHead>
-                    <TableHead>Allowances</TableHead>
-                    <TableHead>Deductions</TableHead>
-                    <TableHead>Net Pay</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-20">Payslip</TableHead>
+                    <TableHead>{t("Employee")}</TableHead>
+                    <TableHead>{t("Basic Pay")}</TableHead>
+                    <TableHead>{t("Allowances")}</TableHead>
+                    <TableHead>{t("Deductions")}</TableHead>
+                    <TableHead>{t("Net Pay")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
+                    <TableHead className="w-20">{t("Payslip")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -422,23 +425,23 @@ function PayrollEntriesTab() {
                           <TableCell colSpan={8} className="bg-muted/30 p-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                               <div className="space-y-1">
-                                <p className="font-medium text-xs uppercase text-muted-foreground">Allowances</p>
+                                <p className="font-medium text-xs uppercase text-muted-foreground">{t("Allowances")}</p>
                                 {ALLOWANCE_FIELDS.map((f) => (
-                                  <p key={f.key} className="flex justify-between gap-4"><span>{f.label}</span><span>{(parseFloat(e[f.key]) || 0).toLocaleString()}</span></p>
+                                  <p key={f.key} className="flex justify-between gap-4"><span>{t(f.label)}</span><span>{(parseFloat(e[f.key]) || 0).toLocaleString()}</span></p>
                                 ))}
-                                {e.work_days != null && <p className="flex justify-between gap-4"><span>Work Days</span><span>{e.work_days}</span></p>}
-                                {e.absent_days != null && <p className="flex justify-between gap-4"><span>Absent Days</span><span>{e.absent_days}</span></p>}
+                                {e.work_days != null && <p className="flex justify-between gap-4"><span>{t("Work Days")}</span><span>{e.work_days}</span></p>}
+                                {e.absent_days != null && <p className="flex justify-between gap-4"><span>{t("Absent Days")}</span><span>{e.absent_days}</span></p>}
                               </div>
                               <div className="space-y-1">
-                                <p className="font-medium text-xs uppercase text-muted-foreground">Deductions</p>
+                                <p className="font-medium text-xs uppercase text-muted-foreground">{t("Deductions")}</p>
                                 {DEDUCTION_FIELDS.map((f) => (
-                                  <p key={f.key} className="flex justify-between gap-4"><span>{f.label}</span><span>{(parseFloat(e[f.key]) || 0).toLocaleString()}</span></p>
+                                  <p key={f.key} className="flex justify-between gap-4"><span>{t(f.label)}</span><span>{(parseFloat(e[f.key]) || 0).toLocaleString()}</span></p>
                                 ))}
                               </div>
                               <div className="space-y-1">
-                                <p className="font-medium text-xs uppercase text-muted-foreground">Bank</p>
-                                <p>Account: {e.bank_account || "—"}</p>
-                                <p>Bank: {e.bank_name || "—"}</p>
+                                <p className="font-medium text-xs uppercase text-muted-foreground">{t("Bank")}</p>
+                                <p>{t("Account")}: {e.bank_account || "—"}</p>
+                                <p>{t("Bank")}: {e.bank_name || "—"}</p>
                               </div>
                             </div>
                           </TableCell>
@@ -447,16 +450,16 @@ function PayrollEntriesTab() {
                     </Fragment>
                   ))}
                   {entries.length === 0 && (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No entries for this period</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("No entries for this period")}</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
               {meta.totalPages > 1 && (
                 <div className="flex items-center justify-between p-4">
-                  <p className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</p>
+                  <p className="text-sm text-muted-foreground">{t("Page")} {meta.page} {t("of")} {meta.totalPages}</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("Previous")}</Button>
+                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>{t("Next")}</Button>
                   </div>
                 </div>
               )}
@@ -469,16 +472,17 @@ function PayrollEntriesTab() {
 }
 
 export default function PayrollPage() {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Payroll</h1>
-        <p className="text-muted-foreground">Manage salary grades and payroll entries</p>
+        <h1 className="text-3xl font-bold">{t("Payroll")}</h1>
+        <p className="text-muted-foreground">{t("Manage salary grades and payroll entries")}</p>
       </div>
       <Tabs defaultValue="entries">
         <TabsList>
-          <TabsTrigger value="entries">Payroll Entries</TabsTrigger>
-          <TabsTrigger value="grades">Salary Grades</TabsTrigger>
+          <TabsTrigger value="entries">{t("Payroll Entries")}</TabsTrigger>
+          <TabsTrigger value="grades">{t("Salary Grades")}</TabsTrigger>
         </TabsList>
         <TabsContent value="entries"><PayrollEntriesTab /></TabsContent>
         <TabsContent value="grades"><SalaryGradesTab /></TabsContent>

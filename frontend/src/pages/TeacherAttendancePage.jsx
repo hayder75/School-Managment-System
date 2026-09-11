@@ -5,8 +5,10 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
+import { useI18n } from "../i18n/I18nContext";
 
 export default function TeacherAttendancePage() {
+  const { t } = useI18n();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [staffList, setStaffList] = useState([]);
   const [stats, setStats] = useState({ totalStaff: 0, present: 0, late: 0, absent: 0, onLeave: 0 });
@@ -63,7 +65,7 @@ export default function TeacherAttendancePage() {
 
       const data = await res.json();
       if (data.success) {
-        alert("Teacher & Staff attendance saved successfully!");
+        alert(t("Teacher & Staff attendance saved successfully!"));
         fetchAttendance();
       }
     } catch (err) {
@@ -79,37 +81,37 @@ export default function TeacherAttendancePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-            <UserCheck className="h-7 w-7 text-primary" /> Teacher & Staff Daily Attendance
+            <UserCheck className="h-7 w-7 text-primary" /> {t("Teacher & Staff Daily Attendance")}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            HR register for tracking teacher punch-in times, absences, tardiness, and leave days.
+            {t("HR register for tracking teacher punch-in times, absences, tardiness, and leave days.")}
           </p>
         </div>
         <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2 shadow">
-          <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Attendance"}
+          <Save className="w-4 h-4" /> {saving ? t("Saving...") : t("Save Attendance")}
         </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <p className="text-xs font-medium text-gray-500 uppercase">Total Staff</p>
+          <p className="text-xs font-medium text-gray-500 uppercase">{t("Total Staff")}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStaff || 0}</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <p className="text-xs font-medium text-emerald-600 uppercase">Present</p>
+          <p className="text-xs font-medium text-emerald-600 uppercase">{t("Present")}</p>
           <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.present || 0}</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <p className="text-xs font-medium text-amber-600 uppercase">Late</p>
+          <p className="text-xs font-medium text-amber-600 uppercase">{t("Late")}</p>
           <p className="text-2xl font-bold text-amber-600 mt-1">{stats.late || 0}</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <p className="text-xs font-medium text-rose-600 uppercase">Absent</p>
+          <p className="text-xs font-medium text-rose-600 uppercase">{t("Absent")}</p>
           <p className="text-2xl font-bold text-rose-600 mt-1">{stats.absent || 0}</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <p className="text-xs font-medium text-blue-600 uppercase">On Leave</p>
+          <p className="text-xs font-medium text-blue-600 uppercase">{t("On Leave")}</p>
           <p className="text-2xl font-bold text-blue-600 mt-1">{stats.onLeave || 0}</p>
         </div>
       </div>
@@ -118,7 +120,7 @@ export default function TeacherAttendancePage() {
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Calendar className="w-5 h-5 text-gray-400" />
-          <span className="text-sm font-semibold text-gray-700">Attendance Date:</span>
+          <span className="text-sm font-semibold text-gray-700">{t("Attendance Date:")}</span>
           <EthiopianDateInput className="w-56" value={selectedDate} onChange={setSelectedDate} />
         </div>
       </div>
@@ -129,22 +131,22 @@ export default function TeacherAttendancePage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b text-gray-500 font-medium">
               <tr>
-                <th className="px-6 py-3">Staff / Teacher</th>
-                <th className="px-6 py-3">Role</th>
-                <th className="px-6 py-3">Attendance Status</th>
-                <th className="px-6 py-3">Check-In</th>
-                <th className="px-6 py-3">Check-Out</th>
-                <th className="px-6 py-3">Notes</th>
+                <th className="px-6 py-3">{t("Staff / Teacher")}</th>
+                <th className="px-6 py-3">{t("Role")}</th>
+                <th className="px-6 py-3">{t("Attendance Status")}</th>
+                <th className="px-6 py-3">{t("Check-In")}</th>
+                <th className="px-6 py-3">{t("Check-Out")}</th>
+                <th className="px-6 py-3">{t("Notes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">Loading staff list...</td>
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">{t("Loading staff list...")}</td>
                 </tr>
               ) : staffList.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">No active teachers or staff members found.</td>
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">{t("No active teachers or staff members found.")}</td>
                 </tr>
               ) : (
                 staffList.map((item) => (
@@ -168,11 +170,11 @@ export default function TeacherAttendancePage() {
                             : "text-blue-700 border-blue-300 bg-blue-50"
                         }`}
                       >
-                        <option value="present">Present</option>
-                        <option value="late">Late</option>
-                        <option value="absent">Absent</option>
-                        <option value="half_day">Half Day</option>
-                        <option value="on_leave">On Leave</option>
+                        <option value="present">{t("Present")}</option>
+                        <option value="late">{t("Late")}</option>
+                        <option value="absent">{t("Absent")}</option>
+                        <option value="half_day">{t("Half Day")}</option>
+                        <option value="on_leave">{t("On Leave")}</option>
                       </select>
                     </td>
                     <td className="px-6 py-4">
@@ -196,7 +198,7 @@ export default function TeacherAttendancePage() {
                     <td className="px-6 py-4">
                       <input
                         type="text"
-                        placeholder="Remarks..."
+                        placeholder={t("Remarks...")}
                         value={item.notes || ""}
                         onChange={(e) => handleTimeChange(item.staffId, "notes", e.target.value)}
                         className="w-full border rounded px-2 py-1 text-xs focus:outline-none"

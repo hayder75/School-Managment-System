@@ -5,8 +5,10 @@ import {
   Search, Plus, BookOpen, Clock, ThumbsUp, X
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { useI18n } from "../i18n/I18nContext";
 
 export default function TeacherKpiPage() {
+  const { t } = useI18n();
   const [summary, setSummary] = useState(null);
   const [kpiList, setKpiList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,7 @@ export default function TeacherKpiPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.teacherId) {
-      alert("Please select a teacher.");
+      alert(t("Please select a teacher."));
       return;
     }
 
@@ -99,9 +101,9 @@ export default function TeacherKpiPage() {
 
   const getRatingBadge = (rating) => {
     const num = parseFloat(rating || 0);
-    if (num >= 4.5) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">★ {num.toFixed(2)} (Excellent)</span>;
-    if (num >= 3.5) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">★ {num.toFixed(2)} (Good)</span>;
-    return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">★ {num.toFixed(2)} (Needs Work)</span>;
+    if (num >= 4.5) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">★ {num.toFixed(2)} ({t("Excellent")})</span>;
+    if (num >= 3.5) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">★ {num.toFixed(2)} ({t("Good")})</span>;
+    return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">★ {num.toFixed(2)} ({t("Needs Work")})</span>;
   };
 
   const filteredList = kpiList.filter((k) =>
@@ -115,14 +117,14 @@ export default function TeacherKpiPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-            <Award className="h-7 w-7 text-primary" /> Teacher KPI Metrics & Performance Scorecards
+            <Award className="h-7 w-7 text-primary" /> {t("Teacher KPI Metrics & Performance Scorecards")}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            HR analytics evaluating teacher punctuality, attendance rates, syllabus completion, coverage, and student feedback.
+            {t("HR analytics evaluating teacher punctuality, attendance rates, syllabus completion, coverage, and student feedback.")}
           </p>
         </div>
         <Button onClick={() => handleOpenModal()} className="flex items-center gap-2 shadow">
-          <Plus className="w-4 h-4" /> Evaluate Teacher
+          <Plus className="w-4 h-4" /> {t("Evaluate Teacher")}
         </Button>
       </div>
 
@@ -130,7 +132,7 @@ export default function TeacherKpiPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Overall Score</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{t("Avg Overall Score")}</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
               {summary?.averages?.avg_rating || "4.50"} / 5.0
             </p>
@@ -142,7 +144,7 @@ export default function TeacherKpiPage() {
 
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Attendance Rate</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{t("Avg Attendance Rate")}</p>
             <p className="text-2xl font-bold text-emerald-600 mt-1">
               {summary?.averages?.avg_attendance || "96.5"}%
             </p>
@@ -154,7 +156,7 @@ export default function TeacherKpiPage() {
 
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Student Rating</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{t("Avg Student Rating")}</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
               {summary?.averages?.avg_feedback || "4.6"} / 5.0
             </p>
@@ -166,9 +168,9 @@ export default function TeacherKpiPage() {
 
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cover Shifts</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{t("Total Cover Shifts")}</p>
             <p className="text-2xl font-bold text-indigo-600 mt-1">
-              {summary?.averages?.total_substitutions || 0} Shifts
+              {summary?.averages?.total_substitutions || 0} {t("Shifts")}
             </p>
           </div>
           <div className="p-3 bg-indigo-50 rounded-lg text-indigo-600">
@@ -183,7 +185,7 @@ export default function TeacherKpiPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search teacher name or period..."
+            placeholder={t("Search teacher name or period...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -197,24 +199,24 @@ export default function TeacherKpiPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b text-gray-500 font-medium">
               <tr>
-                <th className="px-6 py-3">Teacher</th>
-                <th className="px-6 py-3">Evaluation Period</th>
-                <th className="px-6 py-3 text-center">Attendance %</th>
-                <th className="px-6 py-3 text-center">Punctuality %</th>
-                <th className="px-6 py-3 text-center">Syllabus %</th>
-                <th className="px-6 py-3 text-center">Student Rating</th>
-                <th className="px-6 py-3 text-center">Substitutions Covered</th>
-                <th className="px-6 py-3 text-right">Overall Rating</th>
+                <th className="px-6 py-3">{t("Teacher")}</th>
+                <th className="px-6 py-3">{t("Evaluation Period")}</th>
+                <th className="px-6 py-3 text-center">{t("Attendance %")}</th>
+                <th className="px-6 py-3 text-center">{t("Punctuality %")}</th>
+                <th className="px-6 py-3 text-center">{t("Syllabus %")}</th>
+                <th className="px-6 py-3 text-center">{t("Student Rating")}</th>
+                <th className="px-6 py-3 text-center">{t("Substitutions Covered")}</th>
+                <th className="px-6 py-3 text-right">{t("Overall Rating")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">Loading KPI scorecards...</td>
+                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">{t("Loading KPI scorecards...")}</td>
                 </tr>
               ) : filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">No KPI evaluations found. Click "Evaluate Teacher" to add one.</td>
+                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">{t('No KPI evaluations found. Click "Evaluate Teacher" to add one.')}</td>
                 </tr>
               ) : (
                 filteredList.map((item) => (
@@ -249,31 +251,31 @@ export default function TeacherKpiPage() {
               <X className="w-5 h-5" />
             </button>
             <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Evaluate Teacher KPI Scorecard
+              {t("Evaluate Teacher KPI Scorecard")}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Select Teacher</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Select Teacher")}</label>
                 <select
                   required
                   value={formData.teacherId}
                   onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
                 >
-                  <option value="">-- Choose Teacher --</option>
-                  {summary?.teachers?.map((t) => (
-                    <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
+                  <option value="">{t("-- Choose Teacher --")}</option>
+                  {summary?.teachers?.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>{teacher.first_name} {teacher.last_name}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Evaluation Period</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Evaluation Period")}</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Q1 2026 or August 2026"
+                  placeholder={t("e.g. Q1 2026 or August 2026")}
                   value={formData.periodName}
                   onChange={(e) => setFormData({ ...formData, periodName: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -282,7 +284,7 @@ export default function TeacherKpiPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Attendance Rate (%)</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Attendance Rate (%)")}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -295,7 +297,7 @@ export default function TeacherKpiPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Punctuality Rate (%)</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Punctuality Rate (%)")}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -310,7 +312,7 @@ export default function TeacherKpiPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Syllabus Progress (%)</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Syllabus Progress (%)")}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -323,7 +325,7 @@ export default function TeacherKpiPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Student Rating (1-5)</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Student Rating (1-5)")}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -337,7 +339,7 @@ export default function TeacherKpiPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Substitutions Covered</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Substitutions Covered")}</label>
                 <input
                   type="number"
                   min="0"
@@ -348,10 +350,10 @@ export default function TeacherKpiPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Evaluator Comments</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t("Evaluator Comments")}</label>
                 <textarea
                   rows="2"
-                  placeholder="Strengths, achievements, or feedback..."
+                  placeholder={t("Strengths, achievements, or feedback...")}
                   value={formData.comments}
                   onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -360,10 +362,10 @@ export default function TeacherKpiPage() {
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                  Cancel
+                  {t("Cancel")}
                 </Button>
                 <Button type="submit">
-                  Save KPI Scorecard
+                  {t("Save KPI Scorecard")}
                 </Button>
               </div>
             </form>

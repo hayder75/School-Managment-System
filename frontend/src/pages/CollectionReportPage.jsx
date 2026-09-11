@@ -8,6 +8,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Button } from "../components/ui/button";
 import { Download, ChevronDown, ChevronRight } from "lucide-react";
+import { useI18n } from "../i18n/I18nContext";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -15,9 +16,10 @@ const MONTHS = [
 ];
 
 function StatCard({ title, value, sub, color }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{title}</CardTitle></CardHeader>
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{t(title)}</CardTitle></CardHeader>
       <CardContent>
         <div className={`text-2xl font-bold ${color || ""}`}>{value}</div>
         {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
@@ -26,14 +28,15 @@ function StatCard({ title, value, sub, color }) {
   );
 }
 
-function statusBadge(status) {
-  if (status === "paid") return <Badge variant="success">Paid</Badge>;
-  if (status === "partial") return <Badge variant="warning">Partial</Badge>;
-  if (status === "unpaid") return <Badge variant="secondary">Unpaid</Badge>;
-  return <Badge variant="outline">N/A</Badge>;
+function statusBadge(status, t) {
+  if (status === "paid") return <Badge variant="success">{t("Paid")}</Badge>;
+  if (status === "partial") return <Badge variant="warning">{t("Partial")}</Badge>;
+  if (status === "unpaid") return <Badge variant="secondary">{t("Unpaid")}</Badge>;
+  return <Badge variant="outline">{t("N/A")}</Badge>;
 }
 
 export default function CollectionReportPage() {
+  const { t } = useI18n();
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
@@ -53,7 +56,7 @@ export default function CollectionReportPage() {
 
   function downloadCSV() {
     if (!report) return;
-    const rows = [["Class", "Student Number", "First Name", "Last Name", "Guardian Phone", "Expected", "Paid", "Balance", "Status"]];
+    const rows = [[t("Class"), t("Student Number"), t("First Name"), t("Last Name"), t("Guardian Phone"), t("Expected"), t("Paid"), t("Balance"), t("Status")]];
     for (const cls of report.classes) {
       for (const s of cls.students) {
         rows.push([cls.class_name, s.student_number, s.first_name, s.last_name, s.guardian_phone || "", s.expected, s.paid, s.balance, s.status]);
@@ -73,11 +76,11 @@ export default function CollectionReportPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Fee Collection Report</h1>
-          <p className="text-muted-foreground">Collected and uncollected fees by class</p>
+          <h1 className="text-3xl font-bold">{t("Fee Collection Report")}</h1>
+          <p className="text-muted-foreground">{t("Collected and uncollected fees by class")}</p>
         </div>
         <Button variant="outline" disabled={!report} onClick={downloadCSV}>
-          <Download className="h-4 w-4 mr-2" /> Download CSV
+          <Download className="h-4 w-4 mr-2" /> {t("Download CSV")}
         </Button>
       </div>
 
@@ -85,24 +88,24 @@ export default function CollectionReportPage() {
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-2">
-              <Label>Month</Label>
+              <Label>{t("Month")}</Label>
               <Select value={month} onValueChange={setMonth}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {MONTHS.map((m, i) => <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>)}
+                  {MONTHS.map((m, i) => <SelectItem key={i + 1} value={String(i + 1)}>{t(m)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Year</Label>
+              <Label>{t("Year")}</Label>
               <Input type="number" className="w-28" value={year} onChange={(e) => setYear(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Fee</Label>
+              <Label>{t("Fee")}</Label>
               <Select value={feeId} onValueChange={(v) => setFeeId(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-44"><SelectValue placeholder="All fees" /></SelectTrigger>
+                <SelectTrigger className="w-44"><SelectValue placeholder={t("All fees")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All fees</SelectItem>
+                  <SelectItem value="all">{t("All fees")}</SelectItem>
                   {fees.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -113,37 +116,37 @@ export default function CollectionReportPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-5 gap-4">
         <StatCard title="Students" value={totals.total_students || 0} />
-        <StatCard title="Paid" value={totals.paid_count ?? 0} sub={`${((totals.paid_count || 0) / (totals.total_students || 1) * 100).toFixed(1)}% of students`} color="text-green-600" />
+        <StatCard title="Paid" value={totals.paid_count ?? 0} sub={`${((totals.paid_count || 0) / (totals.total_students || 1) * 100).toFixed(1)}% ${t("of students")}`} color="text-green-600" />
         <StatCard title="Partial" value={totals.partial_count || 0} />
-        <StatCard title="Unpaid" value={totals.unpaid_count || 0} sub={`${((totals.unpaid_count || 0) / (totals.total_students || 1) * 100).toFixed(1)}% of students`} color="text-red-600" />
-        <StatCard title="Collected" value={Number(totals.collected || 0).toLocaleString()} sub={`of ${Number(totals.expected || 0).toLocaleString()} expected`} color="text-green-600" />
+        <StatCard title="Unpaid" value={totals.unpaid_count || 0} sub={`${((totals.unpaid_count || 0) / (totals.total_students || 1) * 100).toFixed(1)}% ${t("of students")}`} color="text-red-600" />
+        <StatCard title="Collected" value={Number(totals.collected || 0).toLocaleString()} sub={`${t("of")} ${Number(totals.expected || 0).toLocaleString()} ${t("expected")}`} color="text-green-600" />
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>By Class — {report?.fee_name || "Loading…"}</CardTitle>
-            <span className="text-sm text-muted-foreground">{MONTHS[(report?.month || 1) - 1]} {report?.year || ""}</span>
+            <CardTitle>{t("By Class")} — {report?.fee_name || t("Loading…")}</CardTitle>
+            <span className="text-sm text-muted-foreground">{t(MONTHS[(report?.month || 1) - 1])} {report?.year || ""}</span>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <p className="p-4 text-muted-foreground">Loading...</p>
+            <p className="p-4 text-muted-foreground">{t("Loading...")}</p>
           ) : !report ? (
-            <p className="p-4 text-muted-foreground">No data</p>
+            <p className="p-4 text-muted-foreground">{t("No data")}</p>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8"></TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead>Paid</TableHead>
-                    <TableHead>Partial</TableHead>
-                    <TableHead>Unpaid</TableHead>
-                    <TableHead className="text-right">Expected</TableHead>
-                    <TableHead className="text-right">Collected</TableHead>
+                    <TableHead>{t("Class")}</TableHead>
+                    <TableHead>{t("Students")}</TableHead>
+                    <TableHead>{t("Paid")}</TableHead>
+                    <TableHead>{t("Partial")}</TableHead>
+                    <TableHead>{t("Unpaid")}</TableHead>
+                    <TableHead className="text-right">{t("Expected")}</TableHead>
+                    <TableHead className="text-right">{t("Collected")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -168,13 +171,13 @@ export default function CollectionReportPage() {
                                 <Table>
                                   <TableHeader>
                                     <TableRow>
-                                      <TableHead>Student</TableHead>
-                                      <TableHead>No.</TableHead>
-                                      <TableHead>Phone</TableHead>
-                                      <TableHead className="text-right">Expected</TableHead>
-                                      <TableHead className="text-right">Paid</TableHead>
-                                      <TableHead className="text-right">Balance</TableHead>
-                                      <TableHead>Status</TableHead>
+                                      <TableHead>{t("Student")}</TableHead>
+                                      <TableHead>{t("No.")}</TableHead>
+                                      <TableHead>{t("Phone")}</TableHead>
+                                      <TableHead className="text-right">{t("Expected")}</TableHead>
+                                      <TableHead className="text-right">{t("Paid")}</TableHead>
+                                      <TableHead className="text-right">{t("Balance")}</TableHead>
+                                      <TableHead>{t("Status")}</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -186,7 +189,7 @@ export default function CollectionReportPage() {
                                         <TableCell className="text-right">{Number(s.expected).toLocaleString()}</TableCell>
                                         <TableCell className="text-right">{Number(s.paid).toLocaleString()}</TableCell>
                                         <TableCell className="text-right">{Number(s.balance).toLocaleString()}</TableCell>
-                                        <TableCell>{statusBadge(s.status)}</TableCell>
+                                        <TableCell>{statusBadge(s.status, t)}</TableCell>
                                       </TableRow>
                                     ))}
                                   </TableBody>
