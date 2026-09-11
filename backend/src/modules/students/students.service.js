@@ -42,7 +42,7 @@ async function enroll(tenantId, userId, data) {
         .insert({
           tenant_id: tenantId,
           first_name: first_name || 'Student',
-          last_name: last_name || '',
+          last_name: last_name || studentData.father_name || '',
           email,
           username,
           role: 'student',

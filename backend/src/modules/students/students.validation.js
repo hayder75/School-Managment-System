@@ -80,6 +80,8 @@ const updateStudentSchema = z.object({
 const enrollSchema = z.object({
   body: z.object({
     ...studentFields,
+    first_name: z.string().min(1).max(100),
+    father_name: z.string().min(1).max(100),
     status: z.string().optional(),
     guardians: z.array(z.object({
       parent_id: z.string().uuid(),

@@ -44,11 +44,11 @@ export default function EnrollmentWizardPage() {
   const classes = (classesData?.data || []);
   const selectedClass = classes.find((c) => c.id === classId);
 
-  // Student counts per class
+  // Student counts per class — from /reports/enrollment which returns { by_class: [...] }
   const { data: classCounts } = useQuery({ queryKey: ["class-counts"], queryFn: async () => {
     const res = await api.get("/reports/enrollment");
     const map = {};
-    (res?.data || []).forEach((c) => { map[c.id] = c.student_count || 0; });
+    (res?.data?.by_class || []).forEach((c) => { map[c.id] = Number(c.student_count || 0); });
     return map;
   }});
 
@@ -134,9 +134,8 @@ function StepCards({ step, student, setStudent, classId, setClassId, classes, se
     <CardContent className="space-y-4">
       {step === 0 && <div className="space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div><Label>First name *</Label><Input className="mt-1" required value={student.first_name} onChange={set("first_name")} /></div>
-          <div><Label>Last name *</Label><Input className="mt-1" required value={student.last_name} onChange={set("last_name")} /></div>
-          <div><Label>Father name</Label><Input className="mt-1" value={student.father_name} onChange={set("father_name")} /></div>
+          <div><Label>First name *</Label><Input className="mt-1" required value={student.first_name} onChange={set("first_name")} placeholder="Student's name" /></div>
+          <div><Label>Father name *</Label><Input className="mt-1" required value={student.father_name} onChange={set("father_name")} /></div>
           <div><Label>Grandfather name</Label><Input className="mt-1" value={student.grandfather_name} onChange={set("grandfather_name")} /></div>
           <div><Label>Gender</Label><Select value={student.gender} onValueChange={setv("gender")}><SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select></div>
           <div><Label>Date of birth</Label><Input type="date" className="mt-1" value={student.date_of_birth} onChange={set("date_of_birth")} /></div>
@@ -178,11 +177,91 @@ function StepCards({ step, student, setStudent, classId, setClassId, classes, se
           </div>
         </div>
       </div>}
-      {step === 1 && <div className="space-y-4"><div><Label>Class & Section *</Label><Select value={classId} onValueChange={setClassId}><SelectTrigger className="mt-1"><SelectValue placeholder="Choose class…" /></SelectTrigger><SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.section ? ` · ${c.section}` : ""}{c.grade_level ? ` (Grade ${c.grade_level})` : ""}  —  {(classCounts?.[c.id] ?? "…")} students</SelectItem>)}</SelectContent></Select>{selectedClass && <p className="text-xs text-muted-foreground mt-2">Room: {selectedClass.room || "—"} · Capacity: {selectedClass.capacity ?? "—"}</p>}</div></div>}
+      {step === 1 && <ClassPickStep classes={classes} classId={classId} setClassId={setClassId} classCounts={classCounts} />}
       {step === 2 && <GuardianStep guardians={guardians} setGuardians={setGuardians} newGuardians={newGuardians} setNewGuardians={setNewGuardians} ngForm={ngForm} setNgForm={setNgForm} addNewGuardian={addNewGuardian} />}
       {step === 3 && <div className="space-y-4"><div><Label>Emergency contact</Label><Input className="mt-1" value={student.emergency_contact} onChange={set("emergency_contact")} placeholder="09…" /></div><div><Label>Medical conditions / notes</Label><textarea rows={3} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Allergies, chronic conditions, medication…" onChange={(e) => setMedicalInfo({ notes: e.target.value })} /></div><div><Label>Documents (birth certificate, previous report card, photo)</Label><label className="mt-1 flex items-center gap-2 border-dashed border-2 rounded-lg p-4 cursor-pointer hover:bg-muted/40"><FileUp size={18} className="text-gray-400" /><span className="text-sm text-muted-foreground">Click to attach files (max 3MB each)</span><input type="file" multiple className="hidden" onChange={handleDocUpload} /></label>{docs.length > 0 && <ul className="mt-2 space-y-1">{docs.map((d,i) => <li key={i} className="flex items-center justify-between text-sm border rounded px-2 py-1.5"><span className="truncate">{d.name}</span><button onClick={() => setDocs(docs.filter((_,j) => j!==i))}><Trash2 size={14} className="text-red-500" /></button></li>)}</ul>}</div></div>}
       {step === 4 && <ReviewStep student={student} selectedClass={selectedClass} guardians={guardians} newGuardians={newGuardians} docs={docs} medicalInfo={medicalInfo} />}
     </CardContent></Card>
+  );
+}
+
+function ClassPickStep({ classes, classId, setClassId, classCounts }) {
+  const capacityColor = (count, capacity) => {
+    if (!capacity) return { bar: "bg-emerald-500", text: "text-emerald-600", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Open" };
+    const pct = (count / capacity) * 100;
+    if (pct >= 100) return { bar: "bg-rose-500", text: "text-rose-600", badge: "bg-rose-50 text-rose-700 border-rose-200", label: "Full" };
+    if (pct >= 80) return { bar: "bg-amber-500", text: "text-amber-600", badge: "bg-amber-50 text-amber-700 border-amber-200", label: "Almost full" };
+    return { bar: "bg-emerald-500", text: "text-emerald-600", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Open" };
+  };
+
+  const grouped = {};
+  classes.forEach((c) => {
+    const key = c.level_group || "primary";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(c);
+  });
+  const GROUP_LABELS = { nursery: "Nursery", kg: "Kindergarten", primary: "Primary", secondary: "Secondary" };
+  const GROUP_ORDER = ["nursery", "kg", "primary", "secondary"];
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        {classId ? "Selected:" : "Pick a class and section —"} {classId && <span className="font-semibold text-neutral-900">{classes.find((c) => c.id === classId)?.name}</span>}
+      </p>
+      {GROUP_ORDER.filter((g) => grouped[g]?.length).map((group) => (
+        <div key={group}>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{GROUP_LABELS[group]}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {grouped[group].map((c) => {
+              const count = classCounts?.[c.id] ?? 0;
+              const cap = c.capacity ? Number(c.capacity) : null;
+              const pct = cap ? Math.min(100, Math.round((count / cap) * 100)) : null;
+              const colors = capacityColor(count, cap);
+              const selected = classId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setClassId(classId === c.id ? "" : c.id)}
+                  className={`text-left rounded-xl border-2 p-4 transition-all ${selected ? "border-neutral-900 ring-2 ring-neutral-900 ring-offset-1 bg-neutral-900/[0.03]" : "border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50"}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-bold leading-tight">{c.name}</p>
+                      {c.section && <p className="text-xs text-muted-foreground">Section {c.section}</p>}
+                      {typeof c.grade_level !== "undefined" && c.grade_level !== null && (
+                        <p className="text-xs text-muted-foreground">Grade {c.grade_level}</p>
+                      )}
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${colors.badge}`}>{colors.label}</span>
+                  </div>
+
+                  {c.room && <p className="text-xs text-muted-foreground mt-2">Room: {c.room}</p>}
+                  {c.class_teacher_id && <p className="text-xs text-muted-foreground">Teacher: {c.teacher_first_name || "—"} {c.teacher_last_name || ""}</p>}
+
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className={`font-semibold ${colors.text}`}>{count} students</span>
+                      {cap ? <span className={`font-semibold ${colors.text}`}>{pct}% / {cap}</span> : <span className="text-muted-foreground">no limit</span>}
+                    </div>
+                    <div className="h-2 rounded-full overflow-hidden bg-neutral-100">
+                      <div className={`h-full ${colors.bar}`} style={{ width: cap ? `${pct}%` : "0%" }} />
+                    </div>
+                  </div>
+
+                  {selected && (
+                    <p className="mt-2 text-[11px] font-semibold text-neutral-900 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Selected — click Next to continue
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {classes.length === 0 && <p className="text-sm text-muted-foreground">No classes exist yet. Ask an admin to create classes first.</p>}
+    </div>
   );
 }
 
@@ -223,7 +302,7 @@ function GuardianList({ guardians, newGuardians, setGuardians, setNewGuardians }
 
 function ReviewStep({ student, selectedClass, guardians, newGuardians, docs, medicalInfo }) {
   return (<div className="space-y-3 text-sm">
-    <Row l="Name" v={`${student.first_name} ${student.father_name || ""} ${student.grandfather_name || ""} ${student.last_name}`} />
+    <Row l="Name" v={`${student.first_name} ${student.father_name || ""} ${student.grandfather_name || ""}`} />
     <Row l="Gender / DOB" v={`${student.gender || "—"} · ${student.date_of_birth || "—"}`} />
     <Row l="Admission" v={`${student.admission_type} · prev: ${student.previous_school || "—"}`} />
     <Row l="Class" v={selectedClass ? `${selectedClass.name}${selectedClass.section ? ` (${selectedClass.section})` : ""}` : "—"} />
@@ -240,6 +319,36 @@ function PostEnrollment({ enrolledStudent, selectedClass, student, onReset, navi
   const [showPayment, setShowPayment] = useState(false);
   const [showCreds, setShowCreds] = useState(true);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [copied, setCopied] = useState("");
+
+  async function copy(text, key) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(""), 1500);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(key);
+      setTimeout(() => setCopied(""), 1500);
+    }
+  }
+
+  const CredentialRow = ({ label, value }) => (
+    <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-dashed border-neutral-300 bg-neutral-50 px-4 py-3">
+      <div>
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase">{label}</p>
+        <p className="text-xl sm:text-2xl font-mono font-bold mt-0.5 break-all">{value}</p>
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={() => copy(value, value)} className="shrink-0">
+        {copied === value ? "Copied" : "Copy"}
+      </Button>
+    </div>
+  );
 
   if (paymentDone) return (
     <div className="max-w-xl mx-auto py-12 text-center space-y-6">
@@ -257,18 +366,43 @@ function PostEnrollment({ enrolledStudent, selectedClass, student, onReset, navi
   );
 
   return (
-    <div className="max-w-xl mx-auto py-12 space-y-6">
+    <div className="max-w-xl mx-auto py-8 space-y-6">
       <div className="text-center"><PartyPopper className="h-14 w-14 mx-auto text-green-500" /><h1 className="text-2xl font-bold mt-3">Student enrolled</h1><p className="text-muted-foreground text-sm">{enrolledStudent.student_number}</p></div>
 
-      {showCreds && <Card><CardContent className="pt-6 pb-4 space-y-3">
-        <h2 className="font-semibold flex items-center gap-2"><KeyRound size={16} /> Login credentials</h2>
-        <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1.5">
-          {creds.student && <div className="flex justify-between"><span>Student login</span><span className="font-mono">{creds.student.username} / 1234</span></div>}
-          {(creds.guardians || []).map((g, i) => <div key={i} className="flex justify-between"><span>{g.name}</span><span className="font-mono">{g.username} / 1234</span></div>)}
-          <p className="text-[11px] text-muted-foreground pt-1">Default password is <strong>1234</strong> — parents and students can change it later.</p>
-        </div>
-        <Button size="sm" variant="outline" onClick={() => setShowCreds(false)}>Close</Button>
-      </CardContent></Card>}
+      {showCreds && (
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 border-b bg-neutral-900 text-white">
+            <CardTitle className="text-base flex items-center gap-2"><KeyRound size={16} /> Login credentials</CardTitle>
+            <p className="text-xs text-neutral-400">Hand these to the student and guardians — they can change the password after first login.</p>
+          </CardHeader>
+          <CardContent className="pt-5 space-y-4">
+            {creds.student && (
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase mb-1.5">Student</p>
+                <div className="space-y-2">
+                  <CredentialRow label="Username" value={creds.student.username} />
+                  <CredentialRow label="Password" value="1234" />
+                </div>
+              </div>
+            )}
+            {(creds.guardians || []).length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase mb-1.5">Guardians</p>
+                <div className="space-y-2">
+                  {(creds.guardians || []).map((g, i) => (
+                    <div key={i} className="pb-2">
+                      <p className="text-sm font-medium mb-1.5">{g.name}</p>
+                      <CredentialRow label="Username" value={g.username} />
+                    </div>
+                  ))}
+                  <CredentialRow label="Password (all guardians)" value="1234" />
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Default password is <strong className="font-mono">1234</strong> for everyone.</p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="text-center">
         {!showPayment ? <Button onClick={() => setShowPayment(true)} className="flex items-center gap-2"><CreditCard size={16} /> Collect payment now</Button>
@@ -280,47 +414,48 @@ function PostEnrollment({ enrolledStudent, selectedClass, student, onReset, navi
 }
 
 function PaymentDialog({ enrolledStudent, onDone }) {
-  const { data: feeData } = useQuery({ queryKey: ["fee-structures"], queryFn: () => api.get("/fees") });
+  const { data: feeData } = useQuery({ queryKey: ["fee-structures"], queryFn: () => api.get("/fees/structures") });
   const fees = feeData?.data || [];
   const [selFee, setSelFee] = useState("");
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("Cash");
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [method, setMethod] = useState("cash");
   const [saving, setSaving] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
   const f = fees.find((x) => x.id === selFee);
 
-  async function collectPayment(e) { e.preventDefault(); setSaving(true); try {
-    // find student.id from enrolledStudent — use the student_number lookup
+  async function collectPayment(e) { e.preventDefault(); setSaving(true); setPaymentError(""); try {
     const payAmt = Number(amount) || Number(f?.amount || 0);
-    const res = await api.post("/fees/payments", {
-      student_number: enrolledStudent.student_number,
+    await api.post("/fees/payments", {
+      student_id: enrolledStudent.user_id,
       amount_paid: payAmt,
       payment_method: method,
       fee_structure_id: selFee || undefined,
       paid_date: new Date().toISOString().slice(0, 10),
-    }).catch(() => null);
-    if (res) onDone();
-    else alert("Payment recorded. (Student ID " + enrolledStudent.student_number + ")");
+    });
     onDone();
-  } catch { onDone(); } finally { setSaving(false); }
+  } catch (err) { setPaymentError(err?.error?.message || err?.message || "Payment failed"); } finally { setSaving(false); }
   }
 
   return (
     <Card><CardContent className="pt-6 pb-4">
       <form onSubmit={collectPayment} className="space-y-3 text-left">
         <h3 className="font-semibold flex items-center gap-2"><CreditCard size={15} /> Record payment for {enrolledStudent.student_number}</h3>
+        {paymentError && <div className="bg-red-50 border border-red-100 text-red-600 text-sm p-3 rounded-lg">{paymentError}</div>}
         <div>
           <Label>Fee structure</Label>
-          <select value={selFee} onChange={(e) => { setSelFee(e.target.value); if (e.target.value) { const ff = fees.find((x) => x.id === e.target.value); if (ff) setAmount(ff.amount || ""); } }} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm bg-white">
-            <option value="">— Choose fee —</option>
-            {fees.map((x) => <option key={x.id} value={x.id}>{x.name} ({Number(x.amount||0).toLocaleString()} ETB) {x.fee_type ? `[${x.fee_type}]` : ""}</option>)}
-          </select>
+          {fees.length === 0 ? (
+            <p className="text-sm text-amber-600 mt-1">No fee structures available yet — ask an admin to create them.</p>
+          ) : (
+            <select value={selFee} onChange={(e) => { setSelFee(e.target.value); if (e.target.value) { const ff = fees.find((x) => x.id === e.target.value); if (ff) setAmount(ff.amount || ""); } }} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm bg-white">
+              <option value="">— Choose fee —</option>
+              {fees.map((x) => <option key={x.id} value={x.id}>{x.name} ({Number(x.amount||0).toLocaleString()} ETB)</option>)}
+            </select>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Amount (ETB)</Label><Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-          <div><Label>Month covering</Label><Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
+          <div><Label>Method</Label><Select value={method} onValueChange={setMethod}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="bank">Bank Transfer</SelectItem><SelectItem value="mobile">Mobile Money (Telebirr/CBE Birr)</SelectItem></SelectContent></Select></div>
         </div>
-        <div><Label>Method</Label><Select value={method} onValueChange={setMethod}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Telebirr">Telebirr</SelectItem><SelectItem value="CBE Birr">CBE Birr</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem></SelectContent></Select></div>
         <div className="flex gap-3 justify-end pt-1">
           <Button type="button" variant="ghost" onClick={onDone}>Skip</Button>
           <Button type="submit" disabled={saving || !selFee}>{saving ? "Saving…" : "Take payment"}</Button>
