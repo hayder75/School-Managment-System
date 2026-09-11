@@ -352,9 +352,21 @@ async function removeEnrollment(tenantId, studentId, enrollmentId) {
   return db('enrollments').where({ tenant_id: tenantId, student_id: studentId, id: enrollmentId }).del();
 }
 
-async function update(tenantId, id, data) {
-  const [student] = await db('students').where({ tenant_id: tenantId, id }).update(data).returning('*');
-  return student;
+async function update(tenantId, id, data, userId = null) {
+  return db.transaction(async (trx) => {
+    const current = await trx('students').where({ tenant_id: tenantId, id }).select('status').first();
+    const [student] = await trx('students').where({ tenant_id: tenantId, id }).update(data).returning('*');
+    if (student && data.status && current && current.status !== data.status) {
+      await trx('student_status_history').insert({
+        tenant_id: tenantId,
+        student_id: id,
+        from_status: current.status,
+        to_status: data.status,
+        changed_by: userId,
+      });
+    }
+    return student;
+  });
 }
 
 async function remove(tenantId, id) {
@@ -461,23 +473,36 @@ async function graduate(tenantId, userId, data) {
   const { student_ids, certificate_number, academic_year } = data;
 
   return db.transaction(async (trx) => {
-    const updated = await trx('students')
-      .whereIn('id', student_ids)
+    const targets = await trx('students')
       .where({ tenant_id: tenantId, status: 'active' })
-      .update({ status: 'graduated' });
+      .whereIn('id', student_ids)
+      .select('id');
+    const ids = targets.map((r) => r.id);
 
-    if (updated > 0) {
-      const records = student_ids.map((sid) => ({
+    if (ids.length > 0) {
+      await trx('students')
+        .where({ tenant_id: tenantId })
+        .whereIn('id', ids)
+        .update({ status: 'graduated' });
+
+      await trx('student_graduations').insert(ids.map((sid) => ({
         tenant_id: tenantId,
         student_id: sid,
         certificate_number: certificate_number || null,
         academic_year: academic_year || null,
         graduated_by: userId,
-      }));
-      await trx('student_graduations').insert(records);
+      })));
+
+      await trx('student_status_history').insert(ids.map((sid) => ({
+        tenant_id: tenantId,
+        student_id: sid,
+        from_status: 'active',
+        to_status: 'graduated',
+        changed_by: userId,
+      })));
     }
 
-    return { graduated: updated };
+    return { graduated: ids.length };
   });
 }
 
@@ -491,12 +516,16 @@ async function transfer(tenantId, userId, data) {
     const from_class_id = student.class_id;
 
     const updateData = { class_id: to_class_id };
+    let statusChange = null;
     if (transfer_type === 'external_in') {
       updateData.admission_type = 'transfer_in';
       if (previous_school) updateData.previous_school = previous_school;
       if (transfer_date) updateData.transfer_date = transfer_date;
+    } else if (transfer_type === 'external_out') {
+      updateData.status = 'transferred';
+      statusChange = { from: student.status, to: 'transferred' };
     }
-    await trx('students').where({ id: student_id }).update(updateData);
+    await trx('students').where({ tenant_id: tenantId, id: student_id }).update(updateData);
     await trx('student_transfers').insert({
       tenant_id: tenantId,
       student_id,
@@ -508,6 +537,17 @@ async function transfer(tenantId, userId, data) {
       transfer_date: transfer_date || null,
       transferred_by: userId,
     });
+
+    if (statusChange && statusChange.from !== statusChange.to) {
+      await trx('student_status_history').insert({
+        tenant_id: tenantId,
+        student_id,
+        from_status: statusChange.from,
+        to_status: statusChange.to,
+        reason: reason || null,
+        changed_by: userId,
+      });
+    }
 
     if (from_class_id && from_class_id !== to_class_id) {
       await reconcileAttendance(trx, tenantId, [student_id], from_class_id, to_class_id);

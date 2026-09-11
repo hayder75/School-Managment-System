@@ -59,7 +59,7 @@ async function getById(req, res) {
 }
 
 async function update(req, res) {
-  const student = await studentsService.update(req.tenant.id, req.params.id, req.validated.body);
+  const student = await studentsService.update(req.tenant.id, req.params.id, req.validated.body, req.user.userId);
   if (!student) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
   res.json({ success: true, data: student });
 }
