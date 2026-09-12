@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/auth";
 import {
   useConversations, useMessages, useContacts, useStartDirect, useMarkRead,
@@ -44,6 +45,7 @@ export default function ChatPage() {
   const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
+  const queryClient = useQueryClient();
   const isModerator = MODERATORS.includes(user?.role);
 
   const [selectedConv, setSelectedConv] = useState(null);
@@ -92,6 +94,7 @@ export default function ChatPage() {
       if (msg.conversation_id === selectedConvRef.current?.id) {
         setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
       }
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
     });
     socket.on("typing", ({ conversationId, userId: typingUserId }) => {
       if (typingUserId !== userIdRef.current) {

@@ -187,10 +187,12 @@ async function getConversationMessages(tenantId, conversationId, userId, role, {
     .where({ 'chat_messages.tenant_id': tenantId, 'chat_messages.conversation_id': conversationId })
     .leftJoin('users', 'chat_messages.sender_id', 'users.id')
     .select('chat_messages.*', 'users.first_name', 'users.last_name', 'users.role as sender_role')
-    .orderBy('chat_messages.created_at', 'asc');
+    .orderBy('chat_messages.created_at', 'desc');
 
-  // page-based pagination kept for compatibility
-  return paginatedResult(query, page, limit);
+  // Newest-first pagination, then reverse so the client renders oldest->newest.
+  const result = await paginatedResult(query, page, limit);
+  result.data = result.data.reverse();
+  return result;
 }
 
 async function markAsRead(tenantId, conversationId, userId) {
