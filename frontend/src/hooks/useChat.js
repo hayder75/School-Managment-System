@@ -31,6 +31,58 @@ export function useTeachers() {
   });
 }
 
+export function useContacts(params = {}) {
+  return useQuery({
+    queryKey: ["chat-contacts", params],
+    queryFn: () => api.get("/chat/contacts", { params }),
+  });
+}
+
+export function useStartDirect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId) => api.post("/chat/conversations/direct", { user_id: userId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["conversations"] }),
+  });
+}
+
+export function useReportConversation() {
+  return useMutation({
+    mutationFn: ({ conversationId, reason, message_id }) =>
+      api.post(`/chat/conversations/${conversationId}/report`, { reason, message_id }),
+  });
+}
+
+export function useChatReports(params = {}) {
+  return useQuery({
+    queryKey: ["chat-reports", params],
+    queryFn: () => api.get("/chat/reports", { params }),
+  });
+}
+
+export function useResolveReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reportId) => api.patch(`/chat/reports/${reportId}/resolve`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-reports"] }),
+  });
+}
+
+export function useRestrictUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, active, reason }) => api.post(`/chat/users/${userId}/restrict`, { active, reason }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-restricted"] }),
+  });
+}
+
+export function useRestrictedUsers() {
+  return useQuery({
+    queryKey: ["chat-restricted"],
+    queryFn: () => api.get("/chat/restricted"),
+  });
+}
+
 export function useMarkRead() {
   const qc = useQueryClient();
   return useMutation({
