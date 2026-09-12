@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/auth";
 import {
-  useConversations, useMessages, useContacts, useStartDirect, useMarkRead,
+  useConversations, useMessages, useContacts, useStartDirect, useSendMessage, useMarkRead,
   useReportConversation, useChatReports, useResolveReport, useRestrictUser,
 } from "../hooks/useChat";
 import { getSocket, connectSocket, disconnectSocket } from "../lib/socket";
@@ -76,6 +76,7 @@ export default function ChatPage() {
   const { data: contactsData } = useContacts(newOpen ? { filter: contactFilter, q: contactQ } : {});
   const { data: reportsData } = useChatReports();
   const startDirect = useStartDirect();
+  const sendMessage = useSendMessage();
   const markRead = useMarkRead();
   const reportConv = useReportConversation();
   const resolveReport = useResolveReport();
@@ -126,10 +127,20 @@ export default function ChatPage() {
     getSocket()?.emit("typing:start", selectedConv.id);
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (!message.trim() || !selectedConv) return;
-    getSocket()?.emit("message:send", { conversationId: selectedConv.id, content: message });
+    const content = message;
+    const convId = selectedConv.id;
     setMessage("");
+    // Keep typing feel but also guarantee the message persists + shows.
+    getSocket()?.emit("typing:stop", convId);
+    try {
+      const res = await sendMessage.mutateAsync({ conversationId: convId, content });
+      const msg = res.data || res;
+      if (msg?.id) setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+    } catch {
+      setMessage(content); // restore on failure
+    }
   }
 
   async function pickContact(c) {

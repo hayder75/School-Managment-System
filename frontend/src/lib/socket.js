@@ -21,7 +21,7 @@ export function connectSocket(token) {
     socket.disconnect();
     socket = null;
   }
-  socket = io(socketUrl(), { auth: { token } });
+  socket = io(socketUrl(), { auth: { token: token || undefined }, withCredentials: true });
   socketToken = token;
   return socket;
 }

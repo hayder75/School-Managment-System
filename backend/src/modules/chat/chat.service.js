@@ -195,8 +195,7 @@ async function getConversationMessages(tenantId, conversationId, userId, role, {
   return result;
 }
 
-async function markAsRead(tenantId, conversationId, userId) {
-  const participant = await isParticipant(tenantId, conversationId, userId);
+async function markAsRead(tenantId, conversationId, userId) {  const participant = await isParticipant(tenantId, conversationId, userId);
   if (!participant) {
     const err = new Error('FORBIDDEN'); err.code = 'FORBIDDEN'; throw err;
   }
@@ -224,6 +223,24 @@ async function touchConversation(trx, conversationId, preview) {
 }
 
 // ---- Moderation ----
+
+async function createMessage(tenantId, conversationId, user, content) {
+  const text = String(content || '').trim();
+  if (!text) { const err = new Error('EMPTY_MESSAGE'); err.code = 'EMPTY_MESSAGE'; throw err; }
+  if (await isRestricted(tenantId, user.userId)) {
+    const err = new Error('CHAT_RESTRICTED'); err.code = 'CHAT_RESTRICTED'; throw err;
+  }
+  const ok = await isParticipant(tenantId, conversationId, user.userId);
+  if (!ok) { const err = new Error('FORBIDDEN'); err.code = 'FORBIDDEN'; throw err; }
+
+  const [message] = await db('chat_messages')
+    .insert({ tenant_id: tenantId, conversation_id: conversationId, sender_id: user.userId, content: text.slice(0, 4000) })
+    .returning('*');
+  await touchConversation(db, conversationId, text);
+
+  const sender = await db('users').where({ id: user.userId }).select('first_name', 'last_name', 'role').first();
+  return { ...message, first_name: sender?.first_name || null, last_name: sender?.last_name || null, sender_role: sender?.role || null };
+}
 
 async function reportConversation(tenantId, userId, conversationId, { reason, message_id } = {}) {
   const ok = await isParticipant(tenantId, conversationId, userId);
@@ -283,6 +300,6 @@ module.exports = {
   isParticipant, canAccessConversation, isRestricted,
   listContacts, createConversation, getOrCreateDirect,
   getUserConversations, listAllConversations, getConversationMessages,
-  markAsRead, getUnreadCount, touchConversation,
+  markAsRead, getUnreadCount, touchConversation, createMessage,
   reportConversation, listReports, resolveReport, setUserRestriction, listRestricted,
 };

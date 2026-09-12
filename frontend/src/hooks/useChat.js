@@ -46,8 +46,16 @@ export function useStartDirect() {
   });
 }
 
-export function useReportConversation() {
+export function useSendMessage() {
+  const qc = useQueryClient();
   return useMutation({
+    mutationFn: ({ conversationId, content }) =>
+      api.post(`/chat/conversations/${conversationId}/messages`, { content }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["conversations"] }),
+  });
+}
+
+export function useReportConversation() {  return useMutation({
     mutationFn: ({ conversationId, reason, message_id }) =>
       api.post(`/chat/conversations/${conversationId}/report`, { reason, message_id }),
   });

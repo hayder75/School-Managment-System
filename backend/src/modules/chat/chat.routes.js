@@ -15,6 +15,7 @@ router.post('/conversations', controller.createConversation);
 router.post('/conversations/direct', controller.getOrCreateDirect);
 router.get('/conversations', controller.listConversations);
 router.get('/conversations/:conversationId/messages', controller.getMessages);
+router.post('/conversations/:conversationId/messages', controller.sendMessage);
 router.put('/conversations/:conversationId/read', controller.markRead);
 router.post('/conversations/:conversationId/report', controller.reportConversation);
 

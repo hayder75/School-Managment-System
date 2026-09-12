@@ -16,7 +16,15 @@ function setupSocket(httpServer) {
   broadcast.setIo(io);
 
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token;
+    let token = socket.handshake.auth?.token;
+
+    // Fall back to the httpOnly auth cookie (survives page refreshes).
+    if (!token) {
+      const cookie = socket.handshake.headers?.cookie || '';
+      const match = cookie.match(/(?:^|;\s*)token=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
+
     if (!token) return next(new Error('Authentication required'));
 
     try {

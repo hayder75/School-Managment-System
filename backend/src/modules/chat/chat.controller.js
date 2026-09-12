@@ -58,6 +58,19 @@ async function getMessages(req, res) {
   }
 }
 
+async function sendMessage(req, res) {
+  try {
+    const message = await chatService.createMessage(
+      req.tenant.id, req.params.conversationId, req.user, req.body.content
+    );
+    // realtime delivery to others in the room
+    try { require('../../socket/broadcast').emitConversationMessage(req.params.conversationId, message); } catch { /* ignore */ }
+    res.status(201).json({ success: true, data: message });
+  } catch (err) {
+    sendError(res, err);
+  }
+}
+
 async function markRead(req, res) {
   await chatService.markAsRead(req.tenant.id, req.params.conversationId, req.user.userId);
   res.json({ success: true, data: null });
@@ -111,6 +124,6 @@ async function listAllConversations(req, res) {
 }
 
 module.exports = {
-  getContacts, createConversation, getOrCreateDirect, listConversations, getMessages, markRead, getUnread,
+  getContacts, createConversation, getOrCreateDirect, listConversations, getMessages, sendMessage, markRead, getUnread,
   reportConversation, requireModerator, listReports, resolveReport, restrictUser, listRestricted, listAllConversations,
 };

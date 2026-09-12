@@ -46,4 +46,8 @@ async function notifyUsers(tenantId, userIds, payload) {
   return unique.length;
 }
 
-module.exports = { setIo, getIo, notifyUser, notifyUsers };
+module.exports = { setIo, getIo, notifyUser, notifyUsers, emitConversationMessage };
+
+function emitConversationMessage(conversationId, message) {
+  if (io) io.to(`conv:${conversationId}`).emit('message:new', message);
+}
