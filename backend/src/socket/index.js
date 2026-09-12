@@ -61,6 +61,13 @@ function setupSocket(httpServer) {
           return callback?.({ error: 'conversationId and content required' });
         }
 
+        const restricted = await db('chat_restrictions')
+          .where({ tenant_id: socket.user.tenantId, user_id: userId, active: true })
+          .first();
+        if (restricted) {
+          return callback?.({ error: 'Your chat access has been restricted by an administrator' });
+        }
+
         const participant = await db('chat_participants')
           .where({ conversation_id: conversationId, user_id: userId })
           .first();
@@ -76,6 +83,11 @@ function setupSocket(httpServer) {
             content,
           })
           .returning('*');
+
+        await db('chat_conversations').where({ id: conversationId }).update({
+          last_message_at: db.fn.now(),
+          last_message_preview: String(content).slice(0, 300),
+        });
 
         const sender = await db('users')
           .where({ id: userId })
