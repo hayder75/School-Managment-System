@@ -61,10 +61,11 @@ export function useReportConversation() {  return useMutation({
   });
 }
 
-export function useChatReports(params = {}) {
+export function useChatReports(params = {}, enabled = true) {
   return useQuery({
     queryKey: ["chat-reports", params],
     queryFn: () => api.get("/chat/reports", { params }),
+    enabled,
   });
 }
 

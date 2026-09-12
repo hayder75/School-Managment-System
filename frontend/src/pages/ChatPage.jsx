@@ -74,7 +74,7 @@ export default function ChatPage() {
   const { data: convsData } = useConversations();
   const { data: msgsData, refetch: refetchMsgs } = useMessages(selectedConv?.id);
   const { data: contactsData } = useContacts(newOpen ? { filter: contactFilter, q: contactQ } : {});
-  const { data: reportsData } = useChatReports();
+  const { data: reportsData } = useChatReports({}, isModerator);
   const startDirect = useStartDirect();
   const sendMessage = useSendMessage();
   const markRead = useMarkRead();
