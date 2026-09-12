@@ -210,6 +210,40 @@ async function setStudentSubscription(req, res) {
   }
 }
 
+async function generateMonthlyBills(req, res) {
+  const data = await feeService.generateMonthlyBills(req.tenant.id, req.validated.body);
+  res.status(201).json({ success: true, data });
+}
+
+async function listMonthlyCollection(req, res) {
+  const data = await feeService.listMonthlyCollection(req.tenant.id, {
+    period_year: req.query.period_year,
+    period_month: req.query.period_month,
+    class_id: req.query.class_id,
+  });
+  res.json({ success: true, data });
+}
+
+async function markMonthsPaid(req, res) {
+  try {
+    const data = await feeService.markMonthsPaid(req.tenant.id, req.user.userId, req.validated.body);
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.code === 'STUDENT_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'STUDENT_NOT_FOUND', message: 'Student not found in this school' } });
+    }
+    if (err.code === 'BILL_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'BILL_NOT_FOUND', message: 'A bill for one of the selected months was not found. Generate bills first.' } });
+    }
+    throw err;
+  }
+}
+
+async function listStudentBills(req, res) {
+  const data = await feeService.listStudentBills(req.tenant.id, req.params.studentId);
+  res.json({ success: true, data });
+}
+
 module.exports = {
   createFeeStructure, listFeeStructures, getFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, createBulkPayments, updatePayment, listPayments, getPaymentById, removePayment, getSummary,
@@ -217,4 +251,5 @@ module.exports = {
   getMyFees,
   listReconciliationBatches, createReconciliationBatch, getDefaultersAging, getMonthlyClosePack,
   listStudentSubscriptions, setStudentSubscription,
+  generateMonthlyBills, listMonthlyCollection, markMonthsPaid, listStudentBills,
 };

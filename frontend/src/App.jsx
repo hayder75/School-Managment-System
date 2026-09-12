@@ -22,6 +22,7 @@ const TimetablePage = lazy(() => import("./pages/TimetablePage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const FeeStructuresPage = lazy(() => import("./pages/FeeStructuresPage"));
 const StudentFeesPage = lazy(() => import("./pages/StudentFeesPage"));
+const MonthlyCollectionPage = lazy(() => import("./pages/MonthlyCollectionPage"));
 const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
 const CollectionReportPage = lazy(() => import("./pages/CollectionReportPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
@@ -146,6 +147,7 @@ function AppContent() {
 
           <Route element={<RoleRoute roles={["admin", "owner", "cashier"]} permissions={[]} />}>
             <Route path="/student-fees" element={<StudentFeesPage />} />
+            <Route path="/monthly-collection" element={<MonthlyCollectionPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "finance", "cashier", "accountant", "general_services"]} permissions={["expenses.manage"]} />}>

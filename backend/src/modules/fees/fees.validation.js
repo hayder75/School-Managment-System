@@ -82,4 +82,21 @@ const subscriptionSchema = z.object({
   }),
 });
 
-module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema, subscriptionSchema };
+const monthlyGenerateSchema = z.object({
+  body: z.object({
+    period_year: z.number().int(),
+    period_month: z.number().int().min(1).max(13),
+    class_id: z.string().uuid().nullable().optional(),
+  }),
+});
+
+const monthlyPaySchema = z.object({
+  body: z.object({
+    student_id: z.string().uuid(),
+    periods: z.array(z.string().regex(/^\d{4}-\d{1,2}$/)).min(1),
+    penalties: z.record(z.number()).optional(),
+    payment_method: z.enum(['cash', 'bank', 'card', 'mobile']).optional(),
+  }),
+});
+
+module.exports = { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema, subscriptionSchema, monthlyGenerateSchema, monthlyPaySchema };

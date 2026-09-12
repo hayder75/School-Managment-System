@@ -132,3 +132,39 @@ export function useSetStudentFeeSubscription() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["student-fee-subs"] }),
   });
 }
+
+export function useMonthlyCollection(params = {}) {
+  return useQuery({
+    queryKey: ["monthly-collection", params],
+    queryFn: () => api.get("/fees/monthly-collection", { params }),
+    enabled: !!params.period_year && !!params.period_month,
+  });
+}
+
+export function useGenerateMonthlyBills() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => api.post("/fees/monthly-bills/generate", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["monthly-collection"] }),
+  });
+}
+
+export function useMarkMonthsPaid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => api.post("/fees/monthly-collection/pay", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["monthly-collection"] });
+      qc.invalidateQueries({ queryKey: ["student-monthly-bills"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
+    },
+  });
+}
+
+export function useStudentBills(studentId) {
+  return useQuery({
+    queryKey: ["student-monthly-bills", studentId],
+    queryFn: () => api.get(`/fees/monthly-bills/student/${studentId}`),
+    enabled: !!studentId,
+  });
+}

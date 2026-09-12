@@ -5,7 +5,7 @@ const tenant = require('../../middleware/tenant');
 const rbac = require('../../middleware/rbac');
 const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
-const { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema, subscriptionSchema } = require('./fees.validation');
+const { createFeeStructureSchema, updateFeeStructureSchema, createPaymentSchema, updatePaymentSchema, bulkCreatePaymentsSchema, subscriptionSchema, monthlyGenerateSchema, monthlyPaySchema } = require('./fees.validation');
 
 const router = Router();
 
@@ -24,6 +24,12 @@ router.get('/monthly-close-pack', requireAccess(['admin', 'owner', 'finance', 'a
 // Optional-fee subscriptions (admin + cashier only)
 router.get('/student-subscriptions', requireAccess(['admin', 'owner', 'cashier'], []), controller.listStudentSubscriptions);
 router.post('/student-subscriptions', requireAccess(['admin', 'owner', 'cashier'], []), validate(subscriptionSchema), controller.setStudentSubscription);
+
+// Monthly billing + collection (admin + cashier)
+router.post('/monthly-bills/generate', requireAccess(['admin', 'owner', 'cashier'], ['fees.manage']), validate(monthlyGenerateSchema), controller.generateMonthlyBills);
+router.get('/monthly-collection', requireAccess(['admin', 'owner', 'cashier'], ['fees.manage']), controller.listMonthlyCollection);
+router.post('/monthly-collection/pay', requireAccess(['admin', 'owner', 'cashier'], ['fees.manage']), validate(monthlyPaySchema), controller.markMonthsPaid);
+router.get('/monthly-bills/student/:studentId', requireAccess(['admin', 'owner', 'cashier'], ['fees.manage']), controller.listStudentBills);
 
 router.get('/summary', controller.getSummary);
 router.get('/collection-report', controller.getCollectionReport);

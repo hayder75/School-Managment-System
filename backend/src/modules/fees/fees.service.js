@@ -854,10 +854,206 @@ async function setStudentFeeSubscription(tenantId, { student_id, fee_structure_i
   return { student_id, fee_structure_id, subscribed: !!subscribed };
 }
 
+// ---- Monthly billing + collection ----
+const ethio = require('../../shared/ethiopianCalendar');
+
+function periodKey(year, month) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+async function getFeeSettings(tenantId) {
+  const rows = await db('settings')
+    .where({ tenant_id: tenantId })
+    .whereIn('key', ['fee_grace_days', 'fee_penalty_type', 'fee_penalty_amount']);
+  const map = {};
+  for (const r of rows) map[r.key] = r.value;
+  return {
+    graceDays: Number(map.fee_grace_days ?? 5) || 0,
+    penaltyType: map.fee_penalty_type === 'daily' ? 'daily' : 'fixed',
+    penaltyAmount: Number(map.fee_penalty_amount ?? 100) || 0,
+  };
+}
+
+// Penalty for a given Ethiopian month, based on the admin rules.
+function computePenalty({ periodYear, periodMonth, settings, today = new Date() }) {
+  const todayEth = ethio.toEthiopian(today);
+  const isFuture = periodYear > todayEth.year || (periodYear === todayEth.year && periodMonth > todayEth.month);
+  if (isFuture) return 0;
+  const range = ethio.ethiopianMonthGregorianRange(periodYear, periodMonth);
+  const start = new Date(`${range.start}T00:00:00`);
+  const penaltyStart = new Date(start.getTime() + settings.graceDays * 86400000);
+  const days = Math.floor((today.getTime() - penaltyStart.getTime()) / 86400000);
+  if (days <= 0) return 0;
+  return settings.penaltyType === 'daily' ? settings.penaltyAmount * days : settings.penaltyAmount;
+}
+
+async function generateMonthlyBills(tenantId, { period_year, period_month, class_id } = {}) {
+  const year = Number(period_year);
+  const month = Number(period_month);
+  if (!year || !month) {
+    const e = new Error('PERIOD_REQUIRED'); e.code = 'PERIOD_REQUIRED'; throw e;
+  }
+
+  const fees = await db('fee_structures').where({ tenant_id: tenantId, is_active: true, frequency: 'monthly' });
+  const feeIds = fees.map((f) => f.id);
+  const amounts = feeIds.length
+    ? await db('fee_structure_amounts').where({ tenant_id: tenantId }).whereIn('fee_structure_id', feeIds)
+    : [];
+  const amountMap = {};
+  for (const a of amounts) {
+    (amountMap[a.fee_structure_id] = amountMap[a.fee_structure_id] || {})[a.grade_level] = parseFloat(a.amount);
+  }
+
+  const subs = await db('student_fee_subscriptions').where({ tenant_id: tenantId }).select('student_id', 'fee_structure_id');
+  const subMap = {};
+  for (const s of subs) (subMap[s.student_id] = subMap[s.student_id] || new Set()).add(s.fee_structure_id);
+
+  let q = db('students as s')
+    .join('classes as c', 's.class_id', 'c.id')
+    .where({ 's.tenant_id': tenantId, 's.status': 'active' })
+    .select('s.id', 's.class_id', 'c.grade_level', 's.enrollment_date');
+  if (class_id) q = q.where('s.class_id', class_id);
+  const students = await q;
+
+  const range = ethio.ethiopianMonthGregorianRange(year, month);
+  const monthEnd = range.end;
+
+  let created = 0;
+  await db.transaction(async (trx) => {
+    for (const st of students) {
+      if (st.enrollment_date && String(st.enrollment_date).slice(0, 10) > monthEnd) continue;
+      let total = 0;
+      for (const f of fees) {
+        if (f.class_id && f.class_id !== st.class_id) continue;
+        if (!f.is_mandatory && !(subMap[st.id] && subMap[st.id].has(f.id))) continue;
+        const g = st.grade_level;
+        const amt = amountMap[f.id] && g != null && amountMap[f.id][g] !== undefined
+          ? amountMap[f.id][g]
+          : parseFloat(f.amount || 0);
+        total += amt;
+      }
+      const inserted = await trx('student_monthly_bills')
+        .insert({ tenant_id: tenantId, student_id: st.id, period_year: year, period_month: month, amount: total, status: 'unpaid' })
+        .onConflict(['tenant_id', 'student_id', 'period_year', 'period_month'])
+        .ignore()
+        .returning('id');
+      if (inserted.length) created += 1;
+    }
+  });
+  return { created, period: periodKey(year, month) };
+}
+
+async function listMonthlyCollection(tenantId, { period_year, period_month, class_id } = {}) {
+  const year = Number(period_year);
+  const month = Number(period_month);
+  const settings = await getFeeSettings(tenantId);
+
+  let q = db('student_monthly_bills as b')
+    .join('students as s', 'b.student_id', 's.id')
+    .join('users as u', 's.user_id', 'u.id')
+    .leftJoin('classes as c', 's.class_id', 'c.id')
+    .where({ 'b.tenant_id': tenantId, 'b.period_year': year, 'b.period_month': month })
+    .select('b.*', 'u.first_name', 'u.last_name', 's.student_number', 's.user_id as user_id', 'c.name as class_name');
+  if (class_id) q = q.where('s.class_id', class_id);
+  const rows = await q.orderBy('u.first_name').orderBy('u.last_name');
+
+  const bills = rows.map((r) => {
+    const amount = parseFloat(r.amount || 0);
+    const livePenalty = r.status === 'paid'
+      ? parseFloat(r.penalty || 0)
+      : computePenalty({ periodYear: year, periodMonth: month, settings });
+    return { ...r, amount, live_penalty: livePenalty, total_due: amount + livePenalty, period: periodKey(year, month) };
+  });
+
+  const paid = bills.filter((b) => b.status === 'paid');
+  const unpaid = bills.filter((b) => b.status !== 'paid');
+  return {
+    period: periodKey(year, month),
+    bills,
+    summary: {
+      total_count: bills.length,
+      paid_count: paid.length,
+      unpaid_count: unpaid.length,
+      expected: bills.reduce((s, b) => s + b.amount, 0),
+      collected: paid.reduce((s, b) => s + parseFloat(b.amount_paid || 0), 0),
+      outstanding: unpaid.reduce((s, b) => s + b.total_due, 0),
+    },
+    settings,
+  };
+}
+
+async function markMonthsPaid(tenantId, userId, { student_id, periods, penalties, payment_method } = {}) {
+  if (!student_id || !Array.isArray(periods) || periods.length === 0) {
+    const e = new Error('PERIOD_REQUIRED'); e.code = 'PERIOD_REQUIRED'; throw e;
+  }
+  const student = await db('students').where({ tenant_id: tenantId, id: student_id }).select('id', 'user_id').first();
+  if (!student) { const e = new Error('STUDENT_NOT_FOUND'); e.code = 'STUDENT_NOT_FOUND'; throw e; }
+  const method = ['cash', 'bank', 'card', 'mobile'].includes(payment_method) ? payment_method : 'cash';
+  const settings = await getFeeSettings(tenantId);
+  const penInput = penalties || {};
+  const result = [];
+
+  await db.transaction(async (trx) => {
+    for (const p of periods) {
+      const [y, m] = String(p).split('-').map(Number);
+      const bill = await trx('student_monthly_bills')
+        .where({ tenant_id: tenantId, student_id, period_year: y, period_month: m })
+        .first();
+      if (!bill) { const e = new Error('BILL_NOT_FOUND'); e.code = 'BILL_NOT_FOUND'; throw e; }
+      if (bill.status === 'paid') { result.push({ period: p, already_paid: true }); continue; }
+
+      const amount = parseFloat(bill.amount || 0);
+      const computed = computePenalty({ periodYear: y, periodMonth: m, settings });
+      const pen = penInput[p] !== undefined && penInput[p] !== null ? Number(penInput[p]) : computed;
+      const total = amount + pen;
+
+      await trx('student_monthly_bills').where({ id: bill.id }).update({
+        status: 'paid', penalty: pen, amount_paid: total, paid_date: trx.fn.now(), paid_by: userId, updated_at: trx.fn.now(),
+      });
+
+      if (total > 0) {
+        const receipt_no = await nextReceiptNo(trx, tenantId);
+        await trx('payments').insert({
+          tenant_id: tenantId,
+          student_id: student.user_id,
+          fee_structure_id: null,
+          amount_paid: total,
+          balance: 0,
+          status: 'paid',
+          payment_method: method,
+          paid_date: new Date(),
+          billing_period: p,
+          receipt_no,
+          collected_by: userId,
+          remarks: `Monthly fee ${p}${pen > 0 ? ' + penalty' : ''}`,
+        });
+      }
+      result.push({ period: p, amount, penalty: pen, total });
+    }
+  });
+  return { student_id, months: result };
+}
+
+async function listStudentBills(tenantId, studentId) {
+  const settings = await getFeeSettings(tenantId);
+  const rows = await db('student_monthly_bills')
+    .where({ tenant_id: tenantId, student_id: studentId })
+    .orderBy('period_year')
+    .orderBy('period_month');
+  return rows.map((r) => {
+    const amount = parseFloat(r.amount || 0);
+    const pen = r.status === 'paid'
+      ? parseFloat(r.penalty || 0)
+      : computePenalty({ periodYear: r.period_year, periodMonth: r.period_month, settings });
+    return { ...r, amount, live_penalty: pen, total_due: amount + pen, period: periodKey(r.period_year, r.period_month) };
+  });
+}
+
 module.exports = {
   createFeeStructure, findAllFeeStructures, findFeeStructureById, updateFeeStructure, removeFeeStructure,
   createPayment, createBulkPayments, updatePayment, findAllPayments, findPaymentById, removePayment, getPaymentSummary,
   getStudentLedger, getCollectionReport, getPaymentTrends,
   listReconciliationBatches, createReconciliationBatch, getDefaultersAging, getMonthlyClosePack,
   listStudentFeeSubscriptions, setStudentFeeSubscription,
+  generateMonthlyBills, listMonthlyCollection, markMonthsPaid, listStudentBills,
 };

@@ -232,6 +232,7 @@ const permissionGated = [
   { to: "/fees", label: "fees", icon: DollarSign, permission: "fees.manage" },
   { to: "/payments", label: "payments", icon: Wallet, permission: "payments.manage" },
   { to: "/student-fees", label: "studentFees", icon: Wallet, permission: "fees.manage", roles: ["admin", "owner", "cashier"] },
+  { to: "/monthly-collection", label: "monthlyCollection", icon: Wallet, permission: "fees.manage", roles: ["admin", "owner", "cashier"] },
   { to: "/expenses", label: "expenses", icon: TrendingDown, permission: "expenses.manage" },
   { to: "/payroll", label: "payroll", icon: Users, permission: "payroll.view" },
   { to: "/operations", label: "operations", icon: Bus, permission: "operations.manage" },
