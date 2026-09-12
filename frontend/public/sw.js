@@ -1,42 +1,23 @@
-const CACHE_NAME = "sms-cache-v3";
-
-self.addEventListener("install", (event) => {
+// This service worker is intentionally a no-op that removes itself and clears
+// any previously cached assets, so clients always load the latest build.
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    (async () => {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+        await self.registration.unregister();
+        const clients = await self.clients.matchAll({ type: "window" });
+        clients.forEach((client) => client.navigate(client.url));
+      } catch (e) {
+        // ignore
+      }
+    })()
   );
 });
 
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-  if (request.method !== "GET" || url.pathname.startsWith("/api/")) return;
-
-  if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/index.html")));
-    return;
-  }
-
-  if (url.pathname.startsWith("/assets/")) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetched = fetch(request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        });
-        return cached || fetched;
-      })
-    );
-    return;
-  }
-
-  event.respondWith(fetch(request));
-});
+// No fetch handler: all requests go straight to the network.

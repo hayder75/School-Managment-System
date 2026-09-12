@@ -188,7 +188,12 @@ async function getMonthlyClosePack(req, res) {  const { month, year } = req.quer
 }
 
 async function listStudentSubscriptions(req, res) {
-  const data = await feeService.listStudentFeeSubscriptions(req.tenant.id, { class_id: req.query.class_id });
+  const data = await feeService.listStudentFeeSubscriptions(req.tenant.id, {
+    class_id: req.query.class_id,
+    q: req.query.q,
+    page: req.query.page,
+    limit: req.query.limit,
+  });
   res.json({ success: true, data });
 }
 

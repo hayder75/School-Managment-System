@@ -13,6 +13,16 @@ window.addEventListener("vite:preloadError", () => {
   }
 });
 
+// Remove any legacy service worker and its caches so deploys always take effect.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations?.().then((regs) => {
+    regs.forEach((r) => r.unregister());
+  }).catch(() => {});
+  if (window.caches) {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+  }
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />

@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useClasses } from "../hooks/useClasses";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import { useStudentFeeSubscriptions, useSetStudentFeeSubscription } from "../hooks/useFees";
 import { useToast } from "../store/toast";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
+import { TableCell } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useI18n } from "../i18n/I18nContext";
 
@@ -11,13 +14,18 @@ export default function StudentFeesPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const [classId, setClassId] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search);
   const { data: classesData } = useClasses({ limit: 200 });
-  const { data, isLoading } = useStudentFeeSubscriptions(classId ? { class_id: classId } : {});
+  const params = { limit: 50, page, ...(classId ? { class_id: classId } : {}), ...(debouncedSearch ? { q: debouncedSearch } : {}) };
+  const { data, isLoading, isFetching } = useStudentFeeSubscriptions(params);
   const setSub = useSetStudentFeeSubscription();
 
   const classes = classesData?.data || [];
   const fees = data?.data?.fees || [];
   const students = data?.data?.students || [];
+  const meta = data?.data?.meta || {};
 
   async function toggle(student, fee, current) {
     try {
@@ -36,15 +44,16 @@ export default function StudentFeesPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <Select value={classId} onValueChange={setClassId}>
-              <SelectTrigger className="w-64"><SelectValue placeholder={t("All Classes")} /></SelectTrigger>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={classId} onValueChange={(v) => { setClassId(v); setPage(1); }}>
+              <SelectTrigger className="w-56"><SelectValue placeholder={t("All Classes")} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="">{t("All Classes")}</SelectItem>
                 {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <span className="text-sm text-muted-foreground">{students.length} {t("students")}</span>
+            <Input className="w-64" placeholder={t("Search students...")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+            <span className="text-sm text-muted-foreground">{meta.total ?? students.length} {t("students")}{isFetching ? " …" : ""}</span>
           </div>
         </CardHeader>
         <CardContent>
@@ -94,6 +103,15 @@ export default function StudentFeesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {meta.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">{t("Page")} {meta.page} {t("of")} {meta.totalPages}</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{t("Previous")}</Button>
+                <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>{t("Next")}</Button>
+              </div>
             </div>
           )}
         </CardContent>

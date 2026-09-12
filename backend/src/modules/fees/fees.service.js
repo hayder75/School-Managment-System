@@ -798,7 +798,7 @@ async function getMonthlyClosePack(tenantId, { month, year } = {}) {
 
 // ---- Optional-fee subscriptions (per student) ----
 
-async function listStudentFeeSubscriptions(tenantId, { class_id } = {}) {
+async function listStudentFeeSubscriptions(tenantId, { class_id, q, page = 1, limit = 50 } = {}) {
   const fees = await db('fee_structures')
     .where({ tenant_id: tenantId, is_mandatory: false, is_active: true })
     .select('id', 'name', 'amount', 'frequency')
@@ -812,19 +812,28 @@ async function listStudentFeeSubscriptions(tenantId, { class_id } = {}) {
     .orderBy('u.first_name')
     .orderBy('u.last_name');
   if (class_id) studentQuery = studentQuery.where('s.class_id', class_id);
-  const students = await studentQuery;
+  if (q && q.trim()) {
+    const term = `%${q.trim()}%`;
+    studentQuery = studentQuery.where((b) =>
+      b.whereILike('u.first_name', term).orWhereILike('u.last_name', term).orWhereILike('s.student_number', term));
+  }
 
-  const subs = await db('student_fee_subscriptions')
-    .where({ tenant_id: tenantId })
-    .select('student_id', 'fee_structure_id');
-  const map = {};
-  for (const s of subs) {
-    (map[s.student_id] = map[s.student_id] || []).push(s.fee_structure_id);
+  const result = await paginatedResult(studentQuery, page, limit);
+
+  const ids = result.data.map((s) => s.id);
+  const subMap = {};
+  if (ids.length) {
+    const subs = await db('student_fee_subscriptions')
+      .where({ tenant_id: tenantId })
+      .whereIn('student_id', ids)
+      .select('student_id', 'fee_structure_id');
+    for (const s of subs) (subMap[s.student_id] = subMap[s.student_id] || []).push(s.fee_structure_id);
   }
 
   return {
     fees,
-    students: students.map((s) => ({ ...s, subscribed_fee_ids: map[s.id] || [] })),
+    students: result.data.map((s) => ({ ...s, subscribed_fee_ids: subMap[s.id] || [] })),
+    meta: result.meta,
   };
 }
 
