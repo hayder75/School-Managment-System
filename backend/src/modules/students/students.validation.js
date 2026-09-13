@@ -1,5 +1,9 @@
 const { z } = require('zod');
 
+// Treat empty strings from forms as "not provided" for enum fields.
+const optionalEnum = (values) =>
+  z.preprocess((v) => (v === '' || v === null ? undefined : v), z.enum(values).optional());
+
 const studentFields = {
   user_id: z.string().uuid().optional(),
   first_name: z.string().max(100).optional(),
@@ -11,9 +15,9 @@ const studentFields = {
   emergency_contact: z.string().optional(),
   medical_info: z.record(z.any()).optional(),
   previous_school: z.string().max(255).optional(),
-  admission_type: z.enum(['new', 'transfer_in']).optional(),
+  admission_type: optionalEnum(['new', 'transfer_in']),
   date_of_birth: z.string().optional(),
-  gender: z.enum(['male', 'female', 'other']).optional(),
+  gender: optionalEnum(['male', 'female', 'other']),
   home_address: z.string().optional(),
   transfer_date: z.string().optional(),
   father_name: z.string().max(100).optional(),
@@ -29,13 +33,13 @@ const studentFields = {
   woreda_of_birth: z.string().max(150).optional(),
   kebele: z.string().max(150).optional(),
   kebele_of_birth: z.string().max(150).optional(),
-  location_type: z.enum(['urban', 'rural']).optional(),
+  location_type: optionalEnum(['urban', 'rural']),
   disability: z.boolean().optional(),
   disability_type: z.string().max(100).optional(),
   economic_status: z.string().max(20).optional(),
   national_id: z.string().max(50).optional(),
   parent_status: z.string().max(50).optional(),
-  family_head_gender: z.enum(['male', 'female']).optional(),
+  family_head_gender: optionalEnum(['male', 'female']),
 };
 
 const createStudentSchema = z.object({
@@ -50,9 +54,9 @@ const updateStudentSchema = z.object({
     emergency_contact: z.string().optional(),
     medical_info: z.record(z.any()).optional(),
     previous_school: z.string().max(255).optional(),
-    admission_type: z.enum(['new', 'transfer_in']).optional(),
+    admission_type: optionalEnum(['new', 'transfer_in']),
     date_of_birth: z.string().optional(),
-    gender: z.enum(['male', 'female', 'other']).optional(),
+    gender: optionalEnum(['male', 'female', 'other']),
     home_address: z.string().optional(),
     transfer_date: z.string().optional(),
     father_name: z.string().max(100).optional(),
@@ -67,13 +71,13 @@ const updateStudentSchema = z.object({
     zone_of_birth: z.string().max(150).optional(),
     woreda_of_birth: z.string().max(150).optional(),
     kebele: z.string().max(150).optional(),
-    location_type: z.enum(['urban', 'rural']).optional(),
+    location_type: optionalEnum(['urban', 'rural']),
     disability: z.boolean().optional(),
     disability_type: z.string().max(100).optional(),
     economic_status: z.string().max(20).optional(),
     national_id: z.string().max(50).optional(),
     parent_status: z.string().max(50).optional(),
-    family_head_gender: z.enum(['male', 'female']).optional(),
+    family_head_gender: optionalEnum(['male', 'female']),
   }),
 });
 
@@ -82,6 +86,7 @@ const enrollSchema = z.object({
     ...studentFields,
     first_name: z.string().min(1).max(100),
     father_name: z.string().min(1).max(100),
+    national_id: z.string().min(1).max(50),
     status: z.string().optional(),
     guardians: z.array(z.object({
       parent_id: z.string().uuid(),

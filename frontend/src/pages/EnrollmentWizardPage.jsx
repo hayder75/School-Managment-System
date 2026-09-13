@@ -161,7 +161,7 @@ export default function EnrollmentWizardPage() {
           <div className="flex justify-between">
             <Button variant="outline" disabled={step===0} onClick={() => setStep(step-1)}><ChevronLeft size={16} /> {t("Back")}</Button>
             {step < 4 ? <Button disabled={step===1 && !classId} onClick={() => setStep(step+1)}>{t("Next")} <ChevronRight size={16} /></Button>
-            : <Button onClick={submit} disabled={saving || !classId}>{saving ? t("Enrolling…") : t("Complete Enrollment")}</Button>}
+            : <Button onClick={submit} disabled={saving || !classId || !student.first_name || !student.father_name || !student.national_id}>{saving ? t("Enrolling…") : t("Complete Enrollment")}</Button>}
           </div>
         </>
       ) : (
@@ -218,7 +218,7 @@ function StepCards({ step, student, setStudent, classId, setClassId, classes, se
             <div><Label>{t("Family head gender")}</Label><Select value={student.family_head_gender} onValueChange={setv("family_head_gender")}><SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger><SelectContent><SelectItem value="male">{t("Male")}</SelectItem><SelectItem value="female">{t("Female")}</SelectItem></SelectContent></Select></div>
             <div><Label>{t("Has disability?")}</Label><Select value={student.disability ? "yes" : "no"} onValueChange={(v) => setStudent({ ...student, disability: v==="yes" })}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="no">{t("No")}</SelectItem><SelectItem value="yes">{t("Yes")}</SelectItem></SelectContent></Select></div>
             {student.disability && <div><Label>{t("Disability type")}</Label><Input className="mt-1" value={student.disability_type} onChange={set("disability_type")} /></div>}
-            <div><Label>{t("National ID")}</Label><Input className="mt-1" value={student.national_id} onChange={set("national_id")} /></div>
+            <div><Label>{t("National ID")} *</Label><Input className="mt-1" required value={student.national_id} onChange={set("national_id")} /></div>
             <div><Label>{t("Emergency contact")}</Label><Input className="mt-1" value={student.emergency_contact} placeholder="09…" onChange={set("emergency_contact")} /></div>
           </div>
         </div>
@@ -355,6 +355,7 @@ function ReviewStep({ student, selectedClass, guardians, newGuardians, docs, med
     <Row l={t("Name")} v={`${student.first_name} ${student.father_name || ""} ${student.grandfather_name || ""}`} />
     <Row l={t("Gender / DOB")} v={`${student.gender || "—"} · ${student.date_of_birth || "—"}`} />
     <Row l={t("Admission")} v={`${student.admission_type} · prev: ${student.previous_school || "—"}`} />
+    <Row l={t("National ID")} v={student.national_id || "—"} />
     <Row l={t("Class")} v={selectedClass ? `${selectedClass.name}${selectedClass.section ? ` (${selectedClass.section})` : ""}` : "—"} />
     <Row l={t("Guardians")} v={[...guardians, ...newGuardians].map((g) => `${g.first_name} ${g.last_name} (${g.phone})`).join(", ") || "—"} />
     <Row l={t("Emergency contact")} v={student.emergency_contact || "—"} />

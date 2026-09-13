@@ -13,10 +13,13 @@ async function findParents(tenantId, { page = 1, limit = 20, search } = {}) {
     .select(parentFields)
     .orderBy('users.last_name', 'asc');
   if (search) {
+    const term = `%${String(search).trim()}%`;
     query = query.where(function () {
-      this.where('users.first_name', 'ilike', `%${search}%`)
-        .orWhere('users.last_name', 'ilike', `%${search}%`)
-        .orWhere('users.email', 'ilike', `%${search}%`);
+      this.where('users.first_name', 'ilike', term)
+        .orWhere('users.last_name', 'ilike', term)
+        .orWhere('users.email', 'ilike', term)
+        .orWhere('users.phone', 'ilike', term)
+        .orWhereRaw("CONCAT(users.first_name, ' ', users.last_name) ILIKE ?", [term]);
     });
   }
   return paginatedResult(query, page, limit);
