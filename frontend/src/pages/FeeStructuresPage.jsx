@@ -12,6 +12,7 @@ import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { useI18n } from "../i18n/I18nContext";
+import { levelsFromClasses, levelLabel } from "../lib/levels";
 import { Plus, Trash2, DollarSign } from "lucide-react";
 
 export default function FeeStructuresPage() {
@@ -33,13 +34,7 @@ export default function FeeStructuresPage() {
   const classes = classesData?.data || [];
   const summary = summaryData?.data || {};
 
-  const gradeLevels = [...new Set(classes.map((c) => c.grade_level).filter((g) => g !== null && g !== undefined))].sort((a, b) => a - b);
-
-  function resetForm() {
-    setForm({ name: "", amount: "", frequency: "termly", class_id: "", late_fee: "0", is_mandatory: true });
-    setPerGrade(false);
-    setGradeAmounts({});
-  }
+  const gradeLevels = levelsFromClasses(classes);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -47,8 +42,8 @@ export default function FeeStructuresPage() {
     try {
       const amounts = perGrade
         ? gradeLevels
-            .filter((g) => gradeAmounts[g] !== undefined && gradeAmounts[g] !== "")
-            .map((g) => ({ grade_level: Number(g), amount: parseFloat(gradeAmounts[g]) }))
+            .filter((l) => gradeAmounts[l.key] !== undefined && gradeAmounts[l.key] !== "")
+            .map((l) => ({ level_group: l.level_group, grade_level: l.grade_level, amount: parseFloat(gradeAmounts[l.key]) }))
         : undefined;
       await createFee.mutateAsync({
         ...form,
@@ -87,7 +82,8 @@ export default function FeeStructuresPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("Amount")}</Label>
-                  <Input required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                  <Input required={!perGrade} disabled={perGrade} type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder={perGrade ? t("Set per grade below") : ""} />
+                  {perGrade && <p className="text-xs text-muted-foreground">{t("Default amount (used for levels left blank below)")}</p>}
                 </div>
                 <FieldError errors={fieldErrors} field="amount" />
                 <div className="space-y-2">
@@ -114,13 +110,13 @@ export default function FeeStructuresPage() {
               </label>
               {perGrade && (
                 <div className="border rounded-lg p-3 space-y-2">
-                  <p className="text-xs text-muted-foreground">{t("Set the amount for each grade. Grades left blank use the default amount above.")}</p>
+                  <p className="text-xs text-muted-foreground">{t("Enter the amount for each level. Levels left blank use the default amount above.")}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {gradeLevels.length === 0 && <p className="text-sm text-muted-foreground col-span-full">{t("No graded classes found.")}</p>}
-                    {gradeLevels.map((g) => (
-                      <div key={g} className="space-y-1">
-                        <Label className="text-xs">{t("Grade")} {g}</Label>
-                        <Input type="number" value={gradeAmounts[g] ?? ""} onChange={(e) => setGradeAmounts({ ...gradeAmounts, [g]: e.target.value })} placeholder={form.amount || "0"} />
+                    {gradeLevels.map((l) => (
+                      <div key={l.key} className="space-y-1">
+                        <Label className="text-xs">{l.label}</Label>
+                        <Input type="number" value={gradeAmounts[l.key] ?? ""} onChange={(e) => setGradeAmounts({ ...gradeAmounts, [l.key]: e.target.value })} placeholder={t("Enter amount")} />
                       </div>
                     ))}
                   </div>
@@ -197,9 +193,12 @@ export default function FeeStructuresPage() {
                         {fee.amounts?.length > 0 && <span className="ml-2 text-xs text-muted-foreground">{t("per grade")}</span>}
                       </TableCell>
                       <TableCell>
-                        {fee.amounts?.length > 0
-                          ? `${parseFloat(fee.amount || 0).toLocaleString()} (${fee.amounts.length} ${t("grades")})`
-                          : parseFloat(fee.amount || 0).toLocaleString()}
+                        <span>{parseFloat(fee.amount || 0).toLocaleString()}</span>
+                        {fee.amounts?.length > 0 && (
+                          <span className="block text-xs text-muted-foreground">
+                            {fee.amounts.map((a) => `${levelLabel(a.level_group, a.grade_level)}: ${Number(a.amount).toLocaleString()}`).join(" · ")}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="capitalize">{fee.frequency}</TableCell>
                       <TableCell>{parseFloat(fee.late_fee || 0).toLocaleString()}</TableCell>

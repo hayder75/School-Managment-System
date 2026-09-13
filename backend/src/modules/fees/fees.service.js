@@ -43,10 +43,15 @@ async function attachAmounts(tenantId, fees) {
   const rows = await db('fee_structure_amounts')
     .where({ tenant_id: tenantId })
     .whereIn('fee_structure_id', ids)
+    .orderBy('level_group')
     .orderBy('grade_level');
   const map = {};
   for (const r of rows) {
-    (map[r.fee_structure_id] = map[r.fee_structure_id] || []).push({ grade_level: r.grade_level, amount: parseFloat(r.amount) });
+    (map[r.fee_structure_id] = map[r.fee_structure_id] || []).push({
+      level_group: r.level_group,
+      grade_level: r.grade_level,
+      amount: parseFloat(r.amount),
+    });
   }
   return fees.map((f) => ({ ...f, amounts: map[f.id] || [] }));
 }
@@ -54,15 +59,16 @@ async function attachAmounts(tenantId, fees) {
 async function replaceAmounts(trx, tenantId, feeId, amounts) {
   await trx('fee_structure_amounts').where({ tenant_id: tenantId, fee_structure_id: feeId }).del();
   if (amounts && amounts.length) {
-    // De-duplicate by grade (last wins) to satisfy the unique constraint.
-    const byGrade = new Map();
-    for (const a of amounts) byGrade.set(a.grade_level, a.amount);
+    // De-duplicate by level (last wins) to satisfy the unique constraint.
+    const byLevel = new Map();
+    for (const a of amounts) byLevel.set(`${a.level_group}:${a.grade_level}`, a);
     await trx('fee_structure_amounts').insert(
-      [...byGrade.entries()].map(([grade_level, amount]) => ({
+      [...byLevel.values()].map((a) => ({
         tenant_id: tenantId,
         fee_structure_id: feeId,
-        grade_level,
-        amount,
+        level_group: a.level_group,
+        grade_level: a.grade_level,
+        amount: a.amount,
       }))
     );
   }
@@ -799,16 +805,21 @@ async function getMonthlyClosePack(tenantId, { month, year } = {}) {
 // ---- Optional-fee subscriptions (per student) ----
 
 async function listStudentFeeSubscriptions(tenantId, { class_id, q, page = 1, limit = 50 } = {}) {
-  const fees = await db('fee_structures')
-    .where({ tenant_id: tenantId, is_mandatory: false, is_active: true })
-    .select('id', 'name', 'amount', 'frequency')
+  const feeRows = await db('fee_structures')
+    .where({ tenant_id: tenantId, is_active: true })
+    .select('id', 'name', 'amount', 'frequency', 'is_mandatory')
+    .orderBy('is_mandatory', 'desc')
     .orderBy('name');
+  const fees = await attachAmounts(tenantId, feeRows);
 
   let studentQuery = db('students as s')
     .join('users as u', 's.user_id', 'u.id')
     .leftJoin('classes as c', 's.class_id', 'c.id')
     .where({ 's.tenant_id': tenantId, 's.status': 'active' })
-    .select('s.id', 's.student_number', 'u.first_name', 'u.last_name', 'c.name as class_name', 'c.id as class_id')
+    .select(
+      's.id', 's.student_number', 'u.first_name', 'u.last_name',
+      'c.name as class_name', 'c.id as class_id', 'c.grade_level', 'c.level_group'
+    )
     .orderBy('u.first_name')
     .orderBy('u.last_name');
   if (class_id) studentQuery = studentQuery.where('s.class_id', class_id);
@@ -910,7 +921,7 @@ async function generateMonthlyBills(tenantId, { period_year, period_month, class
     : [];
   const amountMap = {};
   for (const a of amounts) {
-    (amountMap[a.fee_structure_id] = amountMap[a.fee_structure_id] || {})[a.grade_level] = parseFloat(a.amount);
+    amountMap[`${a.fee_structure_id}|${a.level_group}|${a.grade_level}`] = parseFloat(a.amount);
   }
 
   const subs = await db('student_fee_subscriptions').where({ tenant_id: tenantId }).select('student_id', 'fee_structure_id');
@@ -920,7 +931,7 @@ async function generateMonthlyBills(tenantId, { period_year, period_month, class
   let q = db('students as s')
     .join('classes as c', 's.class_id', 'c.id')
     .where({ 's.tenant_id': tenantId, 's.status': 'active' })
-    .select('s.id', 's.class_id', 'c.grade_level', 's.enrollment_date');
+    .select('s.id', 's.class_id', 'c.grade_level', 'c.level_group', 's.enrollment_date');
   if (class_id) q = q.where('s.class_id', class_id);
   const students = await q;
 
@@ -935,10 +946,8 @@ async function generateMonthlyBills(tenantId, { period_year, period_month, class
       for (const f of fees) {
         if (f.class_id && f.class_id !== st.class_id) continue;
         if (!f.is_mandatory && !(subMap[st.id] && subMap[st.id].has(f.id))) continue;
-        const g = st.grade_level;
-        const amt = amountMap[f.id] && g != null && amountMap[f.id][g] !== undefined
-          ? amountMap[f.id][g]
-          : parseFloat(f.amount || 0);
+        const key = `${f.id}|${st.level_group}|${st.grade_level}`;
+        const amt = amountMap[key] !== undefined ? amountMap[key] : parseFloat(f.amount || 0);
         total += amt;
       }
       const inserted = await trx('student_monthly_bills')

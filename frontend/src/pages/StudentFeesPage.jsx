@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { TableCell } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useI18n } from "../i18n/I18nContext";
+import { levelLabel } from "../lib/levels";
 
 export default function StudentFeesPage() {
   const { t } = useI18n();
@@ -60,7 +61,7 @@ export default function StudentFeesPage() {
           {isLoading ? (
             <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : fees.length === 0 ? (
-            <p className="text-muted-foreground">{t("No optional fee structures yet. Create an optional fee first.")}</p>
+            <p className="text-muted-foreground">{t("No fee structures yet. Create a fee first.")}</p>
           ) : students.length === 0 ? (
             <p className="text-muted-foreground">{t("No students found")}</p>
           ) : (
@@ -69,9 +70,14 @@ export default function StudentFeesPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left p-3 font-medium">{t("Student")}</th>
-                    <th className="text-left p-3 font-medium">{t("Class")}</th>
+                    <th className="text-left p-3 font-medium">{t("Grade")}</th>
                     {fees.map((f) => (
-                      <th key={f.id} className="text-center p-3 font-medium whitespace-nowrap">{f.name}</th>
+                      <th key={f.id} className="text-center p-3 font-medium whitespace-nowrap">
+                        {f.name}
+                        <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${f.is_mandatory ? "bg-neutral-900 text-white" : "bg-neutral-200 text-neutral-700"}`}>
+                          {f.is_mandatory ? t("Mandatory") : t("Optional")}
+                        </span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -82,20 +88,29 @@ export default function StudentFeesPage() {
                         {s.first_name} {s.last_name}
                         <span className="block text-xs text-muted-foreground font-mono">{s.student_number || "—"}</span>
                       </TableCell>
-                      <TableCell>{s.class_name || "—"}</TableCell>
+                      <TableCell>{s.class_name || levelLabel(s.level_group, s.grade_level)}</TableCell>
                       {fees.map((f) => {
-                        const on = (s.subscribed_fee_ids || []).includes(f.id);
+                        const on = f.is_mandatory || (s.subscribed_fee_ids || []).includes(f.id);
+                        const lvl = (f.amounts || []).find((a) => a.level_group === s.level_group && a.grade_level === s.grade_level);
+                        const amount = lvl ? Number(lvl.amount) : Number(f.amount || 0);
                         return (
                           <TableCell key={f.id} className="text-center">
-                            <button
-                              type="button"
-                              disabled={setSub.isPending}
-                              onClick={() => toggle(s, f, on)}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${on ? "bg-emerald-500" : "bg-neutral-300"}`}
-                              title={on ? t("On") : t("Off")}
-                            >
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} />
-                            </button>
+                            {f.is_mandatory ? (
+                              <span title={t("Mandatory")} className="inline-flex h-6 w-11 items-center rounded-full bg-emerald-500/30 cursor-not-allowed">
+                                <span className="inline-block h-4 w-4 transform rounded-full bg-emerald-500 translate-x-6" />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={setSub.isPending}
+                                onClick={() => toggle(s, f, on)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${on ? "bg-emerald-500" : "bg-neutral-300"}`}
+                                title={on ? t("On") : t("Off")}
+                              >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} />
+                              </button>
+                            )}
+                            <span className="block text-[11px] text-muted-foreground mt-0.5">{amount.toLocaleString()}</span>
                           </TableCell>
                         );
                       })}

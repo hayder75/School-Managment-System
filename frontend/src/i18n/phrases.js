@@ -1001,4 +1001,10 @@ export const amPhrases = {
   "Submit report": "ሪፖርት አስገባ",
   "Restrict chat access": "የውይይት መዳረሻ ገድብ",
   "A restricted user cannot start new chats. You can lift this any time.": "የተገደበ ተጠቃሚ አዲስ ውይይት መጀመር አይችልም። በፈለጉት ጊዜ ማንሳት ይችላሉ።",
+  "Set per grade below": "ከታች በደረጃ ያስገቡ",
+  "Default amount (used for levels left blank below)": "ነባሪ መጠን (ከታች ባዶ ለተተዉ ደረጃዎች ይጠቅማል)",
+  "Enter the amount for each level. Levels left blank use the default amount above.": "ለእያንዳንዱ ደረጃ መጠን ያስገቡ። ባዶ የተተዉ ደረጃዎች ከላይ ያለውን ነባሪ መጠን ይጠቀማሉ።",
+  "Enter amount": "መጠን ያስገቡ",
+  "Mandatory": "ግዴታ",
+  "No fee structures yet. Create a fee first.": "እስካሁን የክፍያ መዋቅር የለም። መጀመሪያ ክፍያ ይፍጠሩ።",
 };

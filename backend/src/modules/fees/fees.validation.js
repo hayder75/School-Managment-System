@@ -1,6 +1,7 @@
 const { z } = require('zod');
 
 const amountTierSchema = z.object({
+  level_group: z.string().min(1).max(20),
   grade_level: z.number().int(),
   amount: z.number().min(0),
 });
