@@ -120,7 +120,9 @@ function classMeta(code) {
             tenant_id: tenantId, first_name: first, last_name: last, role: roleFor(st.job_title),
             status: 'active', phone: st.phone || null, job_title: st.job_title || null,
             qualification: st.qualification || null, field_of_study: st.field || null,
-            gender: st.gender || null, username, password_hash: PASSWORD_HASH,
+            gender: st.gender || null, username,
+            email: `${username}@staff.mountolive.edu.et`,
+            password_hash: PASSWORD_HASH,
           }).returning('*');
         } else {
           user = { id: `NEW:${st.name}` };
@@ -172,7 +174,7 @@ function classMeta(code) {
       for (let i = 0; i < phones.length; i++) {
         const ph = phones[i];
         let parent = await trx('users').where({ tenant_id: tenantId, role: 'parent', username: ph }).first();
-        if (!parent) { plan.parents++; parent = await trx('users').insert({ tenant_id: tenantId, first_name: '', last_name: '', role: 'parent', status: 'active', phone: ph, username: ph, password_hash: PASSWORD_HASH }).returning('*').then((r) => r[0]); }
+        if (!parent) { plan.parents++; parent = await trx('users').insert({ tenant_id: tenantId, first_name: '', last_name: '', role: 'parent', status: 'active', phone: ph, username: ph, email: `${ph}@parents.mountolive.edu.et`, password_hash: PASSWORD_HASH }).returning('*').then((r) => r[0]); }
         const exists = await trx('student_parents').where({ student_id: st.id, parent_id: parent.id }).first();
         if (!exists) { plan.links++; await trx('student_parents').insert({ tenant_id: tenantId, student_id: st.id, parent_id: parent.id, relationship: rel[i] || 'guardian', is_primary: primary }); primary = false; }
       }

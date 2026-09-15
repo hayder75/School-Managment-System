@@ -76,7 +76,14 @@ for f, idx in [("Nursery_Student_List_2019.xlsx", None), ("LKG -Student List 201
         for i, r in enumerate(ws.iter_rows(values_only=True)):
             if not r or len(r) < 4: continue
             first, mid, last = g(r, 1), g(r, 2), g(r, 3)
-            if not first or first.lower() in ("first name", "s.no"): continue
+            low = first.lower()
+            if not first or low in ("first name", "s.no") or len(first) > 40:
+                continue
+            if any(w in low for w in ("registration list", "academic year", "total students")):
+                continue
+            sex = g(r, 4).upper()
+            if sex not in ("M", "F"):
+                continue
             nm = norm(f"{first} {mid} {last}")
             if nm in seen_names: continue
             seen_names.add(nm)
