@@ -42,6 +42,7 @@ const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const BackupPage = lazy(() => import("./pages/BackupPage"));
 const TaxSettingsPage = lazy(() => import("./pages/TaxSettingsPage"));
 const LeaveManagementPage = lazy(() => import("./pages/LeaveManagementPage"));
+const HrHomeroomPage = lazy(() => import("./pages/HrHomeroomPage"));
 const PayrollAuditPage = lazy(() => import("./pages/PayrollAuditPage"));
 const RolesPermissionsPage = lazy(() => import("./pages/school-admin/RolesPermissionsPage"));
 const AssetManagementPage = lazy(() => import("./pages/AssetManagementPage"));
@@ -172,6 +173,7 @@ function AppContent() {
 
           <Route element={<RoleRoute roles={["admin", "owner", "hr"]} permissions={["leave-management.manage", "payroll-audit.view"]} />}>
             <Route path="/leave-management" element={<LeaveManagementPage />} />
+            <Route path="/hr/homeroom" element={<HrHomeroomPage />} />
             <Route path="/payroll-audit" element={<PayrollAuditPage />} />
           </Route>
 

@@ -380,6 +380,7 @@ export default function StudentsPage() {
                 <SelectItem value="transferred">{t("Transferred")}</SelectItem>
                 <SelectItem value="dropped">{t("Dropped")}</SelectItem>
                 <SelectItem value="graduated">{t("Graduated")}</SelectItem>
+                <SelectItem value="archived">{t("Archived")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

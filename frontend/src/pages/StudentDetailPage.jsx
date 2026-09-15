@@ -52,6 +52,27 @@ export default function StudentDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [guardianEdit, setGuardianEdit] = useState(null);
+  const [guardianSaving, setGuardianSaving] = useState(false);
+
+  async function saveGuardian() {
+    if (!guardianEdit) return;
+    setGuardianSaving(true);
+    try {
+      await api.put(`/parents/${guardianEdit.id}`, {
+        first_name: guardianEdit.first_name || "",
+        last_name: guardianEdit.last_name || "",
+        phone: guardianEdit.phone || "",
+      });
+      setGuardianEdit(null);
+      await loadStudent();
+      toast(t("Saved successfully"), "success");
+    } catch (err) {
+      toast(err?.error?.message || err?.message || t("Failed to save"), "error");
+    } finally {
+      setGuardianSaving(false);
+    }
+  }
 
   useEffect(() => {
     loadStudent();
@@ -68,6 +89,15 @@ export default function StudentDetailPage() {
       setLoadError(err?.error?.message || err?.message || "Failed to load student");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function setStatus(status) {
+    try {
+      await api.put(`/students/${id}`, { status });
+      await loadStudent();
+    } catch (err) {
+      toast(err?.error?.message || err?.message || "Failed to update status", "error");
     }
   }
 
@@ -188,12 +218,19 @@ export default function StudentDetailPage() {
             </Badge>
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.open(`/api/pdf/report-card/${id}`, "_blank")}>
-          <Download className="h-4 w-4 mr-1" /> {t("Report Card")}
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => window.open(`/api/pdf/invoice/${id}`, "_blank")}>
-          <Download className="h-4 w-4 mr-1" /> {t("Invoice")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {student.status === "active" ? (
+            <Button variant="outline" size="sm" onClick={() => setStatus("archived")}>{t("Archive")}</Button>
+          ) : (
+            <Button size="sm" onClick={() => setStatus("active")}>{t("Activate")}</Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => window.open(`/api/pdf/report-card/${id}`, "_blank")}>
+            <Download className="h-4 w-4 mr-1" /> {t("Report Card")}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => window.open(`/api/pdf/invoice/${id}`, "_blank")}>
+            <Download className="h-4 w-4 mr-1" /> {t("Invoice")}
+          </Button>
+        </div>
       </div>
 
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
@@ -275,13 +312,18 @@ export default function StudentDetailPage() {
               <div key={g.id} className="flex items-center justify-between text-sm">
                 <div>
                   <p className="font-medium">
-                    {g.first_name} {g.last_name}
+                    {(g.first_name || g.last_name) ? `${g.first_name || ""} ${g.last_name || ""}`.trim() : <span className="text-muted-foreground italic">{t("Unnamed guardian")}</span>}
                     {g.is_primary && <Badge variant="success" className="ml-2">Primary</Badge>}
                   </p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {g.relationship}{g.education_level ? ` · ${g.education_level}` : ""}{g.email ? ` · ${g.email}` : ""}
+                    {g.relationship}{g.phone ? ` · ${g.phone}` : ""}{g.education_level ? ` · ${g.education_level}` : ""}{g.email ? ` · ${g.email}` : ""}
                   </p>
                 </div>
+                {(user?.role === "admin" || user?.role === "owner" || user?.role === "cashier") && (
+                  <Button variant="ghost" size="icon" onClick={() => setGuardianEdit({ id: g.id, first_name: g.first_name || "", last_name: g.last_name || "", phone: g.phone || "" })}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ))}
           </CardContent>
@@ -354,6 +396,24 @@ export default function StudentDetailPage() {
       {activeTab === "achievements" && <AchievementsTab achievements={achievements} studentId={id} newAch={newAch} setNewAch={setNewAch} onReload={() => loadTabData("achievements")} />}
       {activeTab === "history" && <HistoryTab history={statusHistory} />}
       {activeTab === "enrollments" && <EnrollmentTab studentId={id} enrollments={enrollments} onReload={() => loadTabData("enrollments")} />}
+
+      <Dialog open={!!guardianEdit} onOpenChange={(v) => { if (!v) setGuardianEdit(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("Edit guardian")}</DialogTitle></DialogHeader>
+          {guardianEdit && (
+            <div className="space-y-3">
+              <div><Label>{t("First name")}</Label><Input value={guardianEdit.first_name} onChange={(e) => setGuardianEdit({ ...guardianEdit, first_name: e.target.value })} /></div>
+              <div><Label>{t("Last name")}</Label><Input value={guardianEdit.last_name} onChange={(e) => setGuardianEdit({ ...guardianEdit, last_name: e.target.value })} /></div>
+              <div><Label>{t("Phone")}</Label><Input value={guardianEdit.phone} onChange={(e) => setGuardianEdit({ ...guardianEdit, phone: e.target.value })} placeholder="09…" /></div>
+              <p className="text-xs text-muted-foreground">{t("The guardian's login username is their phone number; it updates automatically.")}</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setGuardianEdit(null)}>{t("Cancel")}</Button>
+                <Button onClick={saveGuardian} disabled={guardianSaving}>{guardianSaving ? t("Saving...") : t("Save")}</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
