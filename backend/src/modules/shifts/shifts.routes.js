@@ -8,11 +8,11 @@ const router = Router();
 router.use(auth);
 router.use(tenant);
 
-router.get('/live-roster', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'principal', 'vice_principal'], ['shifts.manage', 'leave.view']), ctrl.getLiveRoster);
-router.get('/substitutions', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'teacher', 'principal', 'vice_principal'], ['shifts.manage', 'timetable.manage']), ctrl.listSubstitutions);
-router.get('/teachers', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'principal', 'vice_principal'], ['shifts.manage', 'timetable.manage']), ctrl.getAvailableTeachers);
-router.post('/substitutions', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator'], ['shifts.manage', 'timetable.manage']), ctrl.createSubstitution);
-router.patch('/substitutions/:id/status', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator'], ['shifts.manage', 'timetable.manage']), ctrl.updateStatus);
+router.get('/live-roster', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'principal', 'vice_principal', 'quality_director'], ['shifts.manage', 'leave.view']), ctrl.getLiveRoster);
+router.get('/substitutions', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'teacher', 'principal', 'vice_principal', 'quality_director'], ['shifts.manage', 'timetable.manage']), ctrl.listSubstitutions);
+router.get('/teachers', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'principal', 'vice_principal', 'quality_director'], ['shifts.manage', 'timetable.manage']), ctrl.getAvailableTeachers);
+router.post('/substitutions', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'quality_director'], ['shifts.manage', 'timetable.manage']), ctrl.createSubstitution);
+router.patch('/substitutions/:id/status', requireAccess(['admin', 'owner', 'hr', 'shift_coordinator', 'quality_director'], ['shifts.manage', 'timetable.manage']), ctrl.updateStatus);
 
 // Guard Shifts (ፈረቃ)
 router.get('/guard-shifts', requireAccess(['admin', 'owner', 'shift_coordinator', 'security_head'], ['shifts.manage', 'guard-roster.view']), ctrl.listGuardShifts);

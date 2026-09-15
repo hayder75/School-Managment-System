@@ -123,6 +123,8 @@ const DEMO_ACCOUNTS = {
   quality_director: ['staff180@mountolive.edu.et'],
   admin: ['staff001@mountolive.edu.et'],
   teacher: [
+    'teacher.one@mountolive.edu.et',
+    'teacher.two@mountolive.edu.et',
     'staff027@mountolive.edu.et',
     'staff026@mountolive.edu.et',
     'staff056@mountolive.edu.et',

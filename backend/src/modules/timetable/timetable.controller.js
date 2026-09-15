@@ -2,15 +2,20 @@ const timetableService = require('./timetable.service');
 const access = require('../../shared/access');
 const db = require('../../config/database');
 
+const TIMETABLE_MANAGER_ROLES = ['admin', 'owner', 'hr', 'quality_director'];
+
 async function create(req, res) {
   const { userId, role } = req.user;
   const body = { ...req.validated.body };
+  const isManager = TIMETABLE_MANAGER_ROLES.includes(role);
 
   if (role === 'teacher') {
     body.teacher_id = userId;
   }
 
-  if (body.teacher_id) {
+  // Managers (HR, Quality Director, admin, owner) have full authority to assign
+  // any teacher; other roles must be assigned to the subject in that class.
+  if (body.teacher_id && !isManager) {
     const assignment = await db('teacher_subjects')
       .where({
         tenant_id: req.tenant.id,
@@ -25,10 +30,21 @@ async function create(req, res) {
         error: { code: 'INVALID_ASSIGNMENT', message: 'Teacher is not assigned to this subject in this class' },
       });
     }
-  } else if (role !== 'admin' && role !== 'owner') {
+  } else if (!body.teacher_id && !isManager) {
     return res.status(403).json({
       success: false,
-      error: { code: 'FORBIDDEN', message: 'Only admins can create entries without a teacher' },
+      error: { code: 'FORBIDDEN', message: 'Only timetable managers can create entries without a teacher' },
+    });
+  }
+
+  const conflict = await timetableService.findConflict(req.tenant.id, body);
+  if (conflict) {
+    const message = conflict.scope === 'teacher'
+      ? `${conflict.teacher_name || 'This teacher'} is already teaching ${conflict.subject_name || 'another subject'} (${String(conflict.start_time).slice(0, 5)}-${String(conflict.end_time).slice(0, 5)}) in ${conflict.class_name || 'another class'} at that time`
+      : `This time slot is already occupied by ${conflict.subject_name || 'another subject'}${conflict.teacher_name ? ` (${conflict.teacher_name})` : ''} (${String(conflict.start_time).slice(0, 5)}-${String(conflict.end_time).slice(0, 5)})`;
+    return res.status(409).json({
+      success: false,
+      error: { code: 'SLOT_OCCUPIED', message },
     });
   }
 

@@ -28,6 +28,6 @@ router.get('/rooms/allocations', requireAccess(['admin', 'owner', 'teacher'], ['
 
 router.get('/backup', requireAccess(['admin', 'owner'], ['backup.manage']), ctrl.backup);
 router.post('/restore', requireAccess(['admin', 'owner'], ['backup.manage']), ctrl.restore);
-router.post('/timetable/generate', requireAccess(['admin', 'owner'], ['timetable.manage']), ctrl.autoGenerateTimetable);
+router.post('/timetable/generate', requireAccess(['admin', 'owner', 'hr', 'quality_director'], ['timetable.manage']), ctrl.autoGenerateTimetable);
 
 module.exports = router;

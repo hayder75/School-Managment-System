@@ -8,6 +8,7 @@ const PERMISSIONS = [
   { key: 'classes.manage', label: 'Manage Classes', description: 'Create and manage classes' },
   { key: 'subjects.manage', label: 'Manage Subjects', description: 'Create and manage subjects' },
   { key: 'attendance.manage', label: 'Manage Attendance', description: 'Mark and manage attendance records' },
+  { key: 'staff-attendance.manage', label: 'Manage Staff Attendance', description: 'Mark teacher & staff attendance and attendance-based payroll deductions' },
   { key: 'exams.manage', label: 'Manage Exams', description: 'Create and manage exams' },
   { key: 'grades.manage', label: 'Enter & Lock Grades', description: 'Enter grades and lock exams' },
   { key: 'timetable.view', label: 'View Timetables', description: 'View class and teacher timetables' },
@@ -67,7 +68,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   hr: [
     'dashboard.view', 'users.manage', 'payroll.view', 'reports.view',
     'tax-settings.manage', 'leave-management.manage', 'payroll-audit.view', 'announcements.view',
-    'leave.view',
+    'leave.view', 'staff-attendance.manage', 'timetable.manage',
   ],
   support: ['dashboard.view', 'announcements.view', 'chat.access'],
   general_manager: [
@@ -78,17 +79,17 @@ const DEFAULT_ROLE_PERMISSIONS = {
   principal: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
     'timetable.view', 'reports.view', 'announcements.view', 'announcements.manage', 'chat.access',
-    'quality.review', 'discipline.manage', 'leave.view',
+    'quality.review', 'discipline.manage', 'leave.view', 'staff-attendance.manage',
   ],
   vice_principal: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
     'timetable.view', 'reports.view', 'announcements.view', 'chat.access',
-    'quality.review', 'discipline.manage', 'leave.view',
+    'quality.review', 'discipline.manage', 'leave.view', 'staff-attendance.manage',
   ],
   quality_director: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
-    'timetable.view', 'reports.view', 'announcements.view', 'chat.access',
-    'quality.review', 'leave.view',
+    'timetable.view', 'timetable.manage', 'reports.view', 'announcements.view', 'chat.access',
+    'quality.review', 'leave.view', 'staff-attendance.manage',
   ],
   general_services: [
     'dashboard.view', 'operations.manage', 'expenses.manage', 'announcements.view', 'chat.access',

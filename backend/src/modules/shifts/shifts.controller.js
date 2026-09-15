@@ -2,8 +2,8 @@ const service = require('./shifts.service');
 
 async function listSubstitutions(req, res) {
   const tenantId = req.tenant.id;
-  const { date, status, teacherId } = req.query;
-  const subs = await service.listSubstitutions(tenantId, { date, status, teacherId });
+  const { date, from, to, status, teacherId } = req.query;
+  const subs = await service.listSubstitutions(tenantId, { date, from, to, status, teacherId });
   res.json({ success: true, data: subs });
 }
 

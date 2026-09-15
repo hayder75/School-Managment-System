@@ -135,6 +135,7 @@ const navItems = {
     { to: "/exams", label: "exams", icon: BookOpen },
     { to: "/timetable", label: "timetable", icon: Notebook },
     { to: "/teacher-kpis", label: "teacherKpi", icon: Award },
+    { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/chat", label: "chat", icon: MessageSquare },
   ],
@@ -200,6 +201,7 @@ const navItems = {
   hr: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/timetable", label: "timetable", icon: Notebook },
     { to: "/teacher-kpis", label: "teacherKpi", icon: Award },
     { to: "/assets", label: "assetManagement", icon: Package },
     { to: "/reports", label: "reports", icon: BarChart3 },

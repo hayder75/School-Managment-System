@@ -17,6 +17,7 @@ router.post('/grades', validate(createSalaryGradeSchema), controller.createSalar
 router.put('/grades/:id', validate(updateSalaryGradeSchema), controller.updateSalaryGrade);
 router.delete('/grades/:id', controller.removeSalaryGrade);
 router.get('/summary', controller.getSummary);
+router.get('/attendance-impact', controller.getAttendanceImpact);
 
 router.get('/tax-brackets', controller.listTaxBrackets);
 router.post('/tax-brackets', requireAccess(['admin', 'owner'], ['tax-settings.manage']), validate(taxBracketSchema), controller.upsertTaxBracket);

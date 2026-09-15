@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const { paginatedResult } = require('../../shared/pagination');
+const hrService = require('../hr/hr.service');
 
 async function createSalaryGrade(tenantId, data) {
   const [grade] = await db('salary_grades').insert({ ...data, tenant_id: tenantId }).returning('*');
@@ -20,7 +21,7 @@ async function removeSalaryGrade(tenantId, id) {
 }
 
 const ALLOWANCE_FIELDS = ['transport_allowance', 'overtime', 'back_pay', 'unit_leader_allowance', 'department_head_allowance', 'housing_allowance', 'account_allowance', 'phone_allowance'];
-const DEDUCTION_FIELDS = ['income_tax', 'eder', 'office_loan', 'cafe_loan', 'school_pay', 'pension_employee', 'ne_starving'];
+const DEDUCTION_FIELDS = ['income_tax', 'eder', 'office_loan', 'cafe_loan', 'school_pay', 'pension_employee', 'ne_starving', 'attendance_deduction'];
 const EMPLOYER_FIELDS = ['pension_employer'];
 
 function num(v) {
@@ -79,8 +80,83 @@ function computeTotals(data) {
   return totals;
 }
 
+// Attendance-based deduction preview for a staff member's month.
+async function computeAttendanceImpact(tenantId, { userId, month, year, basicPay } = {}) {
+  const settings = await hrService.getStaffAttendanceSettings(tenantId);
+  const m = parseInt(month, 10);
+  const y = parseInt(year, 10);
+
+  let basic = num(basicPay);
+  if (!basic && userId) {
+    const last = await db('payroll')
+      .where({ tenant_id: tenantId, user_id: userId })
+      .orderBy('year', 'desc')
+      .orderBy('month', 'desc')
+      .first();
+    if (last) basic = num(last.basic_pay);
+  }
+
+  const from = m && y ? `${y}-${String(m).padStart(2, '0')}-01` : null;
+  const to = m && y ? new Date(Date.UTC(y, m, 0)).toISOString().split('T')[0] : null;
+
+  let unpaid = { unpaid_days: 0, absent_days: 0, half_days: 0 };
+  if (userId && from && to) {
+    unpaid = await hrService.computeUnpaidDays(tenantId, userId, from, to);
+  }
+
+  const fixed = settings.fixed_daily_rate != null ? num(settings.fixed_daily_rate) : 0;
+  const pct = settings.deduction_percent != null ? num(settings.deduction_percent) : 0;
+
+  let dailyRate;
+  if (fixed > 0 || pct > 0) {
+    // Configurable: fixed birr per day + percentage of basic pay per day
+    dailyRate = round2(fixed + (basic > 0 ? (pct / 100) * basic : 0));
+  } else {
+    // Fallback: prorate basic pay over working days
+    dailyRate = settings.working_days > 0 ? round2(basic / settings.working_days) : 0;
+  }
+
+  let deduction = round2(dailyRate * unpaid.unpaid_days);
+  if (basic > 0 && deduction > basic) deduction = round2(basic);
+
+  return {
+    enabled: !!settings.deduction_enabled,
+    from,
+    to,
+    unpaid_days: unpaid.unpaid_days,
+    absent_days: unpaid.absent_days,
+    half_days: unpaid.half_days,
+    daily_rate: dailyRate,
+    working_days: settings.working_days,
+    fixed_daily_rate: settings.fixed_daily_rate,
+    deduction_percent: settings.deduction_percent,
+    basic_pay: basic,
+    deduction: settings.deduction_enabled ? deduction : 0,
+  };
+}
+
+async function applyAttendanceDeduction(tenantId, data) {
+  if (data.attendance_deduction != null) return data;
+  const impact = await computeAttendanceImpact(tenantId, {
+    userId: data.user_id,
+    month: data.month,
+    year: data.year,
+    basicPay: data.basic_pay,
+  });
+  if (!impact.enabled || impact.unpaid_days <= 0) return data;
+  return {
+    ...data,
+    attendance_deduction: impact.deduction,
+    unpaid_days: data.unpaid_days != null ? data.unpaid_days : impact.unpaid_days,
+    absent_days: data.absent_days != null ? data.absent_days : impact.absent_days,
+  };
+}
+
 async function createPayroll(tenantId, data, performedBy) {
-  const enriched = await applyAutoCalculations(tenantId, data);
+  const enriched = await applyAttendanceDeduction(
+    tenantId,
+    await applyAutoCalculations(tenantId, data)
+  );
   const totals = computeTotals(enriched);
   const [entry] = await db('payroll').insert({ ...enriched, ...totals, tenant_id: tenantId }).returning('*');
   await createPayrollAudit(tenantId, {
@@ -94,7 +170,10 @@ async function createPayroll(tenantId, data, performedBy) {
 
 // Preview computed values without saving (used by the UI "Calculate" button).
 async function calculatePayroll(tenantId, data) {
-  const enriched = await applyAutoCalculations(tenantId, data);
+  const enriched = await applyAttendanceDeduction(
+    tenantId,
+    await applyAutoCalculations(tenantId, data)
+  );
   const totals = computeTotals(enriched);
   return {
     ...enriched,
@@ -131,6 +210,17 @@ async function updatePayroll(tenantId, id, data, performedBy) {
     }
     if (data.pension_employee == null) derived.pension_employee = round2(num(merged.basic_pay) * 0.07);
     if (data.pension_employer == null) derived.pension_employer = round2(num(merged.basic_pay) * 0.11);
+  }
+  if (data.apply_attendance === true && data.attendance_deduction == null) {
+    const impact = await computeAttendanceImpact(tenantId, {
+      userId: merged.user_id,
+      month: merged.month,
+      year: merged.year,
+      basicPay: merged.basic_pay,
+    });
+    derived.attendance_deduction = impact.enabled ? impact.deduction : 0;
+    derived.unpaid_days = impact.unpaid_days;
+    if (merged.absent_days == null) derived.absent_days = impact.absent_days;
   }
   const totals = computeTotals({ ...merged, ...derived });
   const [entry] = await db('payroll').where({ tenant_id: tenantId, id }).update({ ...data, ...derived, ...totals }).returning('*');
@@ -224,6 +314,7 @@ async function approvePayrollGM(tenantId, userId, { month, year, id } = {}) {
 module.exports = {
   createSalaryGrade, findAllSalaryGrades, updateSalaryGrade, removeSalaryGrade,
   createPayroll, findAllPayroll, updatePayroll, getPayrollSummary, calculatePayroll,
+  computeAttendanceImpact,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,
   listLeaves, createLeave, approveLeave, rejectLeave,
   listPayrollAudits, createPayrollAudit,

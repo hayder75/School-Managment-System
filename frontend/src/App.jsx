@@ -17,6 +17,7 @@ const ClassesPage = lazy(() => import("./pages/school-admin/ClassesPage"));
 const SubjectsPage = lazy(() => import("./pages/school-admin/SubjectsPage"));
 const TeachersPage = lazy(() => import("./pages/school-admin/TeachersPage"));
 const AttendancePage = lazy(() => import("./pages/AttendancePage"));
+const ClassAttendanceStatsPage = lazy(() => import("./pages/ClassAttendanceStatsPage"));
 const ExamsPage = lazy(() => import("./pages/ExamsPage"));
 const TimetablePage = lazy(() => import("./pages/TimetablePage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
@@ -123,6 +124,7 @@ function AppContent() {
             <Route path="/students" element={<StudentsPage />} />
             <Route path="/students/:id" element={<StudentDetailPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/attendance/class/:classId/stats" element={<ClassAttendanceStatsPage />} />
             <Route path="/exams" element={<ExamsPage />} />
           </Route>
 
@@ -131,7 +133,7 @@ function AppContent() {
             <Route path="/enroll" element={<EnrollmentWizardPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "student", "parent", "cashier", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator", "accountant", "general_services", "security_head"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "hr", "teacher", "student", "parent", "cashier", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator", "accountant", "general_services", "security_head"]} />}>
             <Route path="/timetable" element={<TimetablePage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
           </Route>

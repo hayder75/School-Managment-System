@@ -1,5 +1,48 @@
 const db = require('../../config/database');
 
+// Find an existing entry that overlaps the given class slot (or teacher's schedule).
+async function findConflict(tenantId, { class_id, teacher_id, day_of_week, start_time, end_time, excludeId } = {}) {
+  const overlaps = (q) => q
+    .where('timetable_entries.tenant_id', tenantId)
+    .where('timetable_entries.day_of_week', day_of_week)
+    .whereRaw('timetable_entries.start_time < ?::time', [end_time])
+    .whereRaw('timetable_entries.end_time > ?::time', [start_time]);
+
+  let classQ = overlaps(db('timetable_entries').where('timetable_entries.class_id', class_id));
+  if (excludeId) classQ = classQ.whereNot('timetable_entries.id', excludeId);
+  classQ = classQ
+    .leftJoin('subjects', 'timetable_entries.subject_id', 'subjects.id')
+    .leftJoin('users', 'timetable_entries.teacher_id', 'users.id')
+    .select(
+      'timetable_entries.start_time',
+      'timetable_entries.end_time',
+      'subjects.name as subject_name',
+      db.raw("CONCAT(users.first_name, ' ', users.last_name) as teacher_name")
+    )
+    .first();
+  const classConflict = await classQ;
+  if (classConflict) return { scope: 'class', ...classConflict };
+
+  if (teacher_id) {
+    let teacherQ = overlaps(db('timetable_entries').where('timetable_entries.teacher_id', teacher_id));
+    if (excludeId) teacherQ = teacherQ.whereNot('timetable_entries.id', excludeId);
+    teacherQ = teacherQ
+      .leftJoin('subjects', 'timetable_entries.subject_id', 'subjects.id')
+      .leftJoin('classes', 'timetable_entries.class_id', 'classes.id')
+      .select(
+        'timetable_entries.start_time',
+        'timetable_entries.end_time',
+        'subjects.name as subject_name',
+        'classes.name as class_name'
+      )
+      .first();
+    const teacherConflict = await teacherQ;
+    if (teacherConflict) return { scope: 'teacher', ...teacherConflict };
+  }
+
+  return null;
+}
+
 async function createEntry(tenantId, data) {
   const [entry] = await db('timetable_entries')
     .insert({ ...data, tenant_id: tenantId })
@@ -84,4 +127,4 @@ async function markTestDay(tenantId, { class_id, subject_id, date, teacherId }) 
   return entry;
 }
 
-module.exports = { createEntry, getByClass, getByTeacher, updateEntry, deleteEntry, markTestDay };
+module.exports = { createEntry, getByClass, getByTeacher, updateEntry, deleteEntry, markTestDay, findConflict };

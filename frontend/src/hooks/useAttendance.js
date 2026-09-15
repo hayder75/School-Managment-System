@@ -39,3 +39,11 @@ export function useTeacherAttendanceOverview(params = {}) {
     queryFn: () => api.get("/attendance/teacher/overview", { params }),
   });
 }
+
+export function useClassAttendanceStats(classId, params = {}) {
+  return useQuery({
+    queryKey: ["attendance-class-stats", classId, params],
+    queryFn: () => api.get(`/attendance/classes/${classId}/stats`, { params }),
+    enabled: !!classId,
+  });
+}

@@ -23,6 +23,8 @@ const updateSalaryGradeSchema = z.object({
 const payrollBreakdownFields = {
   work_days: z.number().int().optional(),
   absent_days: z.number().int().optional(),
+  unpaid_days: z.number().min(0).optional(),
+  attendance_deduction: z.number().min(0).optional(),
   transport_allowance: z.number().min(0).optional(),
   overtime: z.number().min(0).optional(),
   back_pay: z.number().min(0).optional(),

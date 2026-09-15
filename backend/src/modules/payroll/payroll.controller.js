@@ -49,6 +49,17 @@ async function getSummary(req, res) {
   res.json({ success: true, data: summary });
 }
 
+async function getAttendanceImpact(req, res) {
+  const { user_id, month, year, basic_pay } = req.query;
+  const data = await payrollService.computeAttendanceImpact(req.tenant.id, {
+    userId: user_id,
+    month,
+    year,
+    basicPay: basic_pay,
+  });
+  res.json({ success: true, data });
+}
+
 // === TAX BRACKETS ===
 async function listTaxBrackets(req, res) {
   const data = await payrollService.listTaxBrackets(req.tenant.id);
@@ -99,7 +110,7 @@ async function approvePayrollGM(req, res) {
 
 module.exports = {
   createSalaryGrade, listSalaryGrades, updateSalaryGrade, removeSalaryGrade,
-  createPayroll, listPayroll, updatePayroll, getSummary, calculatePayroll,
+  createPayroll, listPayroll, updatePayroll, getSummary, calculatePayroll, getAttendanceImpact,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,
   listLeaves, createLeave, approveLeave, rejectLeave,
   listAudits,

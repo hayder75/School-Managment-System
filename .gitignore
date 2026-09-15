@@ -6,7 +6,9 @@ backend/.env
 # Sensitive / local-only files (do not commit)
 SERVERS_OVERVIEW.md
 seed documents/
+new real datat/
 *.xlsx
+*.docx
 backend/SMS_Enterprise_Proposal_2026.pdf
 generate_proposal.js
 backend/Detailed_SMS_Proposal.md

@@ -17,6 +17,7 @@ router.get('/admin/classes/:classId', requireAccess(['admin', 'owner'], ['attend
 router.post('/classes/:classId', requireAccess(['teacher', 'admin', 'owner'], ['attendance.manage']), validate(markAttendanceSchema), controller.mark);
 router.get('/classes/:classId', requireAccess(['teacher', 'admin', 'owner', 'parent'], ['attendance.manage']), controller.getByClassAndDate);
 router.get('/classes/:classId/summary', requireAccess(['admin', 'owner'], ['attendance.manage']), controller.getSummary);
+router.get('/classes/:classId/stats', requireAccess(['teacher', 'admin', 'owner'], ['attendance.manage']), controller.getClassStats);
 router.get('/students/:studentId', requireAccess(['teacher', 'admin', 'owner', 'parent'], ['attendance.manage']), controller.getByStudent);
 
 module.exports = router;

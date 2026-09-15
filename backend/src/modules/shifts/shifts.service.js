@@ -1,7 +1,24 @@
 const knex = require('../../config/database');
 const notifService = require('../notifications/notifications.service');
 
-async function listSubstitutions(tenantId, { date, status, teacherId } = {}) {
+const TIMETABLE_MANAGER_ROLES = ['admin', 'owner', 'hr', 'quality_director'];
+
+// Notify everyone who can assign timetables / approve substitutions.
+async function notifyTimetableManagers(tenantId, title, message, refId) {
+  try {
+    const managers = await knex('users')
+      .where({ tenant_id: tenantId, status: 'active' })
+      .whereIn('role', TIMETABLE_MANAGER_ROLES)
+      .select('id');
+    await Promise.all(
+      managers.map((m) => notifService.create(tenantId, m.id, title, message, 'info', 'substitution', refId))
+    );
+  } catch (e) {
+    console.error('notify managers failed', e.message);
+  }
+}
+
+async function listSubstitutions(tenantId, { date, from, to, status, teacherId } = {}) {
   let query = knex('teacher_substitutions as s')
     .join('users as orig', 's.original_teacher_id', 'orig.id')
     .join('users as sub', 's.substitute_teacher_id', 'sub.id')
@@ -19,6 +36,8 @@ async function listSubstitutions(tenantId, { date, status, teacherId } = {}) {
     .orderBy('s.created_at', 'desc');
 
   if (date) query = query.where('s.date', date);
+  if (from) query = query.where('s.date', '>=', from);
+  if (to) query = query.where('s.date', '<=', to);
   if (status && status !== 'all') query = query.where('s.status', status);
   if (teacherId) {
     query = query.where((builder) => {
@@ -55,11 +74,22 @@ async function createSubstitution(tenantId, userId, data) {
 
   try {
     const [orig] = await knex('users').where('id', data.originalTeacherId).select('first_name', 'last_name');
+    const [subTeacher] = await knex('users').where('id', data.substituteTeacherId).select('first_name', 'last_name');
+    const origName = orig ? `${orig.first_name} ${orig.last_name}` : 'a teacher';
+    const subName = subTeacher ? `${subTeacher.first_name} ${subTeacher.last_name}` : 'a substitute';
+
     await notifService.create(
       tenantId, data.substituteTeacherId,
       'Substitution assignment',
-      `You are covering ${orig ? `${orig.first_name} ${orig.last_name}` : 'a teacher'} on ${data.date}, ${data.periodName}.`,
+      `You are covering ${origName} on ${data.date}, ${data.periodName}.`,
       'info', 'substitution', sub.id
+    );
+
+    await notifyTimetableManagers(
+      tenantId,
+      'Substitution scheduled',
+      `${subName} will cover ${origName} on ${data.date}, ${data.periodName}.`,
+      sub.id
     );
   } catch (e) { console.error('notify failed', e.message); }
 

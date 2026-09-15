@@ -1,5 +1,6 @@
-import { useState, Fragment } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../lib/api";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
 import { useSalaryGrades, useCreateSalaryGrade, useDeleteSalaryGrade, usePayroll, useCreatePayroll, useCalculatePayroll, usePayrollSummary } from "../hooks/usePayroll";
@@ -35,6 +36,7 @@ const DEDUCTION_FIELDS = [
   { key: "school_pay", label: "School Pay" },
   { key: "pension_employee", label: "Pension (Employee)" },
   { key: "ne_starving", label: "N.E. Starving" },
+  { key: "attendance_deduction", label: "Attendance Deduction" },
   { key: "pension_employer", label: "Pension (Employer, not deducted)" },
 ];
 
@@ -161,6 +163,33 @@ function PayrollEntriesTab() {
   const [expandedId, setExpandedId] = useState(null);
   const [form, setForm] = useState({ user_id: "", basic_pay: "", allowances_total: "0", deductions_total: "0", net_pay: "", ...EMPTY_BREAKDOWN, bank_account: "", bank_name: "", work_days: "", absent_days: "" });
   const [fieldErrors, setFieldErrors] = useState({});
+  const [attendanceImpact, setAttendanceImpact] = useState(null);
+
+  useEffect(() => {
+    if (!open || !form.user_id) {
+      setAttendanceImpact(null);
+      return;
+    }
+    let active = true;
+    api.get("/payroll/attendance-impact", {
+      params: { user_id: form.user_id, month, year, basic_pay: form.basic_pay || undefined },
+    })
+      .then((res) => {
+        if (!active) return;
+        const d = res.data;
+        setAttendanceImpact(d);
+        setForm((prev) => {
+          const next = {
+            ...prev,
+            absent_days: d.absent_days != null ? String(d.absent_days) : prev.absent_days,
+            attendance_deduction: prev.attendance_deduction !== "" ? prev.attendance_deduction : (d.deduction ? String(d.deduction) : ""),
+          };
+          return { ...next, ...computeTotals(next) };
+        });
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [open, form.user_id, month, year]);
 
   const entries = data?.data || [];
   const meta = data?.meta || {};
@@ -294,6 +323,14 @@ function PayrollEntriesTab() {
                   <Input type="number" value={form.absent_days} onChange={(e) => handleFormField("absent_days", e.target.value)} />
                 </div>
               </div>
+              {attendanceImpact && (
+                <p className="text-xs text-muted-foreground -mt-2">
+                  {t("Attendance")}: <span className="font-medium text-foreground">{attendanceImpact.unpaid_days}</span> {t("unpaid days")}
+                  {" · "}{t("daily rate")} {attendanceImpact.daily_rate}
+                  {" · "}{t("deduction")} <span className="font-semibold text-rose-600">{attendanceImpact.deduction}</span>
+                  {attendanceImpact.enabled ? "" : ` (${t("deductions disabled")})`}
+                </p>
+              )}
               <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
                 <div className="text-sm">
                   <p className="font-medium">{t("Auto calculate tax & pension")}</p>
@@ -390,6 +427,8 @@ function PayrollEntriesTab() {
                     <TableHead>{t("Basic Pay")}</TableHead>
                     <TableHead>{t("Allowances")}</TableHead>
                     <TableHead>{t("Deductions")}</TableHead>
+                    <TableHead className="text-right">{t("Absent Days")}</TableHead>
+                    <TableHead className="text-right">{t("Attendance Fine")}</TableHead>
                     <TableHead>{t("Net Pay")}</TableHead>
                     <TableHead>{t("Status")}</TableHead>
                     <TableHead className="w-20">{t("Payslip")}</TableHead>
@@ -412,6 +451,8 @@ function PayrollEntriesTab() {
                         <TableCell>{parseFloat(e.basic_pay || 0).toLocaleString()}</TableCell>
                         <TableCell>{parseFloat(e.allowances_total || 0).toLocaleString()}</TableCell>
                         <TableCell>{parseFloat(e.deductions_total || 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{e.absent_days ?? 0}</TableCell>
+                        <TableCell className="text-right text-rose-600">{parseFloat(e.attendance_deduction || 0).toLocaleString()}</TableCell>
                         <TableCell className="font-semibold">{parseFloat(e.net_pay || 0).toLocaleString()}</TableCell>
                         <TableCell><Badge variant={e.status === "paid" ? "success" : e.status === "cancelled" ? "destructive" : "secondary"}>{e.status}</Badge></TableCell>
                         <TableCell>
@@ -422,7 +463,7 @@ function PayrollEntriesTab() {
                       </TableRow>
                       {expandedId === e.id && (
                         <TableRow>
-                          <TableCell colSpan={8} className="bg-muted/30 p-4">
+                          <TableCell colSpan={10} className="bg-muted/30 p-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                               <div className="space-y-1">
                                 <p className="font-medium text-xs uppercase text-muted-foreground">{t("Allowances")}</p>
@@ -450,7 +491,7 @@ function PayrollEntriesTab() {
                     </Fragment>
                   ))}
                   {entries.length === 0 && (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("No entries for this period")}</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">{t("No entries for this period")}</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

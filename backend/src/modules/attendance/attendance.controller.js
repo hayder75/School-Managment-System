@@ -80,13 +80,36 @@ async function getSummary(req, res) {
 }
 
 async function getTeacherOverview(req, res) {
-  const { from_date, to_date, teacher_id } = req.query;
+  const { from_date, to_date, teacher_id, today } = req.query;
   const teacherId = req.user.role === 'teacher' ? req.user.userId : (teacher_id || req.user.userId);
   const data = await attendanceService.getTeacherOverview(req.tenant.id, teacherId, {
     fromDate: from_date,
     toDate: to_date,
     classId: req.query.class_id,
+    today,
   });
+  res.json({ success: true, data });
+}
+
+async function getClassStats(req, res) {
+  const { classId } = req.params;
+  const { period, from_date, to_date, today } = req.query;
+
+  if (req.user.role === 'teacher') {
+    if (!(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, classId))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view stats for classes you teach' } });
+    }
+  }
+
+  const data = await attendanceService.getClassStats(req.tenant.id, classId, {
+    period,
+    fromDate: from_date,
+    toDate: to_date,
+    today,
+  });
+  if (!data) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Class not found' } });
+  }
   res.json({ success: true, data });
 }
 
@@ -113,4 +136,4 @@ async function getAdminClassOverview(req, res) {
   res.json({ success: true, data });
 }
 
-module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview, getTeacherOverview };
+module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview, getTeacherOverview, getClassStats };

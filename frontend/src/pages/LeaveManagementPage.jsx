@@ -28,7 +28,11 @@ export default function LeaveManagementPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold">{t("Leave Management")}</h1><p className="text-muted-foreground text-sm">{t("Staff leave requests")}</p></div>
+        <div>
+          <h1 className="text-3xl font-bold">{t("Leave Management")}</h1>
+          <p className="text-muted-foreground text-sm">{t("Review and approve staff leave requests — or submit your own.")}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("Approved leave marks the teacher unavailable on the timetable (red) so a substitute can be assigned.")}</p>
+        </div>
         <Button onClick={() => setShowForm(!showForm)}><Plus className="h-4 w-4 mr-1" /> {t("Request Leave")}</Button>
       </div>
       {showForm && <Card><CardHeader><CardTitle>{t("New Leave Request")}</CardTitle></CardHeader>
