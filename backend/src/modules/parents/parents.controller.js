@@ -41,9 +41,15 @@ async function updateLink(req, res) {
   res.json({ success: true, data: link });
 }
 
+async function updateParent(req, res) {
+  const parent = await parentsService.updateParent(req.tenant.id, req.params.id, req.validated.body);
+  if (!parent) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Parent not found' } });
+  res.json({ success: true, data: parent });
+}
+
 async function myChildren(req, res) {
   const children = await parentsService.getChildrenForParent(req.tenant.id, req.user.userId);
   res.json({ success: true, data: children });
 }
 
-module.exports = { list, getById, link, unlink, updateLink, myChildren };
+module.exports = { list, getById, link, unlink, updateLink, myChildren, updateParent };

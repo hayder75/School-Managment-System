@@ -81,7 +81,27 @@ async function getKpiSummary(req, res) {
   res.json({ success: true, data: summary });
 }
 
+async function getHomeroom(req, res) {
+  const data = await service.getHomeroom(req.tenant.id);
+  res.json({ success: true, data });
+}
+
+async function setHomeroom(req, res) {
+  try {
+    const cls = await service.setHomeroom(req.tenant.id, req.params.classId, req.body.teacher_id || null);
+    if (!cls) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Class not found' } });
+    res.json({ success: true, data: cls });
+  } catch (err) {
+    if (err.code === 'USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Teacher not found' } });
+    }
+    throw err;
+  }
+}
+
 module.exports = {
+  getHomeroom,
+  setHomeroom,
   listStaffAttendance,
   getStaffAttendanceSummary,
   getStaffAttendanceGrid,

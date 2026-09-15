@@ -538,7 +538,41 @@ async function getKpiSummary(tenantId) {
   return { totalTeachers: teachers.length, averages, teachers, kpiRecords };
 }
 
+async function getHomeroom(tenantId) {
+  const classes = await knex('classes')
+    .where({ 'classes.tenant_id': tenantId })
+    .leftJoin('users as t', 'classes.class_teacher_id', 't.id')
+    .select(
+      'classes.id', 'classes.name', 'classes.level_group', 'classes.grade_level', 'classes.section',
+      'classes.class_teacher_id',
+      't.first_name as teacher_first_name', 't.last_name as teacher_last_name'
+    )
+    .orderByRaw("CASE classes.level_group WHEN 'nursery' THEN 0 WHEN 'kg' THEN 1 WHEN 'primary' THEN 2 WHEN 'secondary' THEN 3 ELSE 4 END")
+    .orderBy('classes.grade_level')
+    .orderBy('classes.name');
+  const teachers = await knex('users')
+    .where({ tenant_id: tenantId, status: 'active' })
+    .whereIn('role', ['teacher', 'principal', 'vice_principal', 'quality_director'])
+    .select('id', 'first_name', 'last_name')
+    .orderBy('first_name');
+  return { classes, teachers };
+}
+
+async function setHomeroom(tenantId, classId, teacherId) {
+  if (teacherId) {
+    const t = await knex('users').where({ tenant_id: tenantId, id: teacherId, status: 'active' }).first();
+    if (!t) { const e = new Error('USER_NOT_FOUND'); e.code = 'USER_NOT_FOUND'; throw e; }
+  }
+  const [cls] = await knex('classes')
+    .where({ tenant_id: tenantId, id: classId })
+    .update({ class_teacher_id: teacherId || null, updated_at: knex.fn.now() })
+    .returning('*');
+  return cls;
+}
+
 module.exports = {
+  getHomeroom,
+  setHomeroom,
   STAFF_ROLES,
   listStaffAttendance,
   bulkMarkAttendance,

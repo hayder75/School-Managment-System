@@ -155,4 +155,36 @@ async function getChildrenForParent(tenantId, parentId) {
   return children;
 }
 
-module.exports = { findParents, findParentById, linkParent, unlinkParent, updateLink, getChildrenForParent };
+async function uniqueUsername(trx, tenantId, base, excludeId) {
+  let candidate = base;
+  let n = 1;
+  while (true) {
+    const row = await trx('users').where({ tenant_id: tenantId, username: candidate }).first();
+    if (!row || row.id === excludeId) return candidate;
+    candidate = `${base}${n++}`;
+    if (n > 60) return `${base}${Date.now().toString(36).slice(-4)}`;
+  }
+}
+
+async function updateParent(tenantId, id, data) {
+  return db.transaction(async (trx) => {
+    const parent = await trx('users').where({ tenant_id: tenantId, id, role: 'parent' }).first();
+    if (!parent) return null;
+    const updates = {};
+    for (const k of ['first_name', 'last_name', 'phone', 'email']) {
+      if (data[k] !== undefined) updates[k] = data[k];
+    }
+    // Keep the login username in sync with the phone number.
+    if (data.phone !== undefined && data.phone !== parent.phone) {
+      const base = String(data.phone || '').trim()
+        || `${parent.first_name || 'parent'}.${parent.last_name || id.slice(0, 6)}`.replace(/\s+/g, '');
+      updates.username = await uniqueUsername(trx, tenantId, base, parent.id);
+    }
+    updates.updated_at = trx.fn.now();
+    const [updated] = await trx('users').where({ id }).update(updates)
+      .returning(['id', 'first_name', 'last_name', 'phone', 'email', 'username']);
+    return updated;
+  });
+}
+
+module.exports = { findParents, findParentById, linkParent, unlinkParent, updateLink, getChildrenForParent, updateParent };

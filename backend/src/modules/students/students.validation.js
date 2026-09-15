@@ -50,7 +50,7 @@ const updateStudentSchema = z.object({
   body: z.object({
     class_id: z.string().uuid().optional(),
     student_number: z.string().max(50).optional(),
-    status: z.enum(['active', 'transferred', 'dropped', 'graduated']).optional(),
+    status: z.enum(['active', 'transferred', 'dropped', 'graduated', 'archived']).optional(),
     emergency_contact: z.string().optional(),
     medical_info: z.record(z.any()).optional(),
     previous_school: z.string().max(255).optional(),

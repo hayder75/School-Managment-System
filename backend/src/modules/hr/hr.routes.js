@@ -32,4 +32,8 @@ router.get('/teacher-kpis', requireAccess(['admin', 'owner', 'hr', 'teacher', 'p
 router.get('/teacher-kpis/summary', requireAccess(['admin', 'owner', 'hr', 'principal', 'vice_principal', 'quality_director'], ['reports.view', 'quality.review']), ctrl.getKpiSummary);
 router.post('/teacher-kpis', requireAccess(['admin', 'owner', 'hr', 'principal', 'quality_director'], ['payroll.view', 'quality.review']), ctrl.saveTeacherKpi);
 
+// Homeroom teacher assignment
+router.get('/homeroom', requireAccess(['admin', 'owner', 'hr', 'principal', 'vice_principal', 'quality_director'], ['staff-attendance.manage', 'reports.view', 'classes.manage']), ctrl.getHomeroom);
+router.put('/homeroom/:classId', requireAccess(['admin', 'owner', 'hr'], []), ctrl.setHomeroom);
+
 module.exports = router;

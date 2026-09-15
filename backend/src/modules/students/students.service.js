@@ -357,7 +357,10 @@ async function removeEnrollment(tenantId, studentId, enrollmentId) {
 
 async function update(tenantId, id, data, userId = null) {
   return db.transaction(async (trx) => {
-    const current = await trx('students').where({ tenant_id: tenantId, id }).select('status').first();
+    const current = await trx('students')
+      .where({ tenant_id: tenantId, id })
+      .select('status', 'user_id', 'student_number')
+      .first();
     const [student] = await trx('students').where({ tenant_id: tenantId, id }).update(data).returning('*');
     if (student && data.status && current && current.status !== data.status) {
       await trx('student_status_history').insert({
@@ -367,6 +370,21 @@ async function update(tenantId, id, data, userId = null) {
         to_status: data.status,
         changed_by: userId,
       });
+    }
+    // Keep the login username in sync with the (school) student number.
+    if (student && current && current.user_id
+        && data.student_number !== undefined
+        && data.student_number !== current.student_number) {
+      const u = await trx('users').where({ id: current.user_id, tenant_id: tenantId })
+        .select('id', 'first_name', 'last_name', 'username').first();
+      if (u) {
+        let base = String(data.student_number || '').trim();
+        if (!base) base = `${u.first_name || 'student'}.${u.last_name || 'student'}`.toLowerCase().replace(/\s+/g, '');
+        if (base !== u.username) {
+          const username = await uniqueUsername(trx, tenantId, base);
+          await trx('users').where({ id: current.user_id }).update({ username, updated_at: trx.fn.now() });
+        }
+      }
     }
     return student;
   });

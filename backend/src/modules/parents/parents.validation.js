@@ -18,4 +18,13 @@ const updateLinkSchema = z.object({
   }),
 });
 
-module.exports = { linkParentSchema, updateLinkSchema };
+const updateParentSchema = z.object({
+  body: z.object({
+    first_name: z.string().max(100).optional(),
+    last_name: z.string().max(100).optional(),
+    phone: z.string().max(50).optional(),
+    email: z.string().max(255).optional(),
+  }),
+});
+
+module.exports = { linkParentSchema, updateLinkSchema, updateParentSchema };
