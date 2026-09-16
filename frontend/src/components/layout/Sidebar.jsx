@@ -245,6 +245,7 @@ const permissionGated = [
   { to: "/leave-management", label: "leaveManagement", icon: CalendarClock, permission: "leave-management.manage" },
   { to: "/payroll-audit", label: "payrollAudit", icon: ClipboardList, permission: "payroll-audit.view" },
   { to: "/reports", label: "reports", icon: BarChart3, permission: "reports.view" },
+  { to: "/staff-performance", label: "staffPerformance", icon: Award, permission: "reports.view", roles: ["admin", "owner", "quality_director", "principal", "vice_principal", "hr"] },
   { to: "/audit-logs", label: "auditLogs", icon: ShieldAlert, permission: "audit.view" },
   { to: "/import", label: "import", icon: Upload, permission: "import.manage" },
   { to: "/backup", label: "backup", icon: FileText, permission: "backup.manage" },

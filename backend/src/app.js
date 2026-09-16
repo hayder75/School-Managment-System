@@ -73,6 +73,7 @@ app.use('/api/facilities', require('./modules/facilities/facilities.routes'));
 app.use('/api/accounting', require('./modules/accounting/accounting.routes'));
 app.use('/api/executive', require('./modules/executive/executive.routes'));
 app.use('/api/discipline', require('./modules/discipline/discipline.routes'));
+app.use('/api/performance', require('./modules/performance/performance.routes'));
 
 app.get('/', (req, res) => {
   res.redirect(config.frontendUrl);

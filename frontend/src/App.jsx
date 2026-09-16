@@ -48,6 +48,7 @@ const RolesPermissionsPage = lazy(() => import("./pages/school-admin/RolesPermis
 const AssetManagementPage = lazy(() => import("./pages/AssetManagementPage"));
 const TeacherAttendancePage = lazy(() => import("./pages/TeacherAttendancePage"));
 const TeacherKpiPage = lazy(() => import("./pages/TeacherKpiPage"));
+const StaffPerformancePage = lazy(() => import("./pages/StaffPerformancePage"));
 const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
@@ -182,6 +183,10 @@ function AppContent() {
             <Route path="/shift-hub" element={<ShiftDutyHubPage />} />
             <Route path="/teacher-attendance" element={<TeacherAttendancePage />} />
             <Route path="/teacher-kpis" element={<TeacherKpiPage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "quality_director", "principal", "vice_principal", "hr"]} permissions={[]} />}>
+            <Route path="/staff-performance" element={<StaffPerformancePage />} />
           </Route>
 
           {/* Quality Director + reviewers */}
