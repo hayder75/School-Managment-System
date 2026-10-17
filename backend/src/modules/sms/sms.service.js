@@ -192,20 +192,27 @@ async function sendViaAfro(config, { to, message }) {
   const key = apiKey();
   if (!key) return { ok: false, error: 'AFRO_SMS_API_KEY not configured' };
   const base = (process.env.AFRO_SMS_API_BASE || 'https://api.afromessage.com').replace(/\/$/, '');
-  const params = new URLSearchParams({
+  const body = new URLSearchParams({
     from: config.from_name || 'Mount Olive',
     sender: config.sender_code || config.from_name || 'Mount Olive',
     to,
     message,
   });
   try {
-    const res = await fetch(`${base}/api/send?${params.toString()}`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${key}` },
+    const res = await fetch(`${base}/api/send`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
     });
-    const body = await res.json().catch(() => null);
-    const ok = res.ok && body && (body.acknowledge === 'success' || body.response?.status === 'success');
-    return { ok, status: res.status, body };
+    const raw = await res.text();
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch { /* plain-text error */ }
+    const ok = res.ok && parsed && (parsed.acknowledge === 'success' || parsed.response?.status === 'success');
+    const detail = parsed?.response?.errors?.[0]?.message || parsed?.acknowledge || raw || `HTTP ${res.status}`;
+    return { ok, status: res.status, body: parsed, raw, error: ok ? null : String(detail).slice(0, 400) };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -246,7 +253,7 @@ async function processQueue(tenantId, { limit } = {}) {
       await db('sms_messages').where({ id: m.id }).update({
         status: 'failed',
         attempts: (m.attempts || 0) + 1,
-        error: typeof res.error === 'string' ? res.error : JSON.stringify(res.body || res.error || 'send failed').slice(0, 500),
+        error: res.error || 'send failed',
       });
     }
   }
