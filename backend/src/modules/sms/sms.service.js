@@ -208,10 +208,11 @@ async function sendViaAfro(config, { to, message }) {
   const key = apiKey();
   if (!key) return { ok: false, error: 'AFRO_SMS_API_KEY not configured' };
   const base = (process.env.AFRO_SMS_API_BASE || 'https://api.afromessage.com').replace(/\/$/, '');
-  const from = config.identifier || keyIdentifier() || config.from_name || '';
   const params = new URLSearchParams();
-  params.set('from', from);
   if (config.from_name) params.set('sender', config.from_name);
+  // `from` is the account's identifier/short code and is only needed for
+  // accounts with multiple short codes. Omit it unless explicitly configured.
+  if (config.identifier) params.set('from', config.identifier);
   params.set('to', to);
   params.set('message', message);
   try {
