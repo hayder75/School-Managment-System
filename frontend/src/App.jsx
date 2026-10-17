@@ -67,6 +67,7 @@ const GeneralServicesPage = lazy(() => import("./pages/GeneralServicesPage"));
 const AccountantReconciliationPage = lazy(() => import("./pages/AccountantReconciliationPage"));
 const ExecutiveDashboardPage = lazy(() => import("./pages/ExecutiveDashboardPage"));
 const DisciplineManagementPage = lazy(() => import("./pages/DisciplineManagementPage"));
+const SmsPage = lazy(() => import("./pages/SmsPage"));
 const EnrollmentWizardPage = lazy(() => import("./pages/EnrollmentWizardPage"));
 const SetPasswordPage = lazy(() => import("./pages/auth/SetPasswordPage"));
 const LibraryPage = lazy(() => import("./pages/LibraryPage"));
@@ -273,6 +274,11 @@ function AppContent() {
           {/* Discipline management — admins/principals manage, teachers report, parents view */}
           <Route element={<RoleRoute roles={["admin", "owner", "principal", "vice_principal", "general_manager", "quality_director", "teacher", "parent"]} permissions={["discipline.manage"]} />}>
             <Route path="/discipline" element={<DisciplineManagementPage />} />
+          </Route>
+
+          {/* SMS messaging — directors / admins send announcements to parents */}
+          <Route element={<RoleRoute roles={["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"]} permissions={["sms.manage"]} />}>
+            <Route path="/sms" element={<SmsPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "super_admin"]} permissions={["audit.view"]} />}>

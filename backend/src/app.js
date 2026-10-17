@@ -76,6 +76,7 @@ app.use('/api/discipline', require('./modules/discipline/discipline.routes'));
 app.use('/api/performance', require('./modules/performance/performance.routes'));
 app.use('/api/public', require('./modules/public/public.routes'));
 app.use('/api/help', require('./modules/help/help.routes'));
+app.use('/api/sms', require('./modules/sms/sms.routes'));
 
 app.get('/', (req, res) => {
   res.redirect(config.frontendUrl);

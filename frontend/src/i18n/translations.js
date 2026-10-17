@@ -6,6 +6,7 @@ export const en = {
     myCases: "My Child's Cases",
     timetableConfig: "Timetable Auto-Setup",
     examResults: "Exam & Results",
+    sms: "SMS Messaging",
     schools: "Schools",
     users: "Users",
     staff: "Staff",

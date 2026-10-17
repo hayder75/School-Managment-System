@@ -57,6 +57,7 @@ const navItems = {
     { to: "/import", label: "import", icon: Upload },
     { to: "/settings", label: "settings", icon: Settings },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
+    { to: "/sms", label: "sms", icon: MessageSquare },
   ],
   admin: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -91,6 +92,7 @@ const navItems = {
     { to: "/audit-logs", label: "auditLogs", icon: ShieldAlert },
     { to: "/import", label: "import", icon: Upload },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
+    { to: "/sms", label: "sms", icon: MessageSquare },
   ],
   teacher: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -118,6 +120,7 @@ const navItems = {
     { to: "/audit-logs", label: "auditLogs", icon: ShieldAlert },
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/chat", label: "chat", icon: MessageSquare },
+    { to: "/sms", label: "sms", icon: MessageSquare },
   ],
   principal: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -134,6 +137,7 @@ const navItems = {
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/chat", label: "chat", icon: MessageSquare },
+    { to: "/sms", label: "sms", icon: MessageSquare },
   ],
   vice_principal: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -149,6 +153,7 @@ const navItems = {
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/announcements", label: "announcements", icon: Megaphone },
+    { to: "/sms", label: "sms", icon: MessageSquare },
   ],
   quality_director: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -165,6 +170,7 @@ const navItems = {
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/chat", label: "chat", icon: MessageSquare },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
+    { to: "/sms", label: "sms", icon: MessageSquare },
   ],
   shift_coordinator: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },

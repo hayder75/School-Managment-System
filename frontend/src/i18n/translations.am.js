@@ -7,6 +7,7 @@ export const am = {
     myCases: "የልጄ ጉዳዮች",
     timetableConfig: "የጊዜ ሰንጠረዥ ራስ-ሰር ማዋቀሪያ",
     examResults: "ፈተናና ውጤት",
+    sms: "የSMS መልእክት",
     schools: "ትምህርት ቤቶች",
     users: "ተጠቃሚዎች",
     staff: "ሠራተኞች",

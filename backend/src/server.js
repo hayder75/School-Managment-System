@@ -4,6 +4,7 @@ const config = require('./config');
 const logger = require('./config/logger');
 const { setupSocket } = require('./socket');
 const { calculateLateFees } = require('./jobs/late-fee');
+const { processSmsQueues } = require('./jobs/sms-queue');
 
 // Run periodic jobs on exactly one worker. pm2 sets NODE_APP_INSTANCE for each
 // cluster worker (0-based); in fork mode it is undefined.
@@ -31,6 +32,19 @@ async function start() {
 
   setTimeout(runLateFees, 30 * 1000);
   setInterval(runLateFees, 6 * 60 * 60 * 1000);
+
+  // Dispatch queued SMS (respects per-tenant enable switch + 999/day cap).
+  // Runs every 30 minutes so the daily allowance drains progressively.
+  async function runSmsQueue() {
+    try {
+      const res = await processSmsQueues();
+      if (res && (res.sent || res.failed)) logger.info(`SMS queue job sent ${res.sent}, failed ${res.failed}`);
+    } catch (err) {
+      logger.error('SMS queue job failed', { error: err.message });
+    }
+  }
+  setTimeout(runSmsQueue, 60 * 1000);
+  setInterval(runSmsQueue, 30 * 60 * 1000);
 }
 
 start().catch((err) => {
