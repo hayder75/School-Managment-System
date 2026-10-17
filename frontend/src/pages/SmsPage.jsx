@@ -223,6 +223,14 @@ export default function SmsPage() {
               />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">{t("Identifier ID / short code")}</Label>
+              <Input
+                defaultValue={config.identifier || ""}
+                placeholder={t("Leave blank to use the API key's identifier")}
+                onBlur={(e) => updateConfig.mutate({ identifier: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs">{t("Daily limit")}</Label>
               <Input
                 type="number"

@@ -13,10 +13,26 @@ const DEFAULT_CONFIG = {
   daily_limit: 999,
   from_name: 'Mount Olive',
   sender_code: '',
+  identifier: '',
 };
 
 function apiKey() {
   return process.env.AFRO_SMS_API_KEY || process.env.AFRO_API_KEY || '';
+}
+
+// The `from` parameter must be the account's identifier id, which is embedded
+// in the API key JWT payload.
+function keyIdentifier() {
+  const key = apiKey();
+  const parts = String(key || '').split('.');
+  if (parts.length < 2) return '';
+  try {
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
+    return json.identifier || '';
+  } catch {
+    return '';
+  }
 }
 
 async function getConfig(tenantId) {
@@ -192,27 +208,23 @@ async function sendViaAfro(config, { to, message }) {
   const key = apiKey();
   if (!key) return { ok: false, error: 'AFRO_SMS_API_KEY not configured' };
   const base = (process.env.AFRO_SMS_API_BASE || 'https://api.afromessage.com').replace(/\/$/, '');
-  const body = new URLSearchParams({
-    from: config.from_name || 'Mount Olive',
-    sender: config.sender_code || config.from_name || 'Mount Olive',
-    to,
-    message,
-  });
+  const from = config.identifier || keyIdentifier() || config.from_name || '';
+  const params = new URLSearchParams();
+  params.set('from', from);
+  if (config.from_name) params.set('sender', config.from_name);
+  params.set('to', to);
+  params.set('message', message);
   try {
-    const res = await fetch(`${base}/api/send`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: body.toString(),
+    const res = await fetch(`${base}/api/send?${params.toString()}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${key}` },
     });
     const raw = await res.text();
     let parsed = null;
-    try { parsed = JSON.parse(raw); } catch { /* plain-text error */ }
-    const ok = res.ok && parsed && (parsed.acknowledge === 'success' || parsed.response?.status === 'success');
-    const detail = parsed?.response?.errors?.[0]?.message || parsed?.acknowledge || raw || `HTTP ${res.status}`;
-    return { ok, status: res.status, body: parsed, raw, error: ok ? null : String(detail).slice(0, 400) };
+    try { parsed = JSON.parse(raw); } catch { /* plain text */ }
+    const ok = res.ok && parsed && parsed.acknowledge === 'success';
+    const errText = parsed?.response?.errors?.join('; ') || parsed?.acknowledge || raw || `HTTP ${res.status}`;
+    return { ok, status: res.status, body: parsed, raw, error: ok ? null : String(errText).slice(0, 400) };
   } catch (err) {
     return { ok: false, error: err.message };
   }
