@@ -5,6 +5,7 @@ backend/.env
 
 # Sensitive / local-only files (do not commit)
 SERVERS_OVERVIEW.md
+DEMO_LOGIN_CREDENTIALS.md
 seed documents/
 new real datat/
 *.xlsx

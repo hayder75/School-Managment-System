@@ -25,6 +25,14 @@ export function useCreateTimetableEntry() {
   });
 }
 
+export function useUpdateTimetableEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/timetable/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["timetable"] }),
+  });
+}
+
 export function useDeleteTimetableEntry() {
   const qc = useQueryClient();
   return useMutation({

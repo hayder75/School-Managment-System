@@ -1,16 +1,27 @@
-import { createContext, useContext, useState, useCallback, useMemo } from "react";
-import { en, am } from "./translations";
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
+import { en } from "./translations";
 
 const I18nContext = createContext();
 
 export function I18nProvider({ children }) {
   const [lang, setLang] = useState(() => localStorage.getItem("sms_lang") || "en");
-  const dict = lang === "am" ? am : en;
+  // Amharic dictionary is loaded on demand so English users never download it.
+  const [am, setAm] = useState(null);
+
+  useEffect(() => {
+    if (lang === "am" && !am) {
+      import("./translations.am")
+        .then((m) => setAm(m.am))
+        .catch(() => {});
+    }
+  }, [lang, am]);
 
   const switchLang = useCallback((l) => {
     setLang(l);
     localStorage.setItem("sms_lang", l);
   }, []);
+
+  const dict = lang === "am" ? am || en : en;
 
   const value = useMemo(() => {
     // Callable translator for flat phrases: t("Save") -> "አስቀምጥ"

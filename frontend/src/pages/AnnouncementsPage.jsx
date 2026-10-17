@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
@@ -67,7 +68,7 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Announcements")}</h1>
           <p className="text-muted-foreground">{t("Broadcast messages to the school")}</p>
@@ -141,7 +142,7 @@ export default function AnnouncementsPage() {
                 <div>
                   <CardTitle className="text-lg">{a.title}</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {t("By")} {a.first_name} {a.last_name} · <EthiopianDate date={a.created_at} /> · {t("Audience")}: <span className="capitalize">{a.audience}</span>
+                    {t("By")} {fullName(a)} · <EthiopianDate date={a.created_at} /> · {t("Audience")}: <span className="capitalize">{a.audience}</span>
                   </p>
                 </div>
                 {canManage && (

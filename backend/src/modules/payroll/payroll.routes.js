@@ -4,7 +4,7 @@ const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
-const { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, calculatePayrollSchema, taxBracketSchema, leaveSchema } = require('./payroll.validation');
+const { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, calculatePayrollSchema, generatePayrollSchema, settlePayrollSchema, taxBracketSchema, leaveSchema } = require('./payroll.validation');
 
 const router = Router();
 
@@ -36,6 +36,8 @@ router.patch('/:id/gm-approve', requireAccess(['admin', 'owner', 'general_manage
 
 router.post('/', validate(createPayrollSchema), controller.createPayroll);
 router.post('/calculate', validate(calculatePayrollSchema), controller.calculatePayroll);
+router.post('/generate', requireAccess(['admin', 'owner', 'finance', 'hr'], ['payroll.manage', 'payroll.view']), validate(generatePayrollSchema), controller.generatePayroll);
+router.post('/settle', requireAccess(['admin', 'owner', 'finance', 'hr'], ['payroll.manage', 'payroll.view']), validate(settlePayrollSchema), controller.settlePayroll);
 router.get('/', controller.listPayroll);
 router.put('/:id', validate(updatePayrollSchema), controller.updatePayroll);
 

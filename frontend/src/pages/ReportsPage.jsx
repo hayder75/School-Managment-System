@@ -1,5 +1,7 @@
+import { fullName } from "../lib/fullName";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
 import { useExams } from "../hooks/useExams";
@@ -25,7 +27,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
+import { classLabel } from "../lib/classLabel";
 import { BarChart, DonutChart } from "../components/ui/charts";
+import { FileSpreadsheet, ChevronDown, Award } from "lucide-react";
+import ReportCenter from "../components/reports/ReportCenter";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -50,7 +55,7 @@ function EnrollmentReport() {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Student Enrollment</h3>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
-        <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4 mb-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
           <StatCard title="Total Enrolled" value={report.total_enrolled} />
           <StatCard title="Classes" value={report.by_class?.length || 0} />
         </div>
@@ -88,7 +93,7 @@ function GradeDistributionReport() {
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : dist.length === 0 ? (
         <p className="text-muted-foreground">No grade data yet</p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {dist.map((d) => (
             <StatCard key={d.grade_letter} title={`Grade ${d.grade_letter}`} value={d.count} />
           ))}
@@ -202,7 +207,7 @@ function TeacherWorkloadReport() {
             <Card key={t.teacher_id}>
               <CardHeader className="py-3">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-sm">{t.first_name} {t.last_name}</CardTitle>
+                  <CardTitle className="text-sm">{fullName(t)}</CardTitle>
                   <Badge>{t.total_assignments} assignments</Badge>
                 </div>
               </CardHeader>
@@ -224,8 +229,36 @@ function TeacherWorkloadReport() {
 }
 
 function AdminReports() {
+  const { t } = useI18n();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const exports = [
+    { kind: "enrollment", label: "Raw enrollment data" },
+    { kind: "teacher-load", label: "Teacher workload" },
+    { kind: "students", label: "Full student data" },
+    { kind: "students-by-class", label: "Students by class (one sheet per class)" },
+  ];
   return (
     <div className="space-y-8">
+      <div className="flex justify-end">
+        <div className="relative">
+          <Button variant="outline" onClick={() => setMenuOpen((o) => !o)}>
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> {t("Download Excel")} <ChevronDown className="h-3.5 w-3.5 ml-1" />
+          </Button>
+          {menuOpen && (
+            <div className="absolute right-0 z-20 mt-1 w-60 rounded-md border bg-card shadow-lg py-1" onMouseLeave={() => setMenuOpen(false)}>
+              {exports.map((e) => (
+                <button
+                  key={e.kind}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                  onClick={() => { window.open(`/api/reports/export-data/${e.kind}`, "_blank"); setMenuOpen(false); }}
+                >
+                  {t(e.label)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
       <EnrollmentReport />
       <GradeDistributionReport />
       <ClassPerformanceReport />
@@ -267,7 +300,7 @@ function MyStudentsReport() {
               <TableBody>
                 {students.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
+                    <TableCell className="font-medium">{fullName(s)}</TableCell>
                     <TableCell>{s.email}</TableCell>
                     <TableCell>{s.student_number || "—"}</TableCell>
                   </TableRow>
@@ -346,7 +379,7 @@ function MyGradesReport() {
               <TableBody>
                 {grades.map((g, i) => (
                   <TableRow key={i}>
-                    <TableCell className="font-medium">{g.first_name} {g.last_name}</TableCell>
+                    <TableCell className="font-medium">{fullName(g)}</TableCell>
                     <TableCell>{g.exam_name}</TableCell>
                     <TableCell>{g.subject_name}</TableCell>
                     <TableCell>{g.marks_obtained}</TableCell>
@@ -449,7 +482,7 @@ function OutstandingReport() {
               <TableBody>
                 {students.map((s, i) => (
                   <TableRow key={i}>
-                    <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
+                    <TableCell className="font-medium">{fullName(s)}</TableCell>
                     <TableCell>{s.class_name}</TableCell>
                     <TableCell className="font-semibold text-red-600">{parseFloat(s.total_balance).toLocaleString()}</TableCell>
                   </TableRow>
@@ -540,7 +573,7 @@ function CashierReports() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Collected" value={`$${summary.total_collected?.toLocaleString() || 0}`} color="text-green-600" />
         <StatCard title="This Month" value={`$${summary.month_collected?.toLocaleString() || 0}`} sub={`${summary.month_transactions || 0} transactions`} />
         <StatCard title="Today" value={`$${summary.today_collected?.toLocaleString() || 0}`} sub={`${summary.today_transactions || 0} transactions`} />
@@ -629,7 +662,7 @@ function StaffDirectoryReport() {
         </div>
       </div>
       {report && (
-        <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4 mb-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
           <StatCard title="Total Staff" value={report.total} />
           {Object.entries(report.by_role || {}).map(([role, count]) => (
             <StatCard key={role} title={role.charAt(0).toUpperCase() + role.slice(1)} value={count} />
@@ -646,7 +679,7 @@ function StaffDirectoryReport() {
               <TableBody>
                 {staff.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
+                    <TableCell className="font-medium">{fullName(s)}</TableCell>
                     <TableCell>{s.email}</TableCell>
                     <TableCell className="capitalize"><Badge variant="outline">{s.role}</Badge></TableCell>
                     <TableCell><Badge variant={s.status === "active" ? "success" : "secondary"}>{s.status}</Badge></TableCell>
@@ -709,7 +742,7 @@ function HeadcountReport() {
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
           <StatCard title="Total Users" value={report.total} />
-          <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {(report.by_role || []).map((r) => (
               <StatCard key={r.role} title={r.role.charAt(0).toUpperCase() + r.role.slice(1)} value={r.count} />
             ))}
@@ -868,7 +901,7 @@ function SemesterResultsTab() {
           <Select value={classId} onValueChange={setClassId}>
             <SelectTrigger className="w-56 mt-1"><SelectValue placeholder="Choose class…" /></SelectTrigger>
             <SelectContent>
-              {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.section ? ` · ${c.section}` : ""}</SelectItem>)}
+              {classes.map((c) => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -1044,7 +1077,7 @@ function QualityReportsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{totalSubs}</p><p className="text-xs text-muted-foreground">Content submissions reviewed</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-600">{approvalRate}%</p><p className="text-xs text-muted-foreground">First-pass approval rate</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-purple-600">{avgRating}</p><p className="text-xs text-muted-foreground">Avg teacher performance rating /5</p></CardContent></Card>
@@ -1080,7 +1113,7 @@ function QualityReportsTab() {
           <CardTitle className="text-base">Teacher quality overview — content reviews & appraisals</CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
-          <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[720px]">
+          <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[720px] table-sticky-col">
             <thead><tr className="border-b bg-muted/50 text-left">
               <th className="p-3 font-medium">Teacher</th>
               <th className="p-3 font-medium">Submissions</th>
@@ -1139,7 +1172,7 @@ function ShiftReportsTab() {
   const subs = subsData?.data || [];
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Substitutions" value={report.totalSubstitutions || 0} />
         <StatCard title="Active Guard Shifts (today)" value={report.activeGuardShifts || 0} />
       </div>
@@ -1242,7 +1275,7 @@ function FacilitiesReportsTab() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Open" value={summary.open || 0} />
         <StatCard title="In Progress" value={summary.in_progress || 0} color="text-yellow-600" />
         <StatCard title="Completed" value={summary.completed || 0} color="text-green-600" />
@@ -1302,11 +1335,12 @@ function ReportTable({ title, loading, rows, empty, cols, dateCol }) {
 export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const { t } = useI18n();
+  const navigate = useNavigate();
   const role = user?.role || "admin";
   void role;
 
   const tabs = useMemo(() => {
-    const list = [];
+    const list = [{ value: "analytics", label: t("Analytics") }];
     if (role === "quality_director") list.push({ value: "quality", label: t.rep.quality });
     if (["owner", "admin", "general_manager", "principal", "vice_principal"].includes(role))
       list.push({ value: "admin", label: t.rep.school });
@@ -1327,14 +1361,22 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t("Reports")}</h1>
-        <p className="text-muted-foreground">Comprehensive reports and analytics for your school</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">{t("Reports")}</h1>
+          <p className="text-muted-foreground">Comprehensive reports and analytics for your school</p>
+        </div>
+        {["admin", "owner", "principal", "vice_principal", "quality_director", "general_manager"].includes(user?.role) && (
+          <Button variant="outline" onClick={() => navigate("/report-cards")}>
+            <Award className="h-4 w-4 mr-2" /> {t("Report Cards")}
+          </Button>
+        )}
       </div>
       <Tabs defaultValue={tabs[0]?.value}>
         <TabsList>
           {tabs.map((t) => <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>)}
         </TabsList>
+        <TabsContent value="analytics"><ReportCenter /></TabsContent>
         <TabsContent value="quality"><QualityReportsTab /></TabsContent>
         <TabsContent value="semester"><SemesterResultsTab /></TabsContent>
         <TabsContent value="admin"><AdminReports /></TabsContent>

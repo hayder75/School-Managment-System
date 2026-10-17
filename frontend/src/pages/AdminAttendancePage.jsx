@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useClasses } from "../hooks/useClasses";
 import { useAdminAttendanceOverview, useAdminClassAttendance } from "../hooks/useAttendance";
@@ -25,7 +26,7 @@ function StatCard({ title, value, icon: Icon, sub, color }) {
   const { t } = useI18n();
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <CardTitle className="text-sm font-medium">{t(title)}</CardTitle>
         {Icon && <Icon className={`h-4 w-4 ${color || "text-muted-foreground"}`} />}
       </CardHeader>
@@ -150,7 +151,7 @@ export default function AdminAttendancePage() {
         <p className="text-muted-foreground">{t("Loading attendance analytics...")}</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 sm:grid-cols-5 gap-4">
             <StatCard title="Attendance Rate" value={summary.present_rate != null ? `${summary.present_rate}%` : "—"} icon={UserCheck} color="text-green-600" sub={`${summary.present || 0} ${t("Present")}`} />
             <StatCard title="Absent" value={summary.absent || "—"} icon={AlertTriangle} color="text-red-600" sub={`${summary.absent_rate}% ${t("absent rate")}`} />
             <StatCard title="Late" value={summary.late || "—"} icon={Clock} color="text-yellow-600" sub={`${summary.late_rate}% ${t("late rate")}`} />
@@ -195,7 +196,7 @@ export default function AdminAttendancePage() {
                       <div key={s.student_id} className="flex items-center gap-3 p-2 border rounded">
                         <RankBadge rank={i + 1} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{s.first_name} {s.last_name}</p>
+                          <p className="text-sm font-medium truncate">{fullName(s)}</p>
                           <p className="text-xs text-muted-foreground truncate">{s.class_name}</p>
                         </div>
                         <div className="text-right">
@@ -259,7 +260,7 @@ export default function AdminAttendancePage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                   <div className="p-2 border rounded">
                     <p className="text-xs text-muted-foreground">{t("Attendance Rate")}</p>
                     <p className="text-lg font-bold text-green-600">{classDetail.summary.present_rate}%</p>
@@ -291,7 +292,7 @@ export default function AdminAttendancePage() {
                   <TableBody>
                     {classDetail.students.map((s) => (
                       <TableRow key={s.student_id}>
-                        <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
+                        <TableCell className="font-medium">{fullName(s)}</TableCell>
                         <TableCell className="text-right text-green-700">{s.present}</TableCell>
                         <TableCell className="text-right text-red-600">{s.absent}</TableCell>
                         <TableCell className="text-right text-yellow-600">{s.late}</TableCell>

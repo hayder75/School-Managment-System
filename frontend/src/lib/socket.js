@@ -21,7 +21,15 @@ export function connectSocket(token) {
     socket.disconnect();
     socket = null;
   }
-  socket = io(socketUrl(), { auth: { token: token || undefined }, withCredentials: true });
+  // WebSocket-only: required for pm2 cluster mode (no sticky sessions), and
+  // avoids the polling handshake round-trips on high-latency links.
+  socket = io(socketUrl(), {
+    auth: { token: token || undefined },
+    withCredentials: true,
+    transports: ["websocket"],
+    reconnection: true,
+    reconnectionDelay: 1000,
+  });
   socketToken = token;
   return socket;
 }

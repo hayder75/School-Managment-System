@@ -1,10 +1,12 @@
+import { fullName } from "../lib/fullName";
 import { useState, useEffect, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { FieldError } from "../components/ui/form-error";
 import { extractApiErrors } from "../lib/form-utils";
-import { useSalaryGrades, useCreateSalaryGrade, useDeleteSalaryGrade, usePayroll, useCreatePayroll, useCalculatePayroll, usePayrollSummary } from "../hooks/usePayroll";
-import { useUsers } from "../hooks/useUsers";
+import { useSalaryGrades, useCreateSalaryGrade, useDeleteSalaryGrade, usePayroll, useCreatePayroll, useCalculatePayroll, usePayrollSummary, useGeneratePayroll, useUpdatePayroll, useSettlePayroll } from "../hooks/usePayroll";
+import { useToast } from "../store/toast";
+import { useTeachers } from "../hooks/useTeachers";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -14,7 +16,7 @@ import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Plus, Trash2, Wallet, Download, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Wallet, Download, ChevronDown, ChevronRight, Wand2, CheckCircle2 } from "lucide-react";
 import { useI18n } from "../i18n/I18nContext";
 
 const ALLOWANCE_FIELDS = [
@@ -155,10 +157,14 @@ function PayrollEntriesTab() {
   const [year, setYear] = useState(now.getFullYear());
   const { data, isLoading } = usePayroll({ page, limit: 20, month, year });
   const { data: summaryData } = usePayrollSummary(month, year);
-  const { data: staffData } = useUsers({ role: "teacher", limit: 500 });
+  const { data: staffData } = useTeachers({ limit: 500 });
   const { data: gradesData } = useSalaryGrades();
   const createPayroll = useCreatePayroll();
   const calculatePayroll = useCalculatePayroll();
+  const generatePayroll = useGeneratePayroll();
+  const updatePayroll = useUpdatePayroll();
+  const settlePayroll = useSettlePayroll();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [form, setForm] = useState({ user_id: "", basic_pay: "", allowances_total: "0", deductions_total: "0", net_pay: "", ...EMPTY_BREAKDOWN, bank_account: "", bank_name: "", work_days: "", absent_days: "" });
@@ -196,6 +202,36 @@ function PayrollEntriesTab() {
   const staff = staffData?.data || [];
   const grades = gradesData?.data || [];
   const summary = summaryData?.data || {};
+
+  async function handleGenerate() {
+    if (!confirm(t("Generate payroll entries for all active staff for {month}/{year}? Existing entries are skipped.", { month, year }))) return;
+    try {
+      const res = await generatePayroll.mutateAsync({ month, year });
+      const d = res.data || {};
+      toast(t("Generated {created} entries · {skipped} already existed · {missing} without pay", { created: d.created || 0, skipped: d.skipped || 0, missing: d.missing_base || 0 }), "success");
+    } catch (err) {
+      toast(err?.error?.message || err?.message || t("Failed to generate payroll"), "error");
+    }
+  }
+
+  async function changeStatus(entry, status) {
+    try {
+      await updatePayroll.mutateAsync({ id: entry.id, status });
+      toast(t("Status updated"), "success");
+    } catch (err) {
+      toast(err?.error?.message || err?.message || t("Failed to update status"), "error");
+    }
+  }
+
+  async function handleMarkAllPaid() {
+    if (!confirm(t("Mark all payroll entries for {month}/{year} as paid?", { month, year }))) return;
+    try {
+      const res = await settlePayroll.mutateAsync({ month, year, status: "paid" });
+      toast(t("Marked {n} entries as paid", { n: res.data?.updated || 0 }), "success");
+    } catch (err) {
+      toast(err?.error?.message || err?.message || t("Failed to update payroll"), "error");
+    }
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -261,8 +297,8 @@ function PayrollEntriesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Label className="text-sm">{t("Month")}</Label>
             <Select value={month.toString()} onValueChange={(v) => setMonth(parseInt(v))}>
@@ -280,6 +316,12 @@ function PayrollEntriesTab() {
             <Label className="text-sm">{t("Year")}</Label>
             <Input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-24 h-9" />
           </div>
+          <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generatePayroll.isPending}>
+            <Wand2 className="h-4 w-4 mr-2" /> {generatePayroll.isPending ? t("Generating...") : t("Generate month")}
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleMarkAllPaid} disabled={settlePayroll.isPending}>
+            <CheckCircle2 className="h-4 w-4 mr-2" /> {settlePayroll.isPending ? t("Saving...") : t("Mark all paid")}
+          </Button>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -294,7 +336,7 @@ function PayrollEntriesTab() {
                 <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
                   <SelectTrigger><SelectValue placeholder={t("Select employee")} /></SelectTrigger>
                   <SelectContent>
-                    {staff.map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
+                    {staff.map((s) => <SelectItem key={s.id} value={s.id}>{fullName(s)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -328,6 +370,7 @@ function PayrollEntriesTab() {
                   {t("Attendance")}: <span className="font-medium text-foreground">{attendanceImpact.unpaid_days}</span> {t("unpaid days")}
                   {" · "}{t("daily rate")} {attendanceImpact.daily_rate}
                   {" · "}{t("deduction")} <span className="font-semibold text-rose-600">{attendanceImpact.deduction}</span>
+                  {attendanceImpact.late_minutes ? <span>{" · "}{t("late")} <span className="font-medium text-amber-600">{Math.floor(attendanceImpact.late_minutes / 60)}h {attendanceImpact.late_minutes % 60}m</span></span> : null}
                   {attendanceImpact.enabled ? "" : ` (${t("deductions disabled")})`}
                 </p>
               )}
@@ -445,7 +488,7 @@ function PayrollEntriesTab() {
                         </TableCell>
                         <TableCell className="font-medium">
                           <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/staff/${e.user_id}`)}>
-                            {e.first_name} {e.last_name}
+                            {fullName(e)}
                           </Button>
                         </TableCell>
                         <TableCell>{parseFloat(e.basic_pay || 0).toLocaleString()}</TableCell>
@@ -454,7 +497,16 @@ function PayrollEntriesTab() {
                         <TableCell className="text-right">{e.absent_days ?? 0}</TableCell>
                         <TableCell className="text-right text-rose-600">{parseFloat(e.attendance_deduction || 0).toLocaleString()}</TableCell>
                         <TableCell className="font-semibold">{parseFloat(e.net_pay || 0).toLocaleString()}</TableCell>
-                        <TableCell><Badge variant={e.status === "paid" ? "success" : e.status === "cancelled" ? "destructive" : "secondary"}>{e.status}</Badge></TableCell>
+                        <TableCell>
+                          <Select value={e.status} onValueChange={(v) => changeStatus(e, v)}>
+                            <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">{t("Pending")}</SelectItem>
+                              <SelectItem value="paid">{t("Paid")}</SelectItem>
+                              <SelectItem value="cancelled">{t("Cancelled")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" onClick={() => window.open(`/api/pdf/payslip/${e.id}`, "_blank")}>
                             <Download className="h-4 w-4" />
@@ -464,7 +516,7 @@ function PayrollEntriesTab() {
                       {expandedId === e.id && (
                         <TableRow>
                           <TableCell colSpan={10} className="bg-muted/30 p-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                               <div className="space-y-1">
                                 <p className="font-medium text-xs uppercase text-muted-foreground">{t("Allowances")}</p>
                                 {ALLOWANCE_FIELDS.map((f) => (
@@ -483,6 +535,7 @@ function PayrollEntriesTab() {
                                 <p className="font-medium text-xs uppercase text-muted-foreground">{t("Bank")}</p>
                                 <p>{t("Account")}: {e.bank_account || "—"}</p>
                                 <p>{t("Bank")}: {e.bank_name || "—"}</p>
+                                {e.status === "paid" && <p>{t("Paid on")}: {e.paid_date || "—"}</p>}
                               </div>
                             </div>
                           </TableCell>

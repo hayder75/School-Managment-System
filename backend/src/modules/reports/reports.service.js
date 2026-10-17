@@ -3,10 +3,11 @@ const knex = db;
 
 // ── Admin/Owner Reports ──
 
-async function getStudentEnrollmentReport(tenantId, { academic_year_id } = {}) {
+async function getStudentEnrollmentReport(tenantId, { academic_year_id, scopes } = {}) {
   function baseQuery() {
     let q = db('classes').where({ 'classes.tenant_id': tenantId });
     if (academic_year_id) q = q.where('classes.academic_year_id', academic_year_id);
+    if (scopes && scopes.length) q = q.whereIn('classes.level_group', scopes);
     return q;
   }
 
@@ -34,11 +35,14 @@ async function getStudentEnrollmentReport(tenantId, { academic_year_id } = {}) {
     return { level_group: r.level_group, label, count: parseInt(r.student_count || 0, 10) };
   });
 
-  const genderRows = await db('students')
-    .where({ tenant_id: tenantId })
-    .select('gender')
+  let genderQ = db('students')
+    .where({ 'students.tenant_id': tenantId })
+    .leftJoin('classes', 'students.class_id', 'classes.id')
+    .select('students.gender')
     .count('* as count')
-    .groupBy('gender');
+    .groupBy('students.gender');
+  if (scopes && scopes.length) genderQ = genderQ.whereIn('classes.level_group', scopes);
+  const genderRows = await genderQ;
 
   const genderBreakdown = genderRows.map((r) => ({
     gender: r.gender || 'unknown',
@@ -332,7 +336,7 @@ async function getStaffDirectoryReport(tenantId, { role, status } = {}) {
     .where({ 'users.tenant_id': tenantId })
     .whereNot('users.role', 'student')
     .whereNot('users.role', 'parent')
-    .select('users.id', 'users.first_name', 'users.last_name', 'users.email', 'users.phone', 'users.role', 'users.status')
+    .select('users.id', 'users.first_name', 'users.last_name', 'users.email', 'users.phone', 'users.role', 'users.status', 'users.job_title', 'users.basic_salary')
     .orderBy('users.role')
     .orderBy('users.last_name');
 
@@ -540,7 +544,7 @@ async function getSemesterResults(tenantId, { term_id, class_id } = {}) {
     .where('g.tenant_id', tenantId)
     .select(
       'g.exam_id', 'g.marks_obtained', 'su.id as student_id',
-      knex.raw("CONCAT(su.first_name, ' ', su.last_name) as student_name"),
+      knex.raw("CONCAT_WS(' ', su.first_name, su.middle_name, su.last_name) as student_name"),
       's.student_number'
     );
 
@@ -618,6 +622,109 @@ async function getSemesterResults(tenantId, { term_id, class_id } = {}) {
   return { term_id, class_id: class_id || null, scale, weights, students: results };
 }
 
+// ── Executive Overview (rich, shareable) ──
+async function getOverviewReport(tenantId, { from, to } = {}) {
+  const end = to ? new Date(`${to}T00:00:00Z`) : new Date();
+  const start = from ? new Date(`${from}T00:00:00Z`) : new Date(end.getTime() - 29 * 864e5);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const s = fmt(start), e = fmt(end);
+  const span = end - start + 864e5;
+  const prevEnd = new Date(start.getTime() - 864e5);
+  const prevStart = new Date(prevEnd.getTime() - span + 864e5);
+  const ps = fmt(prevStart), pe = fmt(prevEnd);
+
+  const pct = (a, b) => (b > 0 ? Math.round((a / b) * 1000) / 10 : 0);
+  const delta = (cur, prev) => (prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : (cur > 0 ? 100 : 0));
+
+  const attendanceRate = async (f, t) => {
+    const rows = await db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [f, t])
+      .groupBy('status').select('status').count('* as c');
+    let present = 0, total = 0;
+    for (const r of rows) {
+      const c = Number(r.c); total += c;
+      const st = String(r.status).toLowerCase();
+      if (st === 'present' || st === 'late') present += c;
+    }
+    return { rate: pct(present, total), total };
+  };
+  const collected = async (f, t) => {
+    const r = await db('payments').where({ tenant_id: tenantId }).whereBetween('paid_date', [f, t]).sum('amount_paid as v').first();
+    return Number(r?.v || 0);
+  };
+  const avgScore = async (f, t) => {
+    const r = await db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id')
+      .where('ex.tenant_id', tenantId).whereBetween('ex.date', [f, t])
+      .whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0)
+      .select(db.raw('AVG(g.marks_obtained / ex.total_marks * 100) as v')).first();
+    return r?.v != null ? Math.round(Number(r.v) * 10) / 10 : null;
+  };
+
+  const [studentsRow, staffRow, outstandingRow, classesRow] = await Promise.all([
+    db('students').where({ tenant_id: tenantId, status: 'active' }).count('* as c').first(),
+    db('users').where({ tenant_id: tenantId }).whereNotIn('role', ['student', 'parent']).whereNot('status', 'inactive').count('* as c').first(),
+    db('student_monthly_bills').where({ tenant_id: tenantId, status: 'unpaid' }).select(db.raw('COALESCE(SUM(amount + penalty - amount_paid), 0) as v')).first(),
+    db('classes').where({ tenant_id: tenantId }).count('* as c').first(),
+  ]);
+
+  const [attCur, attPrev, colCur, colPrev, scoreCur, scorePrev] = await Promise.all([
+    attendanceRate(s, e), attendanceRate(ps, pe), collected(s, e), collected(ps, pe), avgScore(s, e), avgScore(ps, pe),
+  ]);
+
+  const [byGrade, attByGrade, collectionTrend, gradeBands, staffByRole] = await Promise.all([
+    db('classes').where({ 'classes.tenant_id': tenantId }).leftJoin('students', 'classes.id', 'students.class_id')
+      .where(function () { this.whereNull('students.id').orWhere('students.status', 'active'); })
+      .groupBy('classes.grade_level').select('classes.grade_level as grade').count('students.id as c').orderBy('classes.grade_level'),
+    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e])
+      .join('students', 'attendance.student_id', 'students.id').join('classes', 'students.class_id', 'classes.id')
+      .groupBy('classes.grade_level').select('classes.grade_level as grade')
+      .select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as present"))
+      .select(db.raw('count(*) as total')).orderBy('classes.grade_level'),
+    db('payments').where({ tenant_id: tenantId }).whereBetween('paid_date', [s, e])
+      .groupByRaw("to_char(paid_date,'YYYY-MM')").select(db.raw("to_char(paid_date,'YYYY-MM') as month")).sum('amount_paid as v').orderBy('month'),
+    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id')
+      .where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0)
+      .select(db.raw(`CASE
+        WHEN g.marks_obtained/ex.total_marks >= 0.9 THEN 'A (90+)'
+        WHEN g.marks_obtained/ex.total_marks >= 0.8 THEN 'B (80-89)'
+        WHEN g.marks_obtained/ex.total_marks >= 0.7 THEN 'C (70-79)'
+        WHEN g.marks_obtained/ex.total_marks >= 0.6 THEN 'D (60-69)'
+        ELSE 'F (<60)' END as band`))
+      .count('* as c').groupBy('band'),
+    db('users').where({ tenant_id: tenantId }).whereNotIn('role', ['student', 'parent']).whereNot('status', 'inactive')
+      .groupBy('role').select('role').count('* as c').orderBy('c', 'desc'),
+  ]);
+
+  const insights = [];
+  if (attCur.rate > 0 && attCur.rate < 90) insights.push(`Attendance is ${attCur.rate}% — below the 90% target.`);
+  if (attCur.rate >= 90) insights.push(`Attendance is healthy at ${attCur.rate}%.`);
+  const outstanding = Number(outstandingRow?.v || 0);
+  if (outstanding > 0) insights.push(`Outstanding fees total ${Math.round(outstanding).toLocaleString()} ETB.`);
+  if (staffRow && Number(studentsRow?.c || 0) > 0) {
+    const ratio = Math.round(Number(studentsRow.c) / Number(staffRow.c));
+    insights.push(`Student-to-staff ratio is about ${ratio}:1.`);
+  }
+  if (scoreCur != null) insights.push(`Average exam score is ${scoreCur}%.`);
+
+  return {
+    period: { from: s, to: e },
+    kpis: {
+      students: { value: Number(studentsRow?.c || 0), delta: null, label: 'Active students' },
+      attendance_rate: { value: attCur.rate, delta: delta(attCur.rate, attPrev.rate), unit: '%', label: 'Attendance rate' },
+      collected: { value: colCur, delta: delta(colCur, colPrev), unit: 'ETB', label: 'Fees collected' },
+      outstanding: { value: outstanding, delta: null, unit: 'ETB', label: 'Outstanding fees' },
+      avg_score: { value: scoreCur, delta: scoreCur != null && scorePrev != null ? delta(scoreCur, scorePrev) : null, unit: '%', label: 'Average score' },
+      staff: { value: Number(staffRow?.c || 0), delta: null, label: 'Staff' },
+      classes: { value: Number(classesRow?.c || 0), delta: null, label: 'Classes' },
+    },
+    enrollment_by_grade: byGrade.map((r) => ({ label: `G${r.grade}`, value: Number(r.c) })),
+    attendance_by_grade: attByGrade.map((r) => ({ label: `G${r.grade}`, value: pct(Number(r.present), Number(r.total)) })),
+    collection_trend: collectionTrend.map((r) => ({ label: r.month, value: Number(r.v) || 0 })),
+    grade_distribution: gradeBands.map((r) => ({ label: r.band, value: Number(r.c) })),
+    staff_by_role: staffByRole.map((r) => ({ label: r.role, value: Number(r.c) })),
+    insights,
+  };
+}
+
 module.exports = {
   getStudentEnrollmentReport,
   getGradeDistributionReport,
@@ -640,4 +747,5 @@ module.exports = {
   getClassReport,
   getFeeReport,
   getSemesterResults,
+  getOverviewReport,
 };

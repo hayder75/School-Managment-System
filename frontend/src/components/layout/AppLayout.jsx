@@ -1,20 +1,35 @@
-import { useState, useEffect } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { useState, useEffect, Suspense } from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { Menu, KeyRound } from "lucide-react";
 import Sidebar from "./Sidebar";
+import PageSkeleton from "./PageSkeleton";
 import NotificationBell from "./NotificationBell";
 import LanguageToggle from "./LanguageToggle";
 import { Sheet, SheetContent } from "../ui/sheet";
 import { Button } from "../ui/button";
 import { useCalendarStore } from "../../store/calendar";
+import { useAuthStore } from "../../store/auth";
+import { warmRole } from "../../lib/prefetch";
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const loadCalendar = useCalendarStore((s) => s.load);
+  const role = useAuthStore((s) => s.user?.role);
+  const location = useLocation();
 
   useEffect(() => {
     loadCalendar();
   }, [loadCalendar]);
+
+  useEffect(() => {
+    if (role) warmRole(role);
+  }, [role]);
+
+  // Close the mobile drawer whenever the route changes (i.e. after tapping a
+  // menu item) so it never stays open over the page.
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="flex h-screen">
@@ -23,8 +38,8 @@ export default function AppLayout() {
       </div>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent className="w-72 p-0">
-          <Sidebar />
+        <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0">
+          <Sidebar onNavigate={() => setSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
 
@@ -48,7 +63,9 @@ export default function AppLayout() {
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8 min-w-0 max-w-full">
-          <Outlet />
+          <Suspense fallback={<PageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

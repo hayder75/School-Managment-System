@@ -11,8 +11,9 @@ const db = knex({
     password: config.db.password,
   },
   pool: {
-    min: 2,
-    max: 10,
+    min: 1,
+    // Kept modest so `pm2 -i max` workers don't exhaust Postgres connections.
+    max: parseInt(process.env.DB_POOL_MAX, 10) || 10,
   },
 });
 

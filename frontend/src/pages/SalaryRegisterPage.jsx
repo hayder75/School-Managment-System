@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePayroll } from "../hooks/usePayroll";
@@ -52,7 +53,7 @@ export default function SalaryRegisterPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Salary Register")}</h1>
           <p className="text-muted-foreground">{t("Monthly payroll sheet with each employee's earnings and deductions")}</p>
@@ -120,7 +121,7 @@ export default function SalaryRegisterPage() {
                       <TableRow key={r.id}>
                         <TableCell className="whitespace-nowrap font-medium">
                           <Button variant="link" className="p-0 h-auto whitespace-nowrap" onClick={() => navigate(`/staff/${r.user_id}`)}>
-                            {r.first_name} {r.last_name}
+                            {fullName(r)}
                           </Button>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{r.job_title || "—"}</TableCell>

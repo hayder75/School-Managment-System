@@ -4,17 +4,49 @@ const broadcast = require('../../socket/broadcast');
 const logger = require('../../config/logger');
 const timetable = require('../timetable/timetable.service');
 
+const MAX_TOTAL_PER_SUBJECT = 100; // each class + subject is marked out of 100 per period
+
+// Throw EXAM_TOTAL_EXCEEDS_100 if the sum of this class+subject's exam totals
+// would go above 100 (per term when a term is given).
+async function assertWithinBudget(tenantId, { classIds, subjectId, termId, newTotal, excludeId }) {
+  if (!subjectId) {
+    const e = new Error('SUBJECT_REQUIRED');
+    e.code = 'SUBJECT_REQUIRED';
+    throw e;
+  }
+  for (const cid of classIds || []) {
+    let q = db('exams').where({ tenant_id: tenantId, class_id: cid, subject_id: subjectId });
+    if (termId) q = q.where({ term_id: termId });
+    if (excludeId) q = q.whereNot({ id: excludeId });
+    const used = await q.sum('total_marks as v').first();
+    const usedTotal = Number(used?.v || 0);
+    if (usedTotal + Number(newTotal || 0) > MAX_TOTAL_PER_SUBJECT) {
+      const e = new Error(`This subject is marked out of 100. Used ${usedTotal} of 100 — adding ${newTotal} would exceed it.`);
+      e.code = 'EXAM_TOTAL_EXCEEDS_100';
+      e.used = usedTotal;
+      throw e;
+    }
+  }
+}
+
 async function create(tenantId, data, actorId = null) {
   const classIds = data.class_ids && data.class_ids.length
     ? data.class_ids
     : (data.class_id ? [data.class_id] : []);
   const primaryClassId = classIds[0] || null;
 
+  await assertWithinBudget(tenantId, {
+    classIds,
+    subjectId: data.subject_id,
+    termId: data.term_id,
+    newTotal: data.total_marks,
+  });
+
   const [exam] = await db('exams').insert({
     name: data.name,
     type: data.type,
     class_id: primaryClassId,
-    class_ids: classIds.length ? classIds : null,
+    class_ids: classIds.length ? JSON.stringify(classIds) : null,
     subject_id: data.subject_id,
     term_id: data.term_id,
     date: data.date,
@@ -157,6 +189,17 @@ async function findById(tenantId, id) {
 }
 
 async function update(tenantId, id, data) {
+  const existing = await db('exams').where({ tenant_id: tenantId, id }).first();
+  if (!existing) return undefined;
+  const subjectId = data.subject_id ?? existing.subject_id;
+  const classIds = data.class_ids?.length ? data.class_ids : [data.class_id || existing.class_id];
+  await assertWithinBudget(tenantId, {
+    classIds,
+    subjectId,
+    termId: data.term_id ?? existing.term_id,
+    newTotal: data.total_marks ?? existing.total_marks,
+    excludeId: id,
+  });
   data.updated_at = db.fn.now();
   const [exam] = await db('exams').where({ tenant_id: tenantId, id }).update(data).returning('*');
   return exam;

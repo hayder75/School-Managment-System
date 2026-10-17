@@ -1,132 +1,230 @@
 const PDFDocument = require('pdfkit');
+const path = require('path');
+const fs = require('fs');
 
-function fmt(n) {
-  return n == null ? '—' : String(Math.round(n * 10) / 10);
+// Header keeps the school brand; the body is clean black-on-white (no colour).
+const BLUE = '#1f3fbf';
+const RED = '#e21f26';
+const GOLD = '#ffd21e';
+const INK = '#141821';
+const BODY = '#2b303a';
+const MUTED = '#5b6069';
+const BORDER = '#8a9099';   // table / box lines
+const LINE = '#b9bfc8';     // lighter rules
+const WHITE = '#ffffff';
+
+const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
+
+const r1 = (v) => (v == null || v === '' ? null : Math.round(Number(v) * 10) / 10);
+const fmt = (v) => { const x = r1(v); return x == null ? '—' : String(x); };
+function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+const DEFAULT_SCALE = [
+  { letter: 'A', min: 90, max: 100 },
+  { letter: 'B', min: 80, max: 89.99 },
+  { letter: 'C', min: 70, max: 79.99 },
+  { letter: 'D', min: 60, max: 69.99 },
+  { letter: 'E', min: 50, max: 59.99 },
+  { letter: 'F', min: 0, max: 49.99 },
+];
+function letterOf(scale, pct) {
+  for (const b of scale) if (pct >= Number(b.min) && pct <= Number(b.max)) return b.letter;
+  return 'F';
 }
 
-/**
- * Ethiopian MoE style report card.
- * subjects: [{ name, ca, exam, mark, letter }]  (mark out of 100)
- */
+function drawCard(doc, p) {
+  const L = 32, R = 563, W = R - L;
+  const pageH = doc.page.height;
+  const scale = Array.isArray(p.scale) && p.scale.length ? p.scale : DEFAULT_SCALE;
+  const subjects = Array.isArray(p.subjects) ? p.subjects : [];
+  const att = p.attendance || {};
+  const rank = p.rank ? Number(p.rank) : null;
+  const total = p.studentCount || 0;
+  const avg = r1(p.average);
+  const overall = avg == null ? '—' : letterOf(scale, avg);
+
+  const text = (s, x, y, w, o = {}) =>
+    doc.font(o.font || 'Helvetica').fontSize(o.size || 9.5).fillColor(o.color || BODY)
+      .text(s, x, y, { width: w, align: o.align || 'left', lineBreak: true, lineGap: o.lineGap || 2, ...(o.ellipsis ? { ellipsis: true, height: o.height } : {}) });
+
+  // ═══════════ HEADER (kept from the approved design) ═══════════
+  const hTop = 28, hH = 92, hBot = hTop + hH;
+  doc.rect(L, hTop, W, hH).fill(BLUE);
+  doc.rect(L, hTop, W, 4).fill(RED);
+  doc.rect(L, hBot - 4, W, 4).fill(GOLD);
+  doc.roundedRect(L + 10, hTop + 10, 72, 72, 6).fill(WHITE);
+  try { if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, L + 15, hTop + 13, { fit: [62, 66] }); } catch (e) { /* optional */ }
+  const sx = L + 96;
+  doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(18.5).text(String(p.schoolName || 'School'), sx, hTop + 18, { width: W - 96 - 150, lineBreak: false });
+  doc.fillColor('#d6ddfb').font('Helvetica').fontSize(9.5).text('STUDENT ACADEMIC REPORT CARD', sx, hTop + 44, { width: W - 96 - 150, lineBreak: false });
+  doc.fillColor(GOLD).font('Helvetica-Bold').fontSize(8.4).text(`${p.schoolYear || ''}   ·   ${p.termLabel || ''}`.toUpperCase(), sx, hTop + 62, { width: W - 96 - 150, lineBreak: false });
+  const pillW = 132;
+  doc.roundedRect(R - pillW - 12, hTop + 20, pillW, 50, 6).fill(WHITE);
+  doc.fillColor('#152f8f').font('Helvetica-Bold').fontSize(14).text('REPORT CARD', R - pillW - 12, hTop + 28, { width: pillW, align: 'center', lineBreak: false });
+  doc.fillColor(MUTED).font('Helvetica').fontSize(7.6).text((p.reportType || 'TERM REPORT').toUpperCase(), R - pillW - 12, hTop + 48, { width: pillW, align: 'center', lineBreak: false });
+
+  // ═══════════ STUDENT DETAILS (plain bordered box) ═══════════
+  let y = hBot + 10;
+  const infoH = 56;
+  doc.rect(L, y, W, infoH).lineWidth(0.9).stroke(BORDER);
+  // vertical dividers
+  doc.moveTo(L + W / 3, y).lineTo(L + W / 3, y + infoH).stroke(LINE);
+  doc.moveTo(L + (2 * W) / 3, y).lineTo(L + (2 * W) / 3, y + infoH).stroke(LINE);
+  doc.moveTo(L, y + infoH / 2).lineTo(R, y + infoH / 2).stroke(LINE);
+  const field = (label, value, x, cy, w, bold) => {
+    doc.fillColor(MUTED).font('Helvetica').fontSize(6.8).text(label.toUpperCase(), x + 8, cy + 6, { width: w - 16, lineBreak: false });
+    doc.fillColor(INK).font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 11 : 9.8).text(value || '—', x + 8, cy + 16, { width: w - 16, ellipsis: true, lineBreak: false });
+  };
+  const cw = W / 3;
+  const cs = (() => { const n = String(p.className || '').trim(); const s = String(p.section || '').trim(); if (!s) return n; if (new RegExp(`(^|\\s)${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i').test(n)) return n; return n ? `${n} · ${s}` : s; })();
+  field('Student name', p.studentName, L, y, cw, true);
+  field('Student ID', p.studentNumber, L + cw, y, cw);
+  field('Class / Section', cs, L + 2 * cw, y, cw);
+  field('Grade', p.gradeLevel != null ? `Grade ${p.gradeLevel}` : '—', L, y + infoH / 2, cw);
+  field('Class advisor', p.classAdvisor, L + cw, y + infoH / 2, cw);
+  field('Rank in class', rank ? `${rank} of ${total}` : '—', L + 2 * cw, y + infoH / 2, cw);
+  y += infoH + 14;
+
+  // ═══════════ SUBJECTS TABLE ═══════════
+  const cols = [
+    { h: 'Subject', w: 196, a: 'left' },
+    { h: 'CA', w: 56, a: 'center' },
+    { h: 'Exam', w: 62, a: 'center' },
+    { h: 'Total /100', w: 78, a: 'center' },
+    { h: 'Grade', w: 62, a: 'center' },
+    { h: 'Rank', w: 77, a: 'center' },
+  ];
+  const headH = 20;
+  const rowH = subjects.length > 12 ? 15 : 18;
+  // header
+  doc.rect(L, y, W, headH).fill(WHITE).lineWidth(1).stroke(BORDER);
+  let cx = L;
+  doc.fillColor(INK).font('Helvetica-Bold').fontSize(8.8);
+  for (const c of cols) { doc.text(c.h, cx + 4, y + 6, { width: c.w - 8, align: c.a, lineBreak: false }); cx += c.w; }
+  doc.moveTo(L, y + headH).lineTo(R, y + headH).lineWidth(1.1).stroke(BORDER);
+  let sy = y + headH;
+  subjects.forEach((s, i) => {
+    const cy = sy + i * rowH;
+    const vals = [s.name || '—', fmt(s.ca), fmt(s.exam), fmt(s.mark), s.letter || '—', s.rank ? ordinal(s.rank) : '—'];
+    cx = L;
+    cols.forEach((c, ci) => {
+      doc.font(ci === 0 || ci === 3 || ci === 4 ? 'Helvetica-Bold' : 'Helvetica').fontSize(9)
+        .fillColor(ci === 0 ? INK : BODY).text(vals[ci], cx + 4, cy + (rowH - 9) / 2, { width: c.w - 8, align: c.a, ellipsis: true, lineBreak: false });
+      if (ci > 0) doc.moveTo(cx, cy).lineTo(cx, cy + rowH).lineWidth(0.5).stroke(LINE);
+      cx += c.w;
+    });
+    doc.moveTo(L, cy + rowH).lineTo(R, cy + rowH).lineWidth(0.5).stroke(LINE);
+  });
+  sy += subjects.length * rowH;
+  doc.rect(L, y, W, sy - y).lineWidth(1).stroke(BORDER);
+  y = sy + 14;
+
+  // ═══════════ SUMMARY: overall (left) + attendance (right) ═══════════
+  const sumH = 66;
+  const halfW = (W - 12) / 2;
+  // overall box
+  doc.rect(L, y, halfW, sumH).lineWidth(0.9).stroke(BORDER);
+  doc.moveTo(L, y + 18).lineTo(L + halfW, y + 18).lineWidth(1).stroke(BORDER);
+  text('OVERALL RESULT', L + 8, y + 5, halfW - 16, { font: 'Helvetica-Bold', size: 8.6, color: INK });
+  const sumRow = (k, v, x, cy, w, boldV) => {
+    doc.fillColor(MUTED).font('Helvetica').fontSize(8.6).text(k, x + 8, cy, { width: w - 90, lineBreak: false });
+    doc.fillColor(INK).font(boldV ? 'Helvetica-Bold' : 'Helvetica').fontSize(boldV ? 10 : 9.4).text(v, x + w - 92, cy - 1, { width: 84, align: 'right', lineBreak: false });
+  };
+  sumRow('Average', avg == null ? '—' : `${avg} / 100`, L, y + 25, halfW, true);
+  sumRow('Overall grade', overall, L, y + 41, halfW, true);
+  sumRow('Class rank', rank ? `${rank} of ${total}` : '—', L, y + 57, halfW, false);
+  // attendance box
+  const rx = L + halfW + 12;
+  doc.rect(rx, y, halfW, sumH).lineWidth(0.9).stroke(BORDER);
+  doc.moveTo(rx, y + 18).lineTo(rx + halfW, y + 18).lineWidth(1).stroke(BORDER);
+  text('ATTENDANCE', rx + 8, y + 5, halfW - 16, { font: 'Helvetica-Bold', size: 8.6, color: INK });
+  const attCell = (k, v, i) => {
+    const cwi = halfW / 4;
+    const ax = rx + i * cwi;
+    if (i > 0) doc.moveTo(ax, y + 18).lineTo(ax, y + sumH).lineWidth(0.5).stroke(LINE);
+    doc.fillColor(INK).font('Helvetica-Bold').fontSize(13).text(String(v), ax, y + 28, { width: cwi, align: 'center', lineBreak: false });
+    doc.fillColor(MUTED).font('Helvetica').fontSize(7.4).text(k, ax, y + 47, { width: cwi, align: 'center', lineBreak: false });
+  };
+  attCell('Present', att.present ?? 0, 0);
+  attCell('Absent', att.absent ?? 0, 1);
+  attCell('Late', att.late ?? 0, 2);
+  attCell('Total', att.totalDays ?? ((att.present || 0) + (att.absent || 0) + (att.late || 0)), 3);
+  y += sumH + 14;
+
+  // ═══════════ GRADING SCALE (compact, plain) ═══════════
+  doc.rect(L, y, W, 30).lineWidth(0.9).stroke(BORDER);
+  text('GRADING', L + 8, y + 4, 70, { font: 'Helvetica-Bold', size: 8, color: MUTED });
+  let gx = L + 74;
+  const gw = (W - 82) / scale.length;
+  scale.forEach((b) => {
+    doc.fillColor(INK).font('Helvetica-Bold').fontSize(8.6).text(b.letter, gx, y + 6, { width: 20, lineBreak: false });
+    doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(`${fmt(b.min)}–${fmt(b.max)}`, gx + 18, y + 6.5, { width: gw - 20, lineBreak: false });
+    gx += gw;
+  });
+  y += 30 + 14;
+
+  // ═══════════ TEACHER'S COMMENT (ruled lines, plain) ═══════════
+  const comH = 58;
+  doc.rect(L, y, W, comH).lineWidth(0.9).stroke(BORDER);
+  text("HOMEROOM TEACHER'S COMMENT", L + 8, y + 5, W - 16, { font: 'Helvetica-Bold', size: 8, color: MUTED });
+  if (p.comment || p.remarks) {
+    doc.fillColor(BODY).font('Helvetica').fontSize(9.4).text(p.comment || p.remarks, L + 8, y + 18, { width: W - 16, height: comH - 26, ellipsis: true, lineGap: 3 });
+  } else {
+    for (let i = 0; i < 2; i++) {
+      const ly = y + 30 + i * 16;
+      doc.moveTo(L + 8, ly).lineTo(R - 8, ly).lineWidth(0.5).stroke(LINE);
+    }
+  }
+  y += comH + 12;
+
+  // ═══════════ RESULT ═══════════
+  if (p.promotionLine) {
+    doc.rect(L, y, W, 22).lineWidth(0.9).stroke(BORDER);
+    text(p.promotionLine, L + 8, y + 6.5, W - 16, { font: 'Helvetica-Bold', size: 9.2, color: INK, align: 'center' });
+    y += 30;
+  }
+
+  // ═══════════ SIGNATURES ═══════════
+  const sigY = pageH - 84;
+  const slots = [['Class Advisor', L], ['Principal', L + W / 2 - 78], ['Parent / Guardian', R - 156]];
+  for (const [label, x] of slots) {
+    doc.moveTo(x, sigY).lineTo(x + 156, sigY).lineWidth(0.8).stroke(BORDER);
+    doc.fillColor(MUTED).font('Helvetica').fontSize(7.8).text(label, x, sigY + 4, { width: 156, align: 'center', lineBreak: false });
+  }
+  doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(7.2)
+    .text('This is a computer-generated report card. Any alteration renders it invalid.', L, pageH - 112, { width: W, align: 'center', lineBreak: false });
+  doc.moveTo(L, pageH - 46).lineTo(R, pageH - 46).lineWidth(0.8).stroke(LINE);
+  doc.fillColor(MUTED).font('Helvetica').fontSize(7.2)
+    .text(`${p.schoolName || 'School'}  ·  Official report card  ·  ${p.studentName || ''}`, L, pageH - 40, { width: W * 0.7, lineBreak: false });
+  doc.fillColor(MUTED).font('Helvetica').fontSize(7.2)
+    .text(`Issued ${p.issuedAt || new Date().toISOString().slice(0, 10)}`, L + W * 0.7, pageH - 40, { width: W * 0.3, align: 'right', lineBreak: false });
+}
+
 async function generateReportCard(student, grades, attendance, termInfo) {
-  // Backwards-compatible: if called the old way (grades array only), render simple card
-  if (!student.__v2) return generateSimpleCard(student, grades, attendance, termInfo);
-
-  const {
-    schoolName = 'School', studentName, studentNumber, className,
-    termName, subjects, average, rank, studentCount, remarks, promotionLine,
-  } = student;
-
+  if (!student || !student.__v2) return generateSimpleCard(student, grades, attendance, termInfo);
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const doc = new PDFDocument({ margin: 0, size: 'A4' });
     const chunks = [];
     doc.on('data', (c) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
-
-    // Logo (if provided via payload.__logo buffer)
-    if (student.__logo) {
-      try { doc.image(student.__logo, 40, 38, { fit: [52, 52] }); } catch (e) {}
-    }
-
-    // Header
-    doc.fontSize(18).font('Helvetica-Bold').text(schoolName.toUpperCase(), { align: 'center' });
-    doc.moveDown(0.2);
-    doc.fontSize(11).font('Helvetica').text('STUDENT REPORT CARD', { align: 'center' });
-    doc.moveDown(0.8);
-
-    // Student info grid
-    const infoTop = doc.y;
-    const colW = 250;
-    doc.fontSize(10).font('Helvetica-Bold');
-    doc.text('Student Name:', 40, infoTop);
-    doc.text('Student ID:', 40 + colW, infoTop);
-    doc.text('Class / Section:', 40, infoTop + 16);
-    doc.text('Academic Term:', 40 + colW, infoTop + 16);
-    doc.font('Helvetica');
-    doc.text(studentName || '—', 130, infoTop);
-    doc.text(studentNumber || '—', 40 + colW + 70, infoTop);
-    doc.text(className || '—', 130, infoTop + 16);
-    doc.text(termName || '—', 40 + colW + 70, infoTop + 16);
-    doc.moveDown(3);
-
-    // Marks table
-    const tTop = doc.y + 8;
-    const cols = [
-      { label: 'Subject', x: 40, w: 170 },
-      { label: 'CA (50%)', x: 210, w: 65 },
-      { label: 'Exam (50%)', x: 275, w: 65 },
-      { label: 'Semester /100', x: 340, w: 80 },
-      { label: 'Grade', x: 420, w: 60 },
-      { label: 'Outcomes', x: 480, w: 75 },
-    ];
-    doc.rect(40, tTop, 515, 20).fill('#1e293b');
-    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9);
-    for (const c of cols) doc.text(c.label, c.x + 4, tTop + 6, { width: c.w - 8 });
-    let y = tTop + 20;
-
-    doc.font('Helvetica').fillColor('#000');
-    let totalMark = 0;
-    const list = subjects || [];
-    for (let i = 0; i < list.length; i++) {
-      const s = list[i];
-      if (i % 2 === 0) {
-        doc.rect(40, y, 515, 18).fill('#f1f5f9');
-      }
-      doc.fillColor('#000').fontSize(9);
-      doc.text(s.name || '—', cols[0].x + 4, y + 5, { width: cols[0].w - 8 });
-      doc.text(fmt(s.ca), cols[1].x + 4, y + 5, { width: cols[1].w - 8, align: 'center' });
-      doc.text(fmt(s.exam), cols[2].x + 4, y + 5, { width: cols[2].w - 8, align: 'center' });
-      doc.font('Helvetica-Bold');
-      doc.text(fmt(s.mark), cols[3].x + 4, y + 5, { width: cols[3].w - 8, align: 'center' });
-      doc.text(s.letter || '—', cols[4].x + 4, y + 5, { width: cols[4].w - 8, align: 'center' });
-      doc.font('Helvetica');
-      doc.text((s.mark ?? 0) >= 50 ? 'PASSED' : 'FAILED', cols[5].x + 4, y + 5, { width: cols[5].w - 8, align: 'center' });
-      totalMark += Number(s.mark || 0);
-      y += 18;
-    }
-
-    // Totals row
-    doc.rect(40, y, 515, 20).fill('#e2e8f0');
-    doc.fillColor('#000').font('Helvetica-Bold').fontSize(9);
-    doc.text('TOTAL / AVERAGE', cols[0].x + 4, y + 6);
-    const avg = list.length ? Math.round((totalMark / list.length) * 10) / 10 : 0;
-    doc.text(String(totalMark.toFixed(1)), 340 + 4, y + 6, { width: 72, align: 'center' });
-    doc.text(String(avg), 420 + 4, y + 6, { width: 52, align: 'center' });
-    y += 32;
-
-    // Rank & attendance summary
-    doc.fontSize(10).font('Helvetica-Bold');
-    doc.text(`Average: ${avg} / 100`, 40, y);
-    doc.text(`Rank: ${rank ?? '—'}${studentCount ? ` of ${studentCount}` : ''}`, 200, y);
-    if (attendance) {
-      doc.text(`Attendance — Present: ${attendance.present || 0}  Absent: ${attendance.absent || 0}  Late: ${attendance.late || 0}`, 330, y, { width: 230 });
-    }
-    y += 24;
-
-    // Remarks & promotion
-    doc.font('Helvetica').fontSize(10);
-    doc.text(`Remarks: ${remarks || '_________________________________________'}`, 40, y);
-    y += 30;
-    doc.font('Helvetica-Bold');
-    doc.text(promotionLine || '', 40, y);
-
-    // Signatures
-    doc.font('Helvetica').fontSize(9).fillColor('#334155');
-    const sigY = doc.page.height - 110;
-    doc.text('_____________________', 40, sigY);
-    doc.text('_____________________', 240, sigY);
-    doc.text('_____________________', 440, sigY);
-    doc.fontSize(8).fillColor('#64748b');
-    doc.text('Homeroom Teacher', 40, sigY + 14, { width: 120, align: 'center' });
-    doc.text('Principal', 240, sigY + 14, { width: 120, align: 'center' });
-    doc.text('Parent / Guardian', 440, sigY + 14, { width: 120, align: 'center' });
-
+    drawCard(doc, student);
     doc.end();
   });
 }
 
-// legacy simple card
+async function generateCombinedReportCards(payloads) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 0, size: 'A4' });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    payloads.forEach((p, i) => { if (i > 0) doc.addPage(); drawCard(doc, p); });
+    doc.end();
+  });
+}
+
 async function generateSimpleCard(student, grades, attendance, termInfo) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50 });
@@ -134,50 +232,10 @@ async function generateSimpleCard(student, grades, attendance, termInfo) {
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
-
     doc.fontSize(20).text('Report Card', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(14).text(`${student.first_name} ${student.last_name}`, { align: 'center' });
-    doc.fontSize(12).text(`Class: ${student.class_name || 'N/A'}  |  Term: ${termInfo?.name || 'N/A'}`);
-    doc.moveDown();
-
-    doc.fontSize(14).text('Academic Performance', { underline: true });
-    doc.moveDown(0.5);
-
-    const tableTop = doc.y;
-    doc.fontSize(10);
-    doc.text('Subject', 50, tableTop, { width: 200 });
-    doc.text('Marks', 270, tableTop, { width: 80, align: 'center' });
-    doc.text('Grade', 370, tableTop, { width: 80, align: 'center' });
-    doc.moveDown();
-
-    if (grades && grades.length > 0) {
-      for (const g of grades) {
-        const y = doc.y;
-        doc.text(g.subject_name || 'N/A', 50, y, { width: 200 });
-        doc.text(String(g.marks_obtained ?? '-'), 270, y, { width: 80, align: 'center' });
-        doc.text(g.grade_letter || '-', 370, y, { width: 80, align: 'center' });
-        doc.moveDown(0.3);
-      }
-    } else {
-      doc.text('No grades recorded.', 50, doc.y);
-    }
-
-    doc.moveDown(2);
-    doc.fontSize(14).text('Attendance Summary', { underline: true });
-    doc.moveDown(0.5);
-
-    if (attendance) {
-      doc.fontSize(10);
-      doc.text(`Present: ${attendance.present || 0}`);
-      doc.text(`Absent: ${attendance.absent || 0}`);
-      doc.text(`Late: ${attendance.late || 0}`);
-    } else {
-      doc.text('No attendance data.');
-    }
-
+    doc.fontSize(12).text(`Class: ${student?.class_name || 'N/A'}  |  Term: ${termInfo?.name || 'N/A'}`);
     doc.end();
   });
 }
 
-module.exports = { generateReportCard };
+module.exports = { generateReportCard, generateCombinedReportCards, DEFAULT_SCALE, drawCard };

@@ -52,4 +52,15 @@ async function myChildren(req, res) {
   res.json({ success: true, data: children });
 }
 
-module.exports = { list, getById, link, unlink, updateLink, myChildren, updateParent };
+async function linkGuardian(req, res) {
+  try {
+    const result = await parentsService.linkGuardian(req.tenant.id, req.body || {});
+    res.status(201).json({ success: true, data: result });
+  } catch (err) {
+    const map = { STUDENT_NOT_FOUND: [404, 'STUDENT_NOT_FOUND', 'Student not found'], PHONE_REQUIRED: [400, 'PHONE_REQUIRED', 'A phone number is required to create a guardian'] };
+    if (map[err.code]) return res.status(map[err.code][0]).json({ success: false, error: { code: map[err.code][1], message: map[err.code][2] } });
+    throw err;
+  }
+}
+
+module.exports = { list, getById, link, unlink, updateLink, myChildren, updateParent, linkGuardian };

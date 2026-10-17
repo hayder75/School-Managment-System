@@ -41,6 +41,12 @@ export function useStudentsByClass(classId) {
   });
 }
 
+export function useUnlinkedStudents(params = {}) {
+  return useQuery({
+    queryKey: ["students-unlinked", params],
+    queryFn: () => api.get("/students/unlinked", { params }),
+  });
+}
 export function usePromoteStudents() {
   const qc = useQueryClient();
   return useMutation({
@@ -52,10 +58,11 @@ export function usePromoteStudents() {
   });
 }
 
-export function useEnrollmentStats() {
+export function useEnrollmentStats(options = {}) {
   return useQuery({
     queryKey: ["enrollment-stats"],
     queryFn: () => api.get("/students/enrollment-stats"),
+    ...options,
   });
 }
 

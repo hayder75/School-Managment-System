@@ -50,7 +50,7 @@ export default function QualityAssurancePage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><FileCheck2 className="h-8 w-8 text-blue-500" /><div><p className="text-2xl font-bold">{counts.pending_review ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.pendingReview}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><ClipboardList className="h-8 w-8 text-amber-500" /><div><p className="text-2xl font-bold">{counts.needs_revision ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.needsRevision}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Library className="h-8 w-8 text-green-500" /><div><p className="text-2xl font-bold">{counts.approved ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.approved}</p></div></div></CardContent></Card>
@@ -121,7 +121,7 @@ export default function QualityAssurancePage() {
       )}
 
       {tab === "bank" && (
-        <div className="grid gap-4 sm:grid-cols-2 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
           {bank.map((b) => (
             <Card key={b.id}>
               <CardHeader className="pb-2"><CardTitle className="text-base">{b.title}</CardTitle></CardHeader>
@@ -166,7 +166,7 @@ function QualityReport({ summary }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{total}</p><p className="text-xs text-muted-foreground">{t.qa.reportTotalReviewed}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-600">{approvalRate}%</p><p className="text-xs text-muted-foreground">{t.qa.reportApprovalRate}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-blue-600">{counts.pending_review ?? counts.submitted ?? 0}</p><p className="text-xs text-muted-foreground">{t.qa.pendingReview}</p></CardContent></Card>

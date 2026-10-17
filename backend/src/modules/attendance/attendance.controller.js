@@ -2,6 +2,19 @@ const attendanceService = require('./attendance.service');
 const access = require('../../shared/access');
 const db = require('../../config/database');
 
+const HOMEROOM_MSG = 'Attendance is taken by the homeroom teacher of the class only.';
+
+// Teachers may only touch attendance for a class they are the homeroom teacher of.
+async function teacherCanUseClass(tenantId, user, classId) {
+  if (user.role !== 'teacher') return true;
+  return access.isHomeroomTeacherOfClass(tenantId, user.userId, classId);
+}
+
+async function getMyHomeroomClasses(req, res) {
+  const classes = await access.homeroomClasses(req.tenant.id, req.user.userId);
+  res.json({ success: true, data: { classes } });
+}
+
 async function mark(req, res) {
   const { date, records } = req.validated.body;
 
@@ -15,10 +28,8 @@ async function mark(req, res) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Cannot mark attendance for a future date' } });
   }
 
-  if (req.user.role === 'teacher') {
-    if (!(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, req.params.classId))) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only mark attendance for classes you teach' } });
-    }
+  if (!(await teacherCanUseClass(req.tenant.id, req.user, req.params.classId))) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: HOMEROOM_MSG } });
   }
 
   const result = await attendanceService.mark(
@@ -41,8 +52,8 @@ async function getByClassAndDate(req, res) {
     });
   }
   const { userId, role } = req.user;
-  if (role === 'teacher' && !(await access.isTeacherAssignedToClass(req.tenant.id, userId, classId))) {
-    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view attendance for classes you teach' } });
+  if (role === 'teacher' && !(await access.isHomeroomTeacherOfClass(req.tenant.id, userId, classId))) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: HOMEROOM_MSG } });
   }
   if (role === 'parent') {
     const children = await access.getChildrenUserIdsForParent(req.tenant.id, userId);
@@ -95,10 +106,8 @@ async function getClassStats(req, res) {
   const { classId } = req.params;
   const { period, from_date, to_date, today } = req.query;
 
-  if (req.user.role === 'teacher') {
-    if (!(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, classId))) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view stats for classes you teach' } });
-    }
+  if (req.user.role === 'teacher' && !(await access.isHomeroomTeacherOfClass(req.tenant.id, req.user.userId, classId))) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: HOMEROOM_MSG } });
   }
 
   const data = await attendanceService.getClassStats(req.tenant.id, classId, {
@@ -136,4 +145,4 @@ async function getAdminClassOverview(req, res) {
   res.json({ success: true, data });
 }
 
-module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview, getTeacherOverview, getClassStats };
+module.exports = { mark, getByClassAndDate, getByStudent, getSummary, getAdminOverview, getAdminClassOverview, getTeacherOverview, getClassStats, getMyHomeroomClasses };

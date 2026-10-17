@@ -99,7 +99,7 @@ async function computeAttendanceImpact(tenantId, { userId, month, year, basicPay
   const from = m && y ? `${y}-${String(m).padStart(2, '0')}-01` : null;
   const to = m && y ? new Date(Date.UTC(y, m, 0)).toISOString().split('T')[0] : null;
 
-  let unpaid = { unpaid_days: 0, absent_days: 0, half_days: 0 };
+  let unpaid = { unpaid_days: 0, absent_days: 0, half_days: 0, late_minutes: 0 };
   if (userId && from && to) {
     unpaid = await hrService.computeUnpaidDays(tenantId, userId, from, to);
   }
@@ -126,6 +126,7 @@ async function computeAttendanceImpact(tenantId, { userId, month, year, basicPay
     unpaid_days: unpaid.unpaid_days,
     absent_days: unpaid.absent_days,
     half_days: unpaid.half_days,
+    late_minutes: unpaid.late_minutes || 0,
     daily_rate: dailyRate,
     working_days: settings.working_days,
     fixed_daily_rate: settings.fixed_daily_rate,
@@ -153,9 +154,10 @@ async function applyAttendanceDeduction(tenantId, data) {
 }
 
 async function createPayroll(tenantId, data, performedBy) {
+  const prefilled = await prefillOvertime(tenantId, data);
   const enriched = await applyAttendanceDeduction(
     tenantId,
-    await applyAutoCalculations(tenantId, data)
+    await applyAutoCalculations(tenantId, prefilled)
   );
   const totals = computeTotals(enriched);
   const [entry] = await db('payroll').insert({ ...enriched, ...totals, tenant_id: tenantId }).returning('*');
@@ -168,17 +170,26 @@ async function createPayroll(tenantId, data, performedBy) {
   return entry;
 }
 
+// If no overtime was supplied, pull in the approved overtime amount computed on
+// the HR overtime page for that staff member + month.
+async function prefillOvertime(tenantId, data) {
+  if (data.overtime != null || !data.user_id) return data;
+  const amount = await hrService.getApprovedOvertimeAmount(tenantId, data.user_id, data.month, data.year);
+  return amount > 0 ? { ...data, overtime: amount } : data;
+}
+
 // Preview computed values without saving (used by the UI "Calculate" button).
 async function calculatePayroll(tenantId, data) {
+  const prefilled = await prefillOvertime(tenantId, data);
   const enriched = await applyAttendanceDeduction(
     tenantId,
-    await applyAutoCalculations(tenantId, data)
+    await applyAutoCalculations(tenantId, prefilled)
   );
   const totals = computeTotals(enriched);
   return {
     ...enriched,
     ...totals,
-    taxable_income: round2(num(data.basic_pay) + num(data.overtime)),
+    taxable_income: round2(num(prefilled.basic_pay) + num(prefilled.overtime)),
   };
 }
 
@@ -222,6 +233,11 @@ async function updatePayroll(tenantId, id, data, performedBy) {
     derived.unpaid_days = impact.unpaid_days;
     if (merged.absent_days == null) derived.absent_days = impact.absent_days;
   }
+  if (data.status !== undefined) {
+    // Record when a person is paid; clear it if the entry is not paid.
+    if (data.status === 'paid' && !data.paid_date) derived.paid_date = new Date().toISOString().slice(0, 10);
+    else if (data.status !== 'paid') derived.paid_date = null;
+  }
   const totals = computeTotals({ ...merged, ...derived });
   const [entry] = await db('payroll').where({ tenant_id: tenantId, id }).update({ ...data, ...derived, ...totals }).returning('*');
   await createPayrollAudit(tenantId, {
@@ -234,14 +250,120 @@ async function updatePayroll(tenantId, id, data, performedBy) {
 }
 
 async function getPayrollSummary(tenantId, month, year) {
-  const totalGross = await db('payroll').where({ tenant_id: tenantId, month, year }).sum('basic_pay as total').first();
-  const totalNet = await db('payroll').where({ tenant_id: tenantId, month, year }).sum('net_pay as total').first();
-  const count = await db('payroll').where({ tenant_id: tenantId, month, year }).count('* as count').first();
+  const now = new Date();
+  const m = month !== undefined && month !== null && month !== '' ? month : now.getMonth() + 1;
+  const y = year !== undefined && year !== null && year !== '' ? year : now.getFullYear();
+  const where = { tenant_id: tenantId, month: m, year: y };
+  const totalGross = await db('payroll').where(where).sum('basic_pay as total').first();
+  const totalNet = await db('payroll').where(where).sum('net_pay as total').first();
+  const count = await db('payroll').where(where).count('* as count').first();
   return {
+    month: m,
+    year: y,
     total_gross: parseFloat(totalGross?.total || 0),
     total_net: parseFloat(totalNet?.total || 0),
     employee_count: parseInt(count?.count || 0, 10),
   };
+}
+
+// Carry these fields forward from the previous payroll entry when generating a
+// new month. Tax, pension and the attendance deduction are intentionally left
+// out so the system recomputes them for the new month.
+const CARRY_ALLOWANCES = ['transport_allowance', 'back_pay', 'unit_leader_allowance', 'department_head_allowance', 'housing_allowance', 'account_allowance', 'phone_allowance'];
+const CARRY_DEDUCTIONS = ['eder', 'office_loan', 'cafe_loan', 'school_pay', 'ne_starving'];
+
+/**
+ * Generate payroll for every active staff member for a month, carrying forward
+ * basic pay / allowances / deductions / bank details from their most recent
+ * payroll entry (or the salary register if they have none). Tax, pension,
+ * approved overtime and this month's attendance deduction are recalculated.
+ * Staff who already have an entry for the month are skipped.
+ */
+async function generateMonthly(tenantId, { month, year }, performedBy) {
+  const m = parseInt(month, 10);
+  const y = parseInt(year, 10);
+  if (!m || m < 1 || m > 12 || !y) {
+    const e = new Error('MONTH_YEAR_REQUIRED'); e.code = 'MONTH_YEAR_REQUIRED'; throw e;
+  }
+
+  const staff = await db('users')
+    .where({ tenant_id: tenantId, status: 'active' })
+    .whereNotIn('role', ['student', 'parent'])
+    .select('id', 'basic_salary', 'allowance', 'housing_allowance', 'account_allowance', 'phone_allowance');
+
+  // Most recent payroll entry per staff, excluding the target month.
+  const sources = await db('payroll')
+    .where({ tenant_id: tenantId })
+    .whereNot({ month: m, year: y })
+    .distinctOn('user_id')
+    .orderBy('user_id')
+    .orderBy('year', 'desc')
+    .orderBy('month', 'desc');
+  const srcMap = new Map(sources.map((s) => [s.user_id, s]));
+
+  const existing = await db('payroll').where({ tenant_id: tenantId, month: m, year: y }).select('user_id');
+  const have = new Set(existing.map((e) => e.user_id));
+
+  let created = 0, skipped = 0, noBase = 0;
+  for (const u of staff) {
+    if (have.has(u.id)) { skipped++; continue; }
+    const src = srcMap.get(u.id);
+    const data = { user_id: u.id, month: m, year: y };
+
+    if (src) {
+      data.basic_pay = src.basic_pay;
+      data.salary_grade_id = src.salary_grade_id;
+      data.work_days = src.work_days;
+      data.bank_account = src.bank_account;
+      data.bank_name = src.bank_name;
+      for (const f of CARRY_ALLOWANCES) if (src[f] != null) data[f] = num(src[f]);
+      for (const f of CARRY_DEDUCTIONS) if (src[f] != null) data[f] = num(src[f]);
+    } else {
+      const basic = num(u.basic_salary);
+      if (basic <= 0) { noBase++; continue; }
+      data.basic_pay = basic;
+      if (num(u.allowance)) data.transport_allowance = num(u.allowance);
+      if (num(u.housing_allowance)) data.housing_allowance = num(u.housing_allowance);
+      if (num(u.account_allowance)) data.account_allowance = num(u.account_allowance);
+      if (num(u.phone_allowance)) data.phone_allowance = num(u.phone_allowance);
+    }
+
+    // Leave tax, pension and attendance unset so they are recomputed, and let
+    // approved overtime for the month be picked up automatically.
+    data.income_tax = null;
+    data.pension_employee = null;
+    data.pension_employer = null;
+    data.attendance_deduction = null;
+    data.overtime = null;
+
+    await createPayroll(tenantId, data, performedBy);
+    created++;
+  }
+
+  return { created, skipped, missing_base: noBase, month: m, year: y };
+}
+
+// Mark every payroll entry for a month as paid (or back to pending / cancelled).
+// Records the paid date when settling. Used by "Mark all paid".
+async function settleMonth(tenantId, { month, year, status = 'paid' }, performedBy) {
+  const m = parseInt(month, 10);
+  const y = parseInt(year, 10);
+  if (!m || !y) { const e = new Error('MONTH_YEAR_REQUIRED'); e.code = 'MONTH_YEAR_REQUIRED'; throw e; }
+  const target = ['paid', 'pending', 'cancelled'].includes(status) ? status : 'paid';
+  const patch = { status: target };
+  patch.paid_date = target === 'paid' ? new Date().toISOString().slice(0, 10) : null;
+  const rows = await db('payroll')
+    .where({ tenant_id: tenantId, month: m, year: y })
+    .whereNot({ status: target })
+    .update(patch)
+    .returning('id');
+  if (rows.length) {
+    await createPayrollAudit(tenantId, {
+      payroll_id: null, action: `bulk_${target}`, performed_by: performedBy,
+      details: { month: m, year: y, count: rows.length, status: target },
+    });
+  }
+  return { updated: rows.length, status: target, month: m, year: y };
 }
 
 // === TAX BRACKETS ===
@@ -264,7 +386,7 @@ async function removeTaxBracket(tenantId, id) {
 async function listLeaves(tenantId, { staff_id, status } = {}) {
   let q = db('leaves').where({ 'leaves.tenant_id': tenantId })
     .leftJoin('users', 'leaves.staff_id', 'users.id')
-    .select('leaves.*', db.raw("concat(users.first_name, ' ', users.last_name) as staff_name"))
+    .select('leaves.*', db.raw("concat_ws(' ', users.first_name, users.middle_name, users.last_name) as staff_name"))
     .orderBy('created_at', 'desc');
   if (staff_id) q = q.where('leaves.staff_id', staff_id);
   if (status) q = q.where('leaves.status', status);
@@ -287,7 +409,7 @@ async function rejectLeave(tenantId, id, reason) {
 async function listPayrollAudits(tenantId) {
   return db('payroll_audits').where({ 'payroll_audits.tenant_id': tenantId })
     .leftJoin('users', 'payroll_audits.performed_by', 'users.id')
-    .select('payroll_audits.*', db.raw("concat(users.first_name, ' ', users.last_name) as performed_by_name"))
+    .select('payroll_audits.*', db.raw("concat_ws(' ', users.first_name, users.middle_name, users.last_name) as performed_by_name"))
     .orderBy('payroll_audits.created_at', 'desc');
 }
 async function createPayrollAudit(tenantId, data) {
@@ -314,6 +436,7 @@ async function approvePayrollGM(tenantId, userId, { month, year, id } = {}) {
 module.exports = {
   createSalaryGrade, findAllSalaryGrades, updateSalaryGrade, removeSalaryGrade,
   createPayroll, findAllPayroll, updatePayroll, getPayrollSummary, calculatePayroll,
+  generateMonthly, settleMonth,
   computeAttendanceImpact,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,
   listLeaves, createLeave, approveLeave, rejectLeave,

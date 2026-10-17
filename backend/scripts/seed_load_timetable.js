@@ -15,9 +15,12 @@ const read = (f) => JSON.parse(fs.readFileSync(path.join(SEED_DIR, f), 'utf8'));
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const nameNorm = (s) => String(s || '').toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
 
+// Real bell schedule from "School Time Schedule.xlsx" (Ethiopian time → international, +6h).
+// 1st 2:30-3:15, 2nd 3:16-4:00, 3rd 4:01-4:45, short break, 4th 5:00-5:45, 5th 5:46-6:30,
+// lunch 6:30-7:30, 6th 8:00-8:45, 7th 8:46-9:30.
 const PERIOD_TIMES = {
-  1: ['08:00', '08:45'], 2: ['08:45', '09:30'], 3: ['09:50', '10:35'],
-  4: ['10:35', '11:20'], 5: ['13:00', '13:45'], 6: ['13:45', '14:30'], 7: ['14:30', '15:15'],
+  1: ['08:30', '09:15'], 2: ['09:16', '10:00'], 3: ['10:01', '10:45'],
+  4: ['11:00', '11:45'], 5: ['11:46', '12:30'], 6: ['14:00', '14:45'], 7: ['14:46', '15:30'],
 };
 
 const SUBJECT_ALIAS = {

@@ -1,9 +1,13 @@
+import { fullName } from "../../lib/fullName";
 import { useState } from "react";
 import { useDebouncedValue } from "../../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
 import { useUsers, useCreateUser, useDeleteUser } from "../../hooks/useUsers";
+import { useAuthStore } from "../../store/auth";
+import { canEditStaff } from "../../components/staff/StaffEditDialog";
+import StaffEditDialog from "../../components/staff/StaffEditDialog";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -12,14 +16,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 
-const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head"];
+const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head", "librarian"];
 
 export default function UsersPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const myRole = useAuthStore((s) => s.user?.role);
+  const canEdit = canEditStaff(myRole);
+  const [editUser, setEditUser] = useState(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
@@ -31,7 +38,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "", section_count: "", periods_per_week: "", overtime_periods: "0" });
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const isStaffRole = ["admin", "teacher", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head"].includes(form.role);
+  const isStaffRole = ["admin", "teacher", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head", "librarian"].includes(form.role);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -54,7 +61,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Users</h1>
           <p className="text-muted-foreground">Manage all users in your school</p>
@@ -157,20 +164,20 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>All Users</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center w-full sm:w-auto">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search users..."
-                  className="pl-9 w-64"
+                  placeholder="Search name, phone, email, or role…"
+                  className="pl-9 w-full sm:w-64"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 />
               </div>
               <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-36">
+                <SelectTrigger className="w-full sm:w-36">
                   <SelectValue placeholder="All roles" />
                 </SelectTrigger>
                 <SelectContent>
@@ -204,7 +211,7 @@ export default function UsersPage() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
                         <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/staff/${user.id}`)}>
-                          {user.first_name} {user.last_name}
+                          {fullName(user)}
                         </Button>
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -218,9 +225,16 @@ export default function UsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => deleteUser.mutate(user.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex items-center justify-end">
+                          {canEdit && (
+                            <Button variant="ghost" size="icon" title={t("Edit details")} onClick={() => setEditUser(user)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => deleteUser.mutate(user.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -245,6 +259,8 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      <StaffEditDialog user={editUser} open={!!editUser} onOpenChange={(o) => { if (!o) setEditUser(null); }} />
     </div>
   );
 }

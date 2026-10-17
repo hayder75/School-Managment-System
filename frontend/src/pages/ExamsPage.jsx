@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { fullName } from "../lib/fullName";
+import { useState, useEffect } from "react";
+import api from "../lib/api";
 import { useAuthStore } from "../store/auth";
 import { useExams, useCreateExam, useDeleteExam } from "../hooks/useExams";
 import { useClasses } from "../hooks/useClasses";
@@ -63,7 +65,7 @@ function GradeEntry({ exam }) {
           <TableBody>
             {records.map((r) => (
               <TableRow key={r.id}>
-                <TableCell>{r.first_name} {r.last_name}</TableCell>
+                <TableCell>{fullName(r)}</TableCell>
                 <TableCell className="w-32">
                   <Input
                     type="number"
@@ -96,7 +98,23 @@ export default function ExamsPage() {
   const deleteExam = useDeleteExam();
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "", pass_marks: "", date: "", mark_test_day: false });
+  const [form, setForm] = useState({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "100", pass_marks: "50", date: "", mark_test_day: false });
+  const [usedTotal, setUsedTotal] = useState(null);
+
+  // Show how much of the 100 is already used for the selected class + subject.
+  useEffect(() => {
+    let active = true;
+    const cid = form.class_ids[0];
+    if (!cid || !form.subject_id) { setUsedTotal(null); return; }
+    api.get("/exams", { params: { class_id: cid, subject_id: form.subject_id, limit: 200 } })
+      .then((res) => {
+        if (!active) return;
+        const used = (res.data || []).reduce((s2, e) => s2 + (parseFloat(e.total_marks) || 0), 0);
+        setUsedTotal(used);
+      })
+      .catch(() => active && setUsedTotal(null));
+    return () => { active = false; };
+  }, [form.class_ids, form.subject_id]);
 
   const exams = data?.data || [];
   const meta = data?.meta || {};
@@ -126,12 +144,12 @@ export default function ExamsPage() {
       pass_marks: form.pass_marks ? parseFloat(form.pass_marks) : undefined,
     });
     setOpen(false);
-    setForm({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "", pass_marks: "", date: "", mark_test_day: false });
+    setForm({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "100", pass_marks: "50", date: "", mark_test_day: false });
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Exams & Grades")}</h1>
           <p className="text-muted-foreground">{t("Create exams and enter grades")}</p>
@@ -157,6 +175,9 @@ export default function ExamsPage() {
                       <SelectItem value="midterm">{t("Midterm")}</SelectItem>
                       <SelectItem value="final">{t("Final")}</SelectItem>
                       <SelectItem value="assignment">{t("Assignment")}</SelectItem>
+                      <SelectItem value="classwork">{t("Classwork")}</SelectItem>
+                      <SelectItem value="homework">{t("Homework")}</SelectItem>
+                      <SelectItem value="project">{t("Project")}</SelectItem>
                       <SelectItem value="exam">{t("Exam")}</SelectItem>
                     </SelectContent>
                   </Select>
@@ -189,7 +210,7 @@ export default function ExamsPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>{t("Subject")}</Label>
+                  <Label>{t("Subject")} <span className="text-rose-500">*</span></Label>
                   <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
                     <SelectTrigger><SelectValue placeholder={t("Select subject")} /></SelectTrigger>
                     <SelectContent>
@@ -206,6 +227,11 @@ export default function ExamsPage() {
                 <div className="space-y-2">
                   <Label>{t("Total Marks")}</Label>
                   <Input type="number" value={form.total_marks} onChange={(e) => setForm({ ...form, total_marks: e.target.value })} />
+                  {usedTotal != null && (
+                    <p className={`text-[11px] ${Math.max(100 - usedTotal, 0) <= 0 ? "text-rose-600" : "text-muted-foreground"}`}>
+                      {t("Used {used} of 100 for this class + subject — remaining {left}", { used: usedTotal, left: Math.max(100 - usedTotal, 0) })}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>{t("Pass Marks")}</Label>
@@ -216,7 +242,7 @@ export default function ExamsPage() {
                 <input type="checkbox" checked={form.mark_test_day} onChange={(e) => setForm({ ...form, mark_test_day: e.target.checked })} />
                 {t("Mark this day as a test class in the timetable")}
               </label>
-              <Button type="submit" className="w-full" disabled={form.class_ids.length === 0}>{t("Create Exam")}</Button>
+              <Button type="submit" className="w-full" disabled={form.class_ids.length === 0 || !form.subject_id}>{t("Create Exam")}</Button>
             </form>
           </DialogContent>
         </Dialog>

@@ -6,7 +6,7 @@ async function listAssets(tenantId, { search, category, status } = {}) {
     .where('a.tenant_id', tenantId)
     .select(
       'a.*',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as assigned_to_name")
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as assigned_to_name")
     )
     .orderBy('a.created_at', 'desc');
 
@@ -109,7 +109,7 @@ async function listAssignments(tenantId, assetId) {
     .where({ 'aa.tenant_id': tenantId, 'aa.asset_id': assetId })
     .select(
       'aa.*',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as holder_name"),
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as holder_name"),
       'u.role as holder_role'
     )
     .orderBy('aa.assigned_at', 'desc');

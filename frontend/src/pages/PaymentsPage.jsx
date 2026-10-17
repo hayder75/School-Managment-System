@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { FieldError } from "../components/ui/form-error";
@@ -189,7 +190,7 @@ export default function PaymentsPage() {
   }
 
   async function handleRefund(p) {
-    if (!confirm(`Refund payment of ${parseFloat(p.amount_paid).toLocaleString()} for ${p.first_name} ${p.last_name}?`)) return;
+    if (!confirm(`Refund payment of ${parseFloat(p.amount_paid).toLocaleString()} for ${fullName(p)}?`)) return;
     try {
       await updatePayment.mutateAsync({ id: p.id, status: "refunded" });
     } catch (err) {
@@ -198,7 +199,7 @@ export default function PaymentsPage() {
   }
 
   async function handleDelete(p) {
-    if (!confirm(`Delete payment of ${parseFloat(p.amount_paid).toLocaleString()} for ${p.first_name} ${p.last_name}? This cannot be undone.`)) return;
+    if (!confirm(`Delete payment of ${parseFloat(p.amount_paid).toLocaleString()} for ${fullName(p)}? This cannot be undone.`)) return;
     try {
       await deletePayment.mutateAsync(p.id);
     } catch (err) {
@@ -239,7 +240,7 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Payments")}</h1>
           <p className="text-muted-foreground">{t("Record and track student payments")}</p>
@@ -257,7 +258,7 @@ export default function PaymentsPage() {
                 <>
                   <div className="space-y-2">
                     <Label>{t("Student")}</Label>
-                    <Input value={`${selectedStudent?.first_name || ""} ${selectedStudent?.last_name || ""}`} disabled />
+                    <Input value={`${fullName(selectedStudent)}`} disabled />
                   </div>
                   <FieldError errors={fieldErrors} field="student_id" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -333,7 +334,7 @@ export default function PaymentsPage() {
                                 >
                                   <StudentAvatar student={s} className="w-7 h-7 text-xs" />
                                   <span className="flex-1 min-w-0">
-                                    <span className="block text-sm font-medium truncate">{s.first_name} {s.last_name}</span>
+                                    <span className="block text-sm font-medium truncate">{fullName(s)}</span>
                                     <span className="block text-xs text-muted-foreground truncate">
                                       {[s.student_number, s.class_name, s.phone].filter(Boolean).join(" · ")}
                                     </span>
@@ -351,7 +352,7 @@ export default function PaymentsPage() {
                         {bulkStudents.map((s) => (
                           <span key={s.user_id} className="inline-flex items-center gap-2 rounded-full border bg-muted/50 pl-1 pr-2 py-1 text-sm">
                             <StudentAvatar student={s} className="w-6 h-6 text-[10px]" />
-                            <span className="font-medium">{s.first_name} {s.last_name}</span>
+                            <span className="font-medium">{fullName(s)}</span>
                             <button type="button" onClick={() => removeBulkStudent(s.user_id)} className="text-muted-foreground hover:text-foreground" title="Remove">
                               <X className="h-3.5 w-3.5" />
                             </button>
@@ -416,7 +417,7 @@ export default function PaymentsPage() {
                                   <div className="flex items-center gap-2">
                                     <StudentAvatar student={s} className="w-7 h-7 text-xs" />
                                     <div className="leading-tight">
-                                      <p className="font-medium">{s.first_name} {s.last_name}</p>
+                                      <p className="font-medium">{fullName(s)}</p>
                                       <p className="text-xs text-muted-foreground">{[s.student_number, s.class_name].filter(Boolean).join(" · ")}</p>
                                     </div>
                                   </div>
@@ -546,7 +547,7 @@ export default function PaymentsPage() {
       {ledger.structures?.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>{t("Fee Statement")} — {ledger.student?.first_name} {ledger.student?.last_name} ({ledger.student?.student_number || "—"})</CardTitle>
+            <CardTitle>{t("Fee Statement")} — {fullName(ledger.student)} ({ledger.student?.student_number || "—"})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -652,10 +653,10 @@ export default function PaymentsPage() {
                         <button
                           type="button"
                           key={s.user_id}
-                          onMouseDown={(e) => { e.preventDefault(); setFilterStudentId(s.user_id); setPage(1); setFilterSearch(`${s.first_name} ${s.last_name}`); setFilterOpen(false); }}
+                          onMouseDown={(e) => { e.preventDefault(); setFilterStudentId(s.user_id); setPage(1); setFilterSearch(`${fullName(s)}`); setFilterOpen(false); }}
                           className="w-full text-left px-3 py-2 hover:bg-muted flex flex-col gap-0.5"
                         >
-                          <span className="text-sm font-medium">{s.first_name} {s.last_name}</span>
+                          <span className="text-sm font-medium">{fullName(s)}</span>
                           <span className="text-xs text-muted-foreground">
                             {[s.student_number, s.class_name, s.phone].filter(Boolean).join(" · ")}
                           </span>
@@ -703,7 +704,7 @@ export default function PaymentsPage() {
                                 <div className="flex items-center gap-2">
                                   {avatar}
                                   <button className="font-medium hover:text-primary hover:underline text-left" onClick={() => navigate(`/students/${g.student_id}`)}>
-                                    {g.first_name} {g.last_name}
+                                    {fullName(g)}
                                   </button>
                                 </div>
                               </td>
@@ -742,7 +743,7 @@ export default function PaymentsPage() {
                                   {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                                   {avatar}
                                   <button className="font-medium hover:text-primary hover:underline text-left" onClick={(e) => { e.stopPropagation(); navigate(`/students/${g.student_id}`); }}>
-                                    {g.first_name} {g.last_name}
+                                    {fullName(g)}
                                     <span className="block text-xs font-normal text-muted-foreground">{g.items.length} payments</span>
                                   </button>
                                 </div>

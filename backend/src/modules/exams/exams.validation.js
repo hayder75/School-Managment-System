@@ -4,7 +4,7 @@ const createExamSchema = z.object({
   body: z
     .object({
       name: z.string().min(1).max(255),
-      type: z.enum(['quiz', 'midterm', 'final', 'assignment', 'exam']).default('exam'),
+      type: z.enum(['quiz', 'midterm', 'final', 'assignment', 'classwork', 'homework', 'project', 'exam']).default('exam'),
       class_id: z.string().uuid().optional(),
       class_ids: z.array(z.string().uuid()).optional(),
       subject_id: z.string().uuid(),

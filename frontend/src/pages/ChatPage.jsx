@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/auth";
@@ -23,13 +24,21 @@ const roleColor = {
   owner: "bg-neutral-900 text-white",
 };
 
-function initials(a, b) {
-  return `${(a || "?")[0] || ""}${(b || "")[0] || ""}`.toUpperCase();
+function nameOf(p) {
+  if (!p) return "";
+  return (p.name || `${fullName(p)}`.trim() || p.phone || "").trim();
+}
+function initials(p) {
+  const n = nameOf(p);
+  const parts = n.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
 }
 function displayName(conv, fallback) {
   const parts = conv?.participants || [];
-  if (parts.length === 1) return `${parts[0].first_name || ""} ${parts[0].last_name || ""}`.trim();
-  if (parts.length > 1) return `${parts[0].first_name || ""} +${parts.length - 1}`;
+  if (parts.length === 1) return nameOf(parts[0]) || conv?.subject || fallback;
+  if (parts.length > 1) return `${nameOf(parts[0])} +${parts.length - 1}`;
   return conv?.subject || fallback;
 }
 function fmtTime(ts) {
@@ -223,9 +232,9 @@ export default function ChatPage() {
                         {contacts.map((c) => (
                           <button key={c.id} onClick={() => pickContact(c)}
                             className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted text-left">
-                            <span className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${roleColor[c.role] || "bg-neutral-200"}`}>{initials(c.first_name, c.last_name)}</span>
+                            <span className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${roleColor[c.role] || "bg-neutral-200"}`}>{initials(c)}</span>
                             <span className="flex-1 min-w-0">
-                              <span className="block text-sm font-medium truncate">{c.first_name} {c.last_name}</span>
+                              <span className="block text-sm font-medium truncate">{nameOf(c)}</span>
                               <span className="block text-xs text-muted-foreground capitalize">{c.role}</span>
                             </span>
                           </button>
@@ -280,7 +289,7 @@ export default function ChatPage() {
               <button key={conv.id} onClick={() => { setPane("chats"); setSelectedConv(conv); }}
                 className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selectedConv?.id === conv.id ? "bg-muted" : "hover:bg-muted/60"}`}>
                 <span className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${roleColor[other?.role] || "bg-neutral-200"}`}>
-                  {initials(other?.first_name, other?.last_name)}
+                  {initials(other)}
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center justify-between gap-2">
@@ -332,7 +341,7 @@ export default function ChatPage() {
                 return (
                   <div key={msg.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[72%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${mine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white border rounded-bl-sm"}`}>
-                      {!mine && <p className="text-[11px] font-semibold mb-0.5 opacity-70">{msg.first_name} {msg.last_name}</p>}
+                      {!mine && <p className="text-[11px] font-semibold mb-0.5 opacity-70">{msg.name || `${fullName(msg)}`.trim()}</p>}
                       <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                       <p className={`text-[10px] mt-1 ${mine ? "opacity-70" : "text-muted-foreground"}`}>
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -376,7 +385,7 @@ export default function ChatPage() {
           <DialogHeader><DialogTitle>{t("Restrict chat access")}</DialogTitle></DialogHeader>
           {restrictTarget && (
             <div className="space-y-4">
-              <p className="text-sm">{restrictTarget.first_name} {restrictTarget.last_name} <span className="text-muted-foreground capitalize">({restrictTarget.role})</span></p>
+              <p className="text-sm">{fullName(restrictTarget)} <span className="text-muted-foreground capitalize">({restrictTarget.role})</span></p>
               <p className="text-xs text-muted-foreground">{t("A restricted user cannot start new chats. You can lift this any time.")}</p>
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setRestrictTarget(null)}>{t("Cancel")}</Button>

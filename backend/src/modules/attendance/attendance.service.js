@@ -98,6 +98,7 @@ async function getByClassAndDate(tenantId, classId, date) {
     .select(
       'attendance.*',
       'users.first_name',
+      'users.middle_name',
       'users.last_name',
       'users.email'
     )
@@ -271,7 +272,7 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
       db.raw("COUNT(*) FILTER (WHERE attendance.status = 'late')::int as late"),
       db.raw('COUNT(*)::int as total')
     )
-    .groupBy('users.id', 'users.first_name', 'users.last_name', 'classes.name')
+    .groupBy('users.id', 'users.first_name', 'users.middle_name', 'users.last_name', 'classes.name')
     .orderByRaw('absent DESC, late DESC')
     .limit(15);
 
@@ -285,10 +286,12 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
 async function getTeacherOverview(tenantId, teacherUserId, { fromDate, toDate, classId, today } = {}) {
   const todayDate = today || new Date().toISOString().split('T')[0];
 
-  const classRows = await db('teacher_subjects')
-    .where({ tenant_id: tenantId, teacher_id: teacherUserId })
-    .distinct('class_id')
-    .select('class_id');
+  // Attendance belongs to homeroom teachers: only classes where this user is
+  // the class teacher (classes.class_teacher_id) are included.
+  const classRows = await db('classes')
+    .where({ tenant_id: tenantId, class_teacher_id: teacherUserId })
+    .distinct('id as class_id')
+    .select('id as class_id');
   let classIds = classRows.map((r) => r.class_id).filter(Boolean);
   if (classId) classIds = classIds.filter((id) => id === classId);
 
@@ -361,7 +364,7 @@ async function getTeacherOverview(tenantId, teacherUserId, { fromDate, toDate, c
       'classes.name as class_name',
       ...aggColumns()
     )
-    .groupBy('users.id', 'users.first_name', 'users.last_name', 'classes.name')
+    .groupBy('users.id', 'users.first_name', 'users.middle_name', 'users.last_name', 'classes.name')
     .orderByRaw('absent DESC, late DESC')
     .limit(10);
 
@@ -380,7 +383,7 @@ async function getTeacherOverview(tenantId, teacherUserId, { fromDate, toDate, c
       'classes.name as class_name',
       ...aggColumns()
     )
-    .groupBy('users.id', 'users.first_name', 'users.last_name', 'classes.name')
+    .groupBy('users.id', 'users.first_name', 'users.middle_name', 'users.last_name', 'classes.name')
     .orderByRaw('present DESC, absent ASC')
     .limit(6);
 
@@ -567,7 +570,7 @@ async function getAdminClassOverview(tenantId, classId, { fromDate, toDate } = {
       db.raw("COUNT(*) FILTER (WHERE attendance.status = 'excused')::int as excused"),
       db.raw('COUNT(*)::int as total')
     )
-    .groupBy('users.id', 'users.first_name', 'users.last_name')
+    .groupBy('users.id', 'users.first_name', 'users.middle_name', 'users.last_name')
     .orderByRaw('absent DESC, late DESC');
 
   students.forEach((s) => {

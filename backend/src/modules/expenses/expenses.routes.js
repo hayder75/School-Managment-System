@@ -13,7 +13,7 @@ router.use(tenant);
 // Executives can view expenses (and GM approves); writes are guarded below.
 router.use(requireAccess(['admin', 'owner', 'finance', 'general_manager', 'principal', 'vice_principal', 'quality_director'], ['expenses.manage']));
 
-const EXPENSE_WRITE = requireAccess(['admin', 'owner', 'finance'], []);
+const EXPENSE_WRITE = requireAccess(['admin', 'owner', 'finance', 'accountant', 'general_services'], []);
 
 router.get('/totals', controller.getTotals);
 router.patch('/:id/gm-approve', requireAccess(['admin', 'owner', 'general_manager'], ['expenses.approve']), controller.approveGM);

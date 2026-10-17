@@ -47,3 +47,14 @@ export function useClassAttendanceStats(classId, params = {}) {
     enabled: !!classId,
   });
 }
+
+// Classes the signed-in user is the homeroom teacher of. Attendance is only
+// available for these; empty means the user is not a homeroom teacher.
+export function useMyHomeroomClasses(enabled = true) {
+  return useQuery({
+    queryKey: ["attendance-my-classes"],
+    queryFn: () => api.get("/attendance/my-classes"),
+    staleTime: 5 * 60 * 1000,
+    enabled,
+  });
+}

@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useAuthStore } from "../store/auth";
 import { useSystemStats } from "../hooks/useTenants";
 import { useStudents, useEnrollmentStats } from "../hooks/useStudents";
@@ -12,6 +13,7 @@ import { usePayroll } from "../hooks/usePayroll";
 import { useStudentGradeSummary, useStudentAttendanceSummary, useMyStudents, useMyClassSummary, useStaffDirectory, useEnrollmentReport, useHeadcount, usePayrollSummary, useRevenueVsExpenses, useTeacherWorkload } from "../hooks/useReports";
 import { useI18n } from "../i18n/I18nContext";
 import { useMaintenance, useMaintenanceSummary, usePurchases } from "../hooks/useRoleModules";
+import { useLibraryStats } from "../hooks/useLibrary";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { BarChart, DonutChart, GroupedBarChart } from "../components/ui/charts";
 import {
@@ -80,7 +82,7 @@ function SuperAdminDashboard() {
         <p className="text-muted-foreground">Loading system stats...</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Schools" value={stats.schools || 0} icon={Building2} sub="Registered tenants" />
             <StatCard title="Branches" value={stats.branches || 0} icon={Globe} sub="Across all schools" />
             <StatCard title="Total Users" value={stats.totalUsers || 0} icon={Users} sub={`${stats.activeUsers || 0} active`} />
@@ -158,10 +160,9 @@ function AdminDashboard() {
     .filter((r) => r.role !== "student" && r.role !== "parent")
     .map((r, i) => ({
       label: ROLE_LABELS[r.role] || r.role,
-      value: r.count,
+      value: Number(r.count) || 0,
       color: PALETTE[i % PALETTE.length],
     }));
-  const staffTotal = staffSegments.reduce((s, r) => s + r.value, 0);
   const payrollBars = (payrollData?.data?.monthly || []).map((m) => ({
     label: MONTHS[m.month - 1],
     value: Math.round(parseFloat(m.total_net || 0)),
@@ -179,13 +180,13 @@ function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold">{t("Dashboard")}</h1><p className="text-muted-foreground">{t("School overview")}</p></div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title={t("Students")} value={studentsData?.meta?.total || "—"} icon={GraduationCap} sub={`${enrollmentData?.data?.total_enrolled ?? "—"} ${t("enrolled")}`} />
         <StatCard title={t("Teachers")} value={teachersData?.meta?.total || "—"} icon={Users} sub={`${workloadData?.data?.workload?.length || 0} ${t("with assignments")}`} />
         <StatCard title={t("Classes")} value={classesData?.meta?.total || "—"} icon={BookOpen} />
         <StatCard title={t("Subjects")} value={subjectsData?.meta?.total || "—"} icon={School} />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title={t("Fees Collected")} value={totalCollected ? `${totalCollected.toLocaleString()}` : "—"} icon={DollarSign} color="text-green-600" />
         <StatCard title={t("Total Expenses")} value={totalExpenses ? `${totalExpenses.toLocaleString()}` : "—"} icon={TrendingDown} color="text-red-600" />
         <StatCard title={t("Net Balance")} value={totalCollected ? `${(totalCollected - totalExpenses).toLocaleString()}` : "—"} icon={BarChart3} color={totalCollected >= totalExpenses ? "text-green-600" : "text-red-600"} />
@@ -206,7 +207,19 @@ function AdminDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4" /> {t("Staff by Role")}</CardTitle></CardHeader>
-          <CardContent><DonutChart total={staffTotal} segments={staffSegments} /></CardContent>
+          <CardContent className="space-y-2">
+            {staffSegments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No data</p>
+            ) : staffSegments.map((r, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm">
+                <span className="w-28 shrink-0 text-muted-foreground truncate">{r.label}</span>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${(r.value / Math.max(1, ...staffSegments.map((x) => x.value))) * 100}%`, backgroundColor: r.color }} />
+                </div>
+                <span className="w-10 text-right font-medium">{r.value}</span>
+              </div>
+            ))}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" /> {t("Payroll by Month")} ({year})</CardTitle></CardHeader>
@@ -238,7 +251,7 @@ function AdminDashboard() {
               <div className="space-y-2">
                 {workloadTop.map((w) => (
                   <div key={w.teacher_id} className="flex items-center justify-between p-2 border rounded text-sm">
-                    <span className="font-medium">{w.first_name} {w.last_name}</span>
+                    <span className="font-medium">{fullName(w)}</span>
                     <span className="text-xs text-muted-foreground">{w.total_assignments} {t("class-subject assignments")}</span>
                   </div>
                 ))}
@@ -360,7 +373,7 @@ function ChildAcademicCard({ child }) {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{child.first_name} {child.last_name}</CardTitle>
+          <CardTitle className="text-base">{fullName(child)}</CardTitle>
           <span className={`px-2 py-0.5 rounded-full text-xs ${
             child.status === "active" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
           }`}>{child.status}</span>
@@ -438,7 +451,7 @@ function ParentDashboard() {
             <div className="space-y-2">
               {(myFees.payments || []).slice(0, 5).map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                  <span>{p.fee_name || "Fee"} · {p.first_name} {p.last_name}</span>
+                  <span>{p.fee_name || "Fee"} · {fullName(p)}</span>
                   <span className="font-medium">${parseFloat(p.amount_paid || 0).toFixed(2)}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     p.status === "paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
@@ -517,7 +530,7 @@ function CashierDashboard() {
         <h1 className="text-3xl font-bold">Cashier Dashboard</h1>
         <p className="text-muted-foreground">Welcome back, {user?.firstName} {user?.lastName}</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Collected Today" value={summary.today_collected ? `$${summary.today_collected.toLocaleString()}` : "$0"} icon={Wallet} color="text-green-600" sub={`${summary.today_transactions || 0} transactions`} />
         <StatCard title="This Month" value={summary.month_collected ? `$${summary.month_collected.toLocaleString()}` : "$0"} icon={TrendingUp} color="text-blue-600" sub={`${summary.month_transactions || 0} transactions`} />
         <StatCard title="Total Collected" value={summary.total_collected ? `$${summary.total_collected.toLocaleString()}` : "$0"} icon={DollarSign} color="text-green-600" />
@@ -533,7 +546,7 @@ function CashierDashboard() {
               <div className="space-y-2">
                 {recentPayments.map((p) => (
                   <div key={p.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                    <span className="font-medium">{p.first_name} {p.last_name}</span>
+                    <span className="font-medium">{fullName(p)}</span>
                     <span className="text-xs text-muted-foreground">{p.fee_name || ""}</span>
                     <span className="font-medium">${parseFloat(p.amount_paid || 0).toFixed(2)}</span>
                     <span className="text-xs text-muted-foreground">{p.paid_date ? <EthiopianDate date={p.paid_date} /> : ""}</span>
@@ -556,8 +569,10 @@ function CashierDashboard() {
 }
 
 function HRDashboard() {
-  const { data: staffData } = useStaffDirectory();
-  const { data: payrollData } = usePayroll({ limit: 5 });
+  const role = useAuthStore((s) => s.user?.role);
+  const canViewStaff = ["admin", "owner", "hr"].includes(role);
+  const { data: staffData } = useStaffDirectory(undefined, { enabled: canViewStaff });
+  const { data: payrollData } = usePayroll({ limit: 5 }, { enabled: canViewStaff });
 
   const recentPayroll = payrollData?.data || [];
 
@@ -591,6 +606,68 @@ function HRDashboard() {
   );
 }
 
+function LibrarianDashboard() {
+  const { t } = useI18n();
+  const { data } = useLibraryStats();
+  const s = data?.data || {};
+  const recent = s.recent || [];
+  const PAL = ["#2c5a5e", "#7fb3a0", "#c9a86a", "#8f9bb3", "#d47a6a", "#6a8fd4"];
+  return (
+    <div className="space-y-6">
+      <div><h1 className="text-3xl font-bold">{t("Library Dashboard")}</h1><p className="text-muted-foreground">{t("Books, loans and usage analytics")}</p></div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard title={t("Book titles")} value={s.titles ?? "—"} icon={BookOpen} />
+        <StatCard title={t("On loan")} value={s.active ?? "—"} icon={Users} />
+        <StatCard title={t("Overdue")} value={s.overdue ?? "—"} icon={AlertTriangle} color="text-red-600" />
+        <StatCard title={t("Copies")} value={s.copies ?? "—"} sub={`${s.available ?? 0} ${t("available")}`} icon={BookOpen} />
+        <StatCard title={t("Returned")} value={s.returned ?? "—"} icon={CheckCircle} color="text-green-600" />
+        <StatCard title={t("Fines collected")} value={`${Number(s.fines || 0).toLocaleString()} ETB`} icon={DollarSign} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card><CardHeader><CardTitle className="text-sm">{t("Loans by grade")}</CardTitle></CardHeader><CardContent><BarChart data={s.by_grade || []} height={200} /></CardContent></Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{t("Recent loans")}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-1 text-sm max-h-64 overflow-y-auto">
+              {recent.map((r, i) => (
+                <div key={i} className="flex items-center justify-between border-b py-1.5 last:border-0">
+                  <span className="truncate pr-2">{r.book} <span className="text-muted-foreground">— {r.student_name}</span></span>
+                  <span className="text-xs text-muted-foreground shrink-0">{String(r.borrow_date).slice(0, 10)}</span>
+                </div>
+              ))}
+              {recent.length === 0 && <p className="text-muted-foreground">{t("No loans yet")}</p>}
+            </div>
+          </CardContent>
+        </Card>
+        <Card><CardHeader><CardTitle className="text-sm">{t("Top borrowed books")}</CardTitle></CardHeader><CardContent><BarChart data={s.top_books || []} height={200} color="#6a8fd4" /></CardContent></Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{t("Most active borrowers")}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {(s.top_borrowers || []).map((b, i) => (
+                <div key={i} className="flex items-center justify-between text-sm"><span>{b.label}{b.student_number ? ` · ${b.student_number}` : ""}</span><span className="font-medium">{b.value}</span></div>
+              ))}
+              {!(s.top_borrowers || []).length && <p className="text-muted-foreground">{t("No data")}</p>}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{t("Books by category")}</CardTitle></CardHeader>
+          <CardContent>
+            <DonutChart total={(s.categories || []).reduce((a, x) => a + Number(x.value || 0), 0)} caption={t("titles")} segments={(s.categories || []).map((c, i) => ({ ...c, color: PAL[i % PAL.length] }))} />
+          </CardContent>
+        </Card>
+        <Card><CardHeader><CardTitle className="text-sm">{t("Loans by class")}</CardTitle></CardHeader><CardContent><BarChart data={s.by_class || []} height={200} color="#7fb3a0" /></CardContent></Card>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const role = user?.role;
@@ -606,6 +683,7 @@ export default function DashboardPage() {
   if (role === "hr" || role === "shift_coordinator") return <HRDashboard />;
   if (role === "general_services") return <GeneralServicesDashboard />;
   if (role === "security_head" || role === "support") return <MinimalDashboard />;
+  if (role === "librarian") return <LibrarianDashboard />;
 
   return <AdminDashboard />;
 }
@@ -628,7 +706,7 @@ function GeneralServicesDashboard() {
         <p className="text-muted-foreground">Campus facilities, maintenance and purchasing overview</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Open Tickets" value={s.open ?? 0} icon={Wrench} color="text-blue-600" sub="Repairs waiting to start" />
         <StatCard title="In Progress" value={s.in_progress ?? 0} icon={Hammer} color="text-yellow-600" sub="Being fixed now" />
         <StatCard title="Completed" value={s.completed ?? 0} icon={CheckCircle} color="text-green-600" sub={`Spent ${Number(s.total_spent || 0).toLocaleString()} ETB`} />

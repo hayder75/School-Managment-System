@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, Fragment } from "react";
 import { useCollectionReport, useFeeStructures } from "../hooks/useFees";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -74,7 +75,7 @@ export default function CollectionReportPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Fee Collection Report")}</h1>
           <p className="text-muted-foreground">{t("Collected and uncollected fees by class")}</p>
@@ -114,7 +115,7 @@ export default function CollectionReportPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-5 gap-4">
         <StatCard title="Students" value={totals.total_students || 0} />
         <StatCard title="Paid" value={totals.paid_count ?? 0} sub={`${((totals.paid_count || 0) / (totals.total_students || 1) * 100).toFixed(1)}% ${t("of students")}`} color="text-green-600" />
         <StatCard title="Partial" value={totals.partial_count || 0} />
@@ -183,7 +184,7 @@ export default function CollectionReportPage() {
                                   <TableBody>
                                     {c.students.map((s) => (
                                       <TableRow key={s.user_id}>
-                                        <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
+                                        <TableCell className="font-medium">{fullName(s)}</TableCell>
                                         <TableCell>{s.student_number}</TableCell>
                                         <TableCell className="text-xs text-muted-foreground">{s.guardian_phone || "—"}</TableCell>
                                         <TableCell className="text-right">{Number(s.expected).toLocaleString()}</TableCell>

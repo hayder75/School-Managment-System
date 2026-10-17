@@ -1,21 +1,32 @@
+import { fullName } from "../../lib/fullName";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/auth";
 import { useI18n } from "../../i18n/I18nContext";
 import {
   Eye, EyeOff, ChevronDown, Check, Mail, Lock, ArrowRight,
-  School, UserRound, Languages,
+  UserRound, Languages, BookOpen,
 } from "lucide-react";
 import api from "../../lib/api";
+import { warmRole } from "../../lib/prefetch";
 
 const ROLE_LABELS = {
   owner: "School Owner",
   admin: "Administrator",
+  general_manager: "General Manager",
+  principal: "Principal",
+  vice_principal: "Vice Principal",
+  quality_director: "Quality Director",
   teacher: "Teacher",
   finance: "Finance Officer",
   cashier: "Cashier",
   hr: "HR Officer",
+  accountant: "Accountant",
+  general_services: "General Services",
+  shift_coordinator: "Shift Coordinator",
+  security_head: "Head of Security",
   support: "Support Staff",
+  librarian: "Librarian",
   parent: "Parent",
   student: "Student",
 };
@@ -23,11 +34,20 @@ const ROLE_LABELS = {
 const ROLE_LABELS_AM = {
   owner: "የትምህርት ቤት ባለቤት",
   admin: "አስተዳዳሪ",
+  general_manager: "ዋና ሥራ አስኪያጅ",
+  principal: "ዳይሬክተር",
+  vice_principal: "ምክትል ዳይሬክተር",
+  quality_director: "የጥራት ዳይሬክተር",
   teacher: "መምህር",
   finance: "ፋይናንስ ኃላፊ",
   cashier: "ካሸር",
   hr: "የሰው ሀብት አስተዳደር",
+  accountant: "ሒሳብ ሠራተኛ",
+  general_services: "አጠቃላይ አገልግሎት",
+  shift_coordinator: "የፈርቶች አስተባባሪ",
+  security_head: "የደኅንነት ኃላፊ",
   support: "የድጋፍ ሠራተኛ",
+  librarian: "ቤተ መጻሕፍት",
   parent: "ወላጅ",
   student: "ተማሪ",
 };
@@ -74,14 +94,16 @@ export default function LoginPage() {
   }, []);
 
   async function handleDevSelect(user) {
+    const id = user.username || user.email;
     setSelectedDev(user);
     setDemoOpen(false);
-    setIdentifier(user.email);
+    setIdentifier(id);
     setPassword("1234");
     setError("");
     setLoading(true);
     try {
-      await login(user.email, "1234");
+      await login(id, "1234");
+      warmRole(useAuthStore.getState().user?.role);
       navigate("/dashboard");
     } catch (err) {
       setError(err?.error?.message || err?.message || t.auth.loginFailed);
@@ -95,6 +117,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(identifier, password);
+      warmRole(useAuthStore.getState().user?.role);
       navigate("/dashboard");
     } catch (err) {
       setError(err?.error?.message || err?.message || t.auth.loginFailed);
@@ -112,7 +135,12 @@ export default function LoginPage() {
     <div className="relative min-h-screen w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col items-center justify-center p-4 sm:p-6">
       {/* faint background mark */}
       <div className="pointer-events-none fixed inset-0 flex items-center justify-center">
-        <School size={520} strokeWidth={0.5} className="text-neutral-100 select-none" />
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden="true"
+          className="h-[70vh] max-h-[720px] w-auto opacity-[0.07] select-none"
+        />
       </div>
 
       {/* Language switch — changes the whole system language */}
@@ -139,9 +167,11 @@ export default function LoginPage() {
       <div className="relative w-full max-w-[440px] pt-10 sm:pt-0">
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl border border-neutral-300 bg-white flex items-center justify-center shadow-sm">
-            <School size={22} strokeWidth={1.75} className="text-neutral-900" />
-          </div>
+          <img
+            src="/logo.svg"
+            alt="Mount Olive School"
+            className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm object-contain"
+          />
           <h1 className="mt-4 text-xl font-semibold tracking-tight">Mount Olive School</h1>
           <p className="text-[12px] text-neutral-400 font-medium mt-0.5">
             {lang === "am" ? "የትምህርት ቤት አስተዳደር ሥርዓት" : "School Management System"}
@@ -158,11 +188,11 @@ export default function LoginPage() {
             {selectedDev ? (
               <>
                 <span className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-[11px] font-semibold">
-                  {initials(`${selectedDev.first_name} ${selectedDev.last_name}`)}
+                  {initials(`${fullName(selectedDev)}`)}
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-[13px] font-medium truncate">
-                    {selectedDev.first_name} {selectedDev.last_name}
+                    {fullName(selectedDev)}
                   </span>
                   <span className="block text-[11px] text-neutral-400 font-medium">
                     {roleLabel(selectedDev.role)}
@@ -196,11 +226,11 @@ export default function LoginPage() {
                     className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
                   >
                     <span className="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700 flex items-center justify-center text-[10px] font-semibold">
-                      {initials(`${u.first_name} ${u.last_name}`)}
+                      {initials(`${fullName(u)}`)}
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block text-[13px] font-medium truncate">
-                        {u.first_name} {u.last_name}
+                        {fullName(u)}
                       </span>
                       <span className="block text-[11px] text-neutral-400">{roleLabel(u.role)}</span>
                     </span>
@@ -315,6 +345,29 @@ export default function LoginPage() {
             {t.auth.contactAdmin}
           </button>
         </p>
+
+        <a
+          href="/help"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group mt-5 flex items-center gap-3.5 rounded-2xl border border-neutral-300 bg-white px-4 py-3.5 text-left shadow-sm transition-all hover:border-neutral-900 hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900 text-white transition-colors group-hover:bg-neutral-700">
+            <BookOpen size={18} strokeWidth={1.9} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[13.5px] font-semibold leading-tight text-neutral-900">
+              Read the user manual
+            </span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-neutral-500">
+              What each role can do, step by step
+            </span>
+          </span>
+          <ArrowRight
+            size={16}
+            className="ml-auto flex-shrink-0 text-neutral-400 transition-all group-hover:translate-x-0.5 group-hover:text-neutral-900"
+          />
+        </a>
       </div>
     </div>
   );

@@ -1,13 +1,16 @@
+import { fullName } from "../lib/fullName";
 import { useState, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUser } from "../hooks/useUsers";
 import { usePayroll } from "../hooks/usePayroll";
+import { useAuthStore } from "../store/auth";
+import StaffEditDialog, { canEditStaff } from "../components/staff/StaffEditDialog";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { ArrowLeft, ChevronDown, ChevronRight, Download, Wallet, Briefcase, Phone, Mail } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Download, Wallet, Briefcase, Phone, Mail, Pencil } from "lucide-react";
 import { useI18n } from "../i18n/I18nContext";
 
 const money = (v) => (parseFloat(v) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -39,9 +42,11 @@ export default function StaffDetailPage() {
   const { t } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
+  const myRole = useAuthStore((s) => s.user?.role);
   const { data: userData, isLoading } = useUser(id);
   const { data: payrollData } = usePayroll({ user_id: id, limit: 500 });
   const [expandedId, setExpandedId] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const user = userData?.data || {};
   const entries = payrollData?.data || [];
@@ -57,17 +62,22 @@ export default function StaffDetailPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{user.first_name} {user.last_name}</h1>
+          <h1 className="text-2xl font-bold">{fullName(user)}</h1>
           <p className="text-sm text-muted-foreground">
             {user.job_title || user.role} &middot; <Badge variant="outline" className="ml-1">{user.role}</Badge>
             <Badge variant={user.status === "active" ? "success" : user.status === "invited" ? "warning" : "destructive"} className="ml-1">{user.status}</Badge>
           </p>
         </div>
+        {canEditStaff(myRole) && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4 mr-1" /> {t("Edit")}
+          </Button>
+        )}
         <div className="text-right">
           <p className="text-xs text-muted-foreground">{t("Salary Grade")}</p>
           <p className="font-semibold">{latest?.grade_name || "—"}</p>
           <p className="text-xs text-muted-foreground">{t("Basic")}</p>
-          <p className="font-semibold">{latest ? `${money(latest.basic_pay)} ETB` : "—"}</p>
+          <p className="font-semibold">{(latest?.basic_pay ?? user.basic_salary) != null ? `${money(latest?.basic_pay ?? user.basic_salary)} ETB` : "—"}</p>
         </div>
       </div>
 
@@ -78,6 +88,7 @@ export default function StaffDetailPage() {
             <p><span className="text-muted-foreground">{t("Job Title")}:</span> {user.job_title || "—"}</p>
             <p><span className="text-muted-foreground">{t("Qualification")}:</span> {user.qualification || "—"}</p>
             <p><span className="text-muted-foreground">{t("Field of Study")}:</span> {user.field_of_study || "—"}</p>
+            <p><span className="text-muted-foreground">{t("Joining Date")}:</span> {user.joined_at ? String(user.joined_at).slice(0, 10) : "—"}</p>
             <p><span className="text-muted-foreground">{t("Gender")}:</span> {user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : "—"}</p>
             <p><span className="text-muted-foreground">{t("Role")}:</span> {user.role}</p>
             {user.role === "teacher" && (
@@ -95,11 +106,22 @@ export default function StaffDetailPage() {
           <CardContent className="text-sm space-y-1">
             <p className="flex items-center gap-2"><Mail className="h-3 w-3 text-muted-foreground" />{user.email || "—"}</p>
             <p className="flex items-center gap-2"><Phone className="h-3 w-3 text-muted-foreground" />{user.phone || "—"}</p>
-            <p><span className="text-muted-foreground">{t("Joined")}:</span> <EthiopianDate date={user.created_at} /></p>
+            <p><span className="text-muted-foreground">{t("Joined this system")}:</span> <EthiopianDate date={user.created_at} /></p>
             <p><span className="text-muted-foreground">{t("Last Login")}:</span> <EthiopianDate date={user.last_login} /></p>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Wallet className="h-4 w-4" /> {t("Compensation")} <span className="text-xs font-normal text-muted-foreground">(ETB)</span></CardTitle></CardHeader>
+        <CardContent className="text-sm grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div><p className="text-muted-foreground text-xs">{t("Basic Salary")}</p><p className="font-semibold">{user.basic_salary != null ? money(user.basic_salary) : "—"}</p></div>
+          <div><p className="text-muted-foreground text-xs">{t("Allowance")}</p><p className="font-semibold">{user.allowance != null ? money(user.allowance) : "—"}</p></div>
+          <div><p className="text-muted-foreground text-xs">{t("Housing Allowance")}</p><p className="font-semibold">{user.housing_allowance != null ? money(user.housing_allowance) : "—"}</p></div>
+          <div><p className="text-muted-foreground text-xs">{t("Account Allowance")}</p><p className="font-semibold">{user.account_allowance != null ? money(user.account_allowance) : "—"}</p></div>
+          <div><p className="text-muted-foreground text-xs">{t("Phone Allowance")}</p><p className="font-semibold">{user.phone_allowance != null ? money(user.phone_allowance) : "—"}</p></div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-4 w-4" /> {t("Payroll History")}</CardTitle></CardHeader>
@@ -145,7 +167,7 @@ export default function StaffDetailPage() {
                       {expandedId === e.id && (
                         <TableRow>
                           <TableCell colSpan={8} className="bg-muted/30 p-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                               <div className="space-y-1">
                                 <p className="font-medium text-xs uppercase text-muted-foreground">{t("Allowances")}</p>
                                 {ALLOWANCE_FIELDS.map((f) => (
@@ -178,6 +200,8 @@ export default function StaffDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <StaffEditDialog user={user} open={editOpen} onOpenChange={setEditOpen} />
     </div>
   );
 }

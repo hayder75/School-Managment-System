@@ -1,11 +1,12 @@
 const service = require('./discipline.service');
 
 async function list(req, res) {
-  res.json({ success: true, data: await service.list(req.tenant.id, req.query) });
+  const data = await service.list(req.tenant.id, req.user.role, req.user.userId, req.query);
+  res.json({ success: true, data });
 }
 
 async function create(req, res) {
-  const row = await service.create(req.tenant.id, req.user.userId, req.body);
+  const row = await service.create(req.tenant.id, req.user.userId, req.user.role, req.body);
   res.status(201).json({ success: true, data: row });
 }
 

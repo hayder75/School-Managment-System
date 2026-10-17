@@ -43,7 +43,7 @@ async function teacherClassUserIds(tenantId, teacherId) {
 
 async function canViewStudentByUserId(tenantId, userId, role, studentUserId) {
   if (role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'cashier' || role === 'finance') return true;
-  if (role === 'general_manager' || role === 'principal' || role === 'vice_principal' || role === 'quality_director' || role === 'shift_coordinator' || role === 'hr') return true;
+  if (role === 'general_manager' || role === 'principal' || role === 'vice_principal' || role === 'quality_director' || role === 'shift_coordinator' || role === 'hr' || role === 'librarian') return true;
   if (role === 'student') {
     const s = await getStudentForUser(tenantId, userId);
     return !!s && s.user_id === studentUserId;
@@ -75,6 +75,45 @@ async function teacherSubjectIdsForStudent(tenantId, teacherId, studentUserId) {
   return rows.map((r) => r.subject_id);
 }
 
+// ── Homeroom (class teacher) helpers ──
+// Attendance is owned by the homeroom teacher of a class (classes.class_teacher_id),
+// not by every teacher who happens to teach a subject in that class.
+
+async function homeroomClassIds(tenantId, teacherId) {
+  if (!teacherId) return [];
+  const rows = await db('classes')
+    .where({ tenant_id: tenantId, class_teacher_id: teacherId })
+    .select('id');
+  return rows.map((r) => r.id);
+}
+
+async function homeroomClasses(tenantId, teacherId) {
+  if (!teacherId) return [];
+  const classes = await db('classes')
+    .where({ tenant_id: tenantId, class_teacher_id: teacherId })
+    .select('id', 'name', 'grade_level', 'section', 'level_group')
+    .orderBy('grade_level')
+    .orderBy('name');
+  if (!classes.length) return [];
+  const ids = classes.map((c) => c.id);
+  const counts = await db('students')
+    .where({ tenant_id: tenantId, status: 'active' })
+    .whereIn('class_id', ids)
+    .groupBy('class_id')
+    .select('class_id')
+    .count('id as c');
+  const map = Object.fromEntries(counts.map((r) => [r.class_id, Number(r.c)]));
+  return classes.map((c) => ({ ...c, student_count: map[c.id] || 0 }));
+}
+
+async function isHomeroomTeacherOfClass(tenantId, teacherId, classId) {
+  if (!teacherId || !classId) return false;
+  const row = await db('classes')
+    .where({ tenant_id: tenantId, id: classId, class_teacher_id: teacherId })
+    .first();
+  return !!row;
+}
+
 module.exports = {
   getStudentForUser,
   getChildrenUserIdsForParent,
@@ -85,4 +124,7 @@ module.exports = {
   canViewStudentByUserId,
   canViewStudentRecord,
   teacherSubjectIdsForStudent,
+  homeroomClassIds,
+  homeroomClasses,
+  isHomeroomTeacherOfClass,
 };

@@ -51,7 +51,7 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Expenses")}</h1>
           <p className="text-muted-foreground">{t("Track school expenses")}</p>

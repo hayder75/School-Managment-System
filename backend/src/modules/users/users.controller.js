@@ -1,11 +1,14 @@
 const userService = require('./users.service');
 
 const highPrivilegeRoles = ['owner', 'admin'];
+// Non-admin staff who may edit other staff, but never touch/hand out admin or
+// owner roles.
+const restrictedUpdaters = ['hr', 'quality_director', 'principal', 'vice_principal'];
 
 function assertRoleChangeAllowed(req, role) {
   if (!role) return;
-  if (req.user.role === 'hr' && highPrivilegeRoles.includes(role)) {
-    const err = new Error('HR cannot assign admin or owner roles');
+  if (restrictedUpdaters.includes(req.user.role) && highPrivilegeRoles.includes(role)) {
+    const err = new Error('You cannot assign admin or owner roles');
     err.code = 'FORBIDDEN';
     throw err;
   }
@@ -77,10 +80,10 @@ async function update(req, res) {
       throw err;
     }
 
-    if (req.user.role === 'hr' && highPrivilegeRoles.includes(target.role)) {
+    if (restrictedUpdaters.includes(req.user.role) && highPrivilegeRoles.includes(target.role)) {
       return res.status(403).json({
         success: false,
-        error: { code: 'FORBIDDEN', message: 'HR cannot modify admin or owner accounts' },
+        error: { code: 'FORBIDDEN', message: 'You cannot modify admin or owner accounts' },
       });
     }
 
@@ -89,6 +92,11 @@ async function update(req, res) {
         success: false,
         error: { code: 'FORBIDDEN', message: 'HR cannot modify their own account' },
       });
+    }
+
+    // Only admin/owner/GM may change the data scope.
+    if (!['admin', 'owner', 'general_manager'].includes(req.user.role)) {
+      delete req.validated.body.scope_level_groups;
     }
 
     const user = await userService.update(req.tenant.id, req.params.id, req.validated.body);
@@ -120,10 +128,10 @@ async function remove(req, res) {
       throw err;
     }
 
-    if (req.user.role === 'hr' && highPrivilegeRoles.includes(target.role)) {
+    if (restrictedUpdaters.includes(req.user.role) && highPrivilegeRoles.includes(target.role)) {
       return res.status(403).json({
         success: false,
-        error: { code: 'FORBIDDEN', message: 'HR cannot delete admin or owner accounts' },
+        error: { code: 'FORBIDDEN', message: 'You cannot delete admin or owner accounts' },
       });
     }
 
@@ -144,4 +152,16 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { create, list, getById, update, remove };
+async function updateCompensation(req, res) {
+  const target = await userService.findById(req.tenant.id, req.params.id);
+  if (!target) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'User not found' },
+    });
+  }
+  const user = await userService.update(req.tenant.id, req.params.id, req.validated.body);
+  res.json({ success: true, data: user });
+}
+
+module.exports = { create, list, getById, update, updateCompensation, remove };

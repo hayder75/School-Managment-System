@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { fullName } from "../lib/fullName";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
-import { useClassTimetable, useCreateTimetableEntry, useDeleteTimetableEntry } from "../hooks/useTimetable";
+import { useClassTimetable, useCreateTimetableEntry, useUpdateTimetableEntry, useDeleteTimetableEntry } from "../hooks/useTimetable";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeachers } from "../hooks/useTeachers";
 import { useTeacherAssignments } from "../hooks/useTeachers";
@@ -14,11 +15,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, Trash2, Wand2 } from "lucide-react";
+import { Plus, Trash2, Wand2, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n } from "../i18n/I18nContext";
 
 const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const dayLabels = { monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu", friday: "Fri", saturday: "Sat" };
+
+// Bell schedule from the school's "School Time Schedule.xlsx" (Ethiopian time +6h).
+const PERIODS = [
+  { n: 1, start: "08:30", end: "09:15" },
+  { n: 2, start: "09:16", end: "10:00" },
+  { n: 3, start: "10:01", end: "10:45" },
+  { n: 4, start: "11:00", end: "11:45" },
+  { n: 5, start: "11:46", end: "12:30" },
+  { n: 6, start: "14:00", end: "14:45" },
+  { n: 7, start: "14:46", end: "15:30" },
+];
+const DEFAULT_PERIOD = PERIODS[0];
 
 function toMonday(dateStr) {
   const d = new Date(`${dateStr}T00:00:00Z`);
@@ -26,6 +39,17 @@ function toMonday(dateStr) {
   const diff = day === 0 ? -6 : 1 - day;
   d.setUTCDate(d.getUTCDate() + diff);
   return d.toISOString().split("T")[0];
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().split("T")[0];
+}
+
+function shortDate(iso) {
+  const [, m, d] = String(iso || "").split("-");
+  return m && d ? `${m}/${d}` : "";
 }
 
 const UNAVAIL_LABEL = { leave: "On leave", emergency: "Emergency" };
@@ -85,6 +109,7 @@ export default function TimetablePage() {
   );
   const { data: myChildrenData } = useMyChildren({ enabled: isParent });
   const createEntry = useCreateTimetableEntry();
+  const updateEntry = useUpdateTimetableEntry();
   const deleteEntry = useDeleteTimetableEntry();
 
   const [weekStart, setWeekStart] = useState(() => toMonday(new Date().toISOString().split("T")[0]));
@@ -148,17 +173,19 @@ export default function TimetablePage() {
         setUnavailability(map);
       })
       .catch(() => setUnavailability({}));
-    api.get("/shifts/substitutions", { params: { from, to } })
-      .then((res) => {
-        const map = {};
-        for (const s of res.data || []) {
-          const d = String(s.date).slice(0, 10);
-          map[`${s.original_teacher_id}|${d}`] = s.substitute_teacher_name;
-        }
-        setSubMap(map);
-      })
-      .catch(() => setSubMap({}));
-  }, [weekDates]);
+    if (!isStudent && !isParent) {
+      api.get("/shifts/substitutions", { params: { from, to } })
+        .then((res) => {
+          const map = {};
+          for (const s of res.data || []) {
+            const d = String(s.date).slice(0, 10);
+            map[`${s.original_teacher_id}|${d}`] = s.substitute_teacher_name;
+          }
+          setSubMap(map);
+        })
+        .catch(() => setSubMap({}));
+    }
+  }, [weekDates, isStudent, isParent]);
 
   useEffect(() => {
     if (isStudent && myStudentData?.data?.length > 0) {
@@ -187,12 +214,13 @@ export default function TimetablePage() {
       : allClasses;
 
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [dialogEntries, setDialogEntries] = useState([]);
   const [form, setForm] = useState({
     class_id: "", subject_id: "", teacher_id: "",
-    day_of_week: "monday", start_time: "08:00", end_time: "09:00", room: "",
+    day_of_week: "monday", start_time: DEFAULT_PERIOD.start, end_time: DEFAULT_PERIOD.end, room: "",
   });
 
   useEffect(() => {
@@ -215,9 +243,10 @@ export default function TimetablePage() {
     const s = toMin(form.start_time);
     const e = toMin(form.end_time);
     return dialogEntries.find(
-      (x) => x.day_of_week === form.day_of_week && toMin(x.start_time) < e && toMin(x.end_time) > s
+      (x) => (editingId ? x.id !== editingId : true) &&
+        x.day_of_week === form.day_of_week && toMin(x.start_time) < e && toMin(x.end_time) > s
     ) || null;
-  }, [open, dialogEntries, form.day_of_week, form.start_time, form.end_time]);
+  }, [open, dialogEntries, form.day_of_week, form.start_time, form.end_time, editingId]);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -247,22 +276,52 @@ export default function TimetablePage() {
   async function handleCreate(e) {
     e.preventDefault();
     setCreateError("");
-    const payload = { ...Object.fromEntries(Object.entries(form).filter(([, v]) => v !== "")) };
-    payload.class_id = form.class_id || classId;
+    const classIdFinal = form.class_id || classId;
     try {
-      await createEntry.mutateAsync(payload);
+      if (editingId) {
+        const payload = { ...Object.fromEntries(Object.entries(form).filter(([, v]) => v !== "")) };
+        delete payload.class_id; delete payload.day_of_week;
+        await updateEntry.mutateAsync({ id: editingId, ...payload });
+      } else {
+        const payload = { ...Object.fromEntries(Object.entries(form).filter(([, v]) => v !== "")) };
+        payload.class_id = classIdFinal;
+        await createEntry.mutateAsync(payload);
+      }
       setOpen(false);
-      setForm({ class_id: classId, subject_id: "", teacher_id: "", day_of_week: "monday", start_time: "08:00", end_time: "09:00", room: "" });
+      setEditingId(null);
+      setForm({ class_id: classIdFinal, subject_id: "", teacher_id: "", day_of_week: "monday", start_time: DEFAULT_PERIOD.start, end_time: DEFAULT_PERIOD.end, room: "" });
     } catch (err) {
       setCreateError(err?.error?.message || err?.message || t("Could not save the entry"));
     }
+  }
+
+  function openAdd() {
+    setEditingId(null);
+    setCreateError("");
+    setForm({ class_id: classId, subject_id: "", teacher_id: "", day_of_week: "monday", start_time: DEFAULT_PERIOD.start, end_time: DEFAULT_PERIOD.end, room: "" });
+    setOpen(true);
+  }
+
+  function openEdit(entry) {
+    setEditingId(entry.id);
+    setCreateError("");
+    setForm({
+      class_id: entry.class_id || classId,
+      subject_id: entry.subject_id || "",
+      teacher_id: entry.teacher_id || "",
+      day_of_week: entry.day_of_week || "monday",
+      start_time: String(entry.start_time || DEFAULT_PERIOD.start).slice(0, 5),
+      end_time: String(entry.end_time || DEFAULT_PERIOD.end).slice(0, 5),
+      room: entry.room || "",
+    });
+    setOpen(true);
   }
 
   const myClass = classes.find((c) => c.id === classId);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Timetable")}</h1>
           <p className="text-muted-foreground">
@@ -286,9 +345,20 @@ export default function TimetablePage() {
             </Select>
           )}
           {classId && (
-            <div className="space-y-1">
-              <Label className="text-xs">{t("Week of")}</Label>
-              <Input type="date" className="w-40" value={weekStart} onChange={(e) => setWeekStart(toMonday(e.target.value || weekStart))} />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" className="h-10 w-9" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label={t("Previous week")}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="space-y-1">
+                <Label className="text-xs">{t("Week of")}</Label>
+                <Input type="date" className="w-44" value={weekStart} onChange={(e) => setWeekStart(toMonday(e.target.value || weekStart))} />
+              </div>
+              <Button variant="outline" size="icon" className="h-10 w-9" onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label={t("Next week")}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <div className="hidden md:block text-sm text-muted-foreground whitespace-nowrap">
+                {shortDate(weekDates[0])} – {shortDate(weekDates[weekDates.length - 1])}
+              </div>
             </div>
           )}
           {classId && canManageTimetable && entries.length === 0 && (
@@ -297,73 +367,121 @@ export default function TimetablePage() {
             </Button>
           )}
           {classId && canManageTimetable && (
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); setCreateError(""); if (v) setForm((f) => ({ ...f, class_id: classId })); }}>
+            <Dialog open={open} onOpenChange={(v) => { setOpen(v); setCreateError(""); if (v && !editingId) setForm((f) => ({ ...f, class_id: classId })); }}>
               <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" /> {t("Add Entry")}</Button>
+                <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" /> {t("Add Entry")}</Button>
               </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>{t("Add Timetable Entry")}</DialogTitle></DialogHeader>
-                <form onSubmit={handleCreate} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>{t("Class")}</Label>
-                    <Select value={form.class_id || classId} onValueChange={(v) => setForm({ ...form, class_id: v })}>
-                      <SelectTrigger><SelectValue placeholder={t("Select class")} /></SelectTrigger>
-                      <SelectContent>
-                        {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("Subject")}</Label>
-                    <SearchSelect
-                      value={form.subject_id}
-                      onChange={(v) => setForm({ ...form, subject_id: v })}
-                      options={subjectOptions}
-                      getLabel={(s) => s.name}
-                      searchPlaceholder={t("Search subject...")}
-                      emptyText={t("No subjects found")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("Teacher")}</Label>
-                    <SearchSelect
-                      value={isTeacher ? user?.id : form.teacher_id}
-                      onChange={(v) => setForm({ ...form, teacher_id: v })}
-                      options={teachers}
-                      getLabel={(teacher) => `${teacher.first_name} ${teacher.last_name}`}
-                      searchPlaceholder={t("Search teacher...")}
-                      emptyText={t("No teachers found")}
-                      disabled={isTeacher}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("Day")}</Label>
-                    <Select value={form.day_of_week} onValueChange={(v) => setForm({ ...form, day_of_week: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {days.map((d) => <SelectItem key={d} value={d}>{t(d.charAt(0).toUpperCase() + d.slice(1))}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{t("Start")}</Label>
-                      <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+              <DialogContent className="h-[calc(92vh-1rem)] sm:max-w-[calc(100vw-2rem)] flex flex-col overflow-hidden p-0">
+                <form onSubmit={handleCreate} className="flex flex-col h-full overflow-hidden p-6">
+                  <DialogHeader className="flex-shrink-0">
+                    <DialogTitle>{editingId ? t("Edit Timetable Entry") : t("Add Timetable Entry")}</DialogTitle>
+                  </DialogHeader>
+
+                  <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center gap-3 mt-4">
+                    <div className="space-y-1 sm:max-w-xs">
+                      <Label className="text-xs">{t("Class")}</Label>
+                      <Select value={form.class_id || classId} onValueChange={(v) => setForm({ ...form, class_id: v })}>
+                        <SelectTrigger className="w-full"><SelectValue placeholder={t("Select class")} /></SelectTrigger>
+                        <SelectContent>
+                          {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>{t("End")}</Label>
-                      <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                    <p className="text-xs text-muted-foreground sm:ml-2">
+                      {t("Click an empty cell to pick the day and period, then choose the subject and teacher.")}
+                    </p>
+                  </div>
+
+                  <div className="flex-1 overflow-auto mt-4">
+                    <div className="grid gap-1 min-w-[720px]" style={{ gridTemplateColumns: "104px repeat(6, minmax(0, 1fr))" }}>
+                      <div />
+                      {days.map((day) => (
+                        <div key={day} className="rounded-md bg-muted px-1 py-2 text-center text-xs font-semibold">
+                          {t(day.charAt(0).toUpperCase() + day.slice(1))}
+                        </div>
+                      ))}
+                      {PERIODS.map((p) => (
+                        <Fragment key={p.n}>
+                          <div className="flex flex-col items-center justify-center rounded-md bg-primary/5 px-1 py-2 text-center text-[11px] leading-tight">
+                            <span className="font-semibold">{t("Period {n}", { n: p.n })}</span>
+                            <span className="text-muted-foreground">{p.start}-{p.end}</span>
+                          </div>
+                          {days.map((day) => {
+                            const s = toMin(p.start);
+                            const e = toMin(p.end);
+                            const occupied = dialogEntries.find(
+                              (x) => x.day_of_week === day && toMin(x.start_time) < e && toMin(x.end_time) > s
+                            );
+                            const selected = form.day_of_week === day && form.start_time === p.start && form.end_time === p.end;
+                            const isEditingThis = editingId && occupied && occupied.id === editingId;
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => occupied ? openEdit(occupied) : setForm({ ...form, day_of_week: day, start_time: p.start, end_time: p.end })}
+                                title={occupied ? t("Click to edit") : t("Add here")}
+                                className={`rounded-md px-1 py-2 min-h-[38px] text-xs flex items-center justify-center border transition-colors ${
+                                  occupied
+                                    ? isEditingThis
+                                      ? "cursor-pointer bg-primary/15 border-primary font-medium ring-1 ring-primary"
+                                      : "cursor-pointer bg-muted/50 border-transparent line-clamp-2 overflow-hidden text-muted-foreground text-[11px] hover:border-primary hover:bg-primary/10"
+                                    : selected
+                                      ? "bg-primary text-primary-foreground border-primary font-medium"
+                                      : "cursor-pointer bg-background border-dashed border-muted-foreground/40 hover:border-primary hover:bg-primary/10"
+                                }`}
+                              >
+                                {occupied ? occupied.subject_name : selected ? (<span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {t("Selected")}</span>) : (<Plus className="h-4 w-4 text-muted-foreground" />)}
+                              </button>
+                            );
+                          })}
+                        </Fragment>
+                      ))}
                     </div>
                   </div>
+
+                  <div className="flex-shrink-0 grid gap-4 mt-4 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("Selected slot")}</Label>
+                      <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm min-h-[38px] flex items-center">
+                        {form.day_of_week
+                          ? <span>{t(form.day_of_week.charAt(0).toUpperCase() + form.day_of_week.slice(1))} · {form.start_time}-{form.end_time}</span>
+                          : <span className="text-muted-foreground text-xs">{t("None selected yet")}</span>}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("Subject")}</Label>
+                      <SearchSelect
+                        value={form.subject_id}
+                        onChange={(v) => setForm({ ...form, subject_id: v })}
+                        options={subjectOptions}
+                        getLabel={(s) => s.name}
+                        searchPlaceholder={t("Search subject...")}
+                        emptyText={t("No subjects found")}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("Teacher")}</Label>
+                      <SearchSelect
+                        value={isTeacher ? user?.id : form.teacher_id}
+                        onChange={(v) => setForm({ ...form, teacher_id: v })}
+                        options={teachers}
+                        getLabel={(teacher) => `${fullName(teacher)}`}
+                        searchPlaceholder={t("Search teacher...")}
+                        emptyText={t("No teachers found")}
+                        disabled={isTeacher}
+                      />
+                    </div>
+                  </div>
+
                   {createError && (
-                    <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-2.5 rounded-lg">{createError}</div>
+                    <div className="flex-shrink-0 bg-red-50 border border-red-100 text-red-600 text-xs p-2.5 rounded-lg mt-3">{createError}</div>
                   )}
                   {slotConflict && !createError && (
-                    <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-lg">
+                    <div className="flex-shrink-0 bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-lg mt-3">
                       {t("This slot is already occupied by")} {slotConflict.subject_name} ({String(slotConflict.start_time).slice(0, 5)}-{String(slotConflict.end_time).slice(0, 5)})
                     </div>
                   )}
-                  <Button type="submit" className="w-full" disabled={!!slotConflict}>{t("Add Entry")}</Button>
+                  <Button type="submit" className="flex-shrink-0 w-full mt-4" disabled={!!slotConflict}>{editingId ? t("Save Changes") : t("Add Entry")}</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -396,7 +514,8 @@ export default function TimetablePage() {
                 {days.map((day) => (
                   <div key={day} className="border rounded-lg">
                     <div className="bg-muted p-2 text-center font-medium text-sm rounded-t-lg">
-                      {t(dayLabels[day])}
+                      <div>{t(dayLabels[day])}</div>
+                      <div className="text-[11px] font-normal text-muted-foreground">{shortDate(weekDates[days.indexOf(day)])}</div>
                     </div>
                     <div className="p-2 space-y-2 min-h-[200px]">
                       {timetableByDay[day].length === 0 && (
@@ -484,7 +603,7 @@ export default function TimetablePage() {
                 <Select value={subTeacherId} onValueChange={setSubTeacherId}>
                   <SelectTrigger><SelectValue placeholder={t("Select teacher")} /></SelectTrigger>
                   <SelectContent>
-                    {subTeachers.map((tt) => <SelectItem key={tt.id} value={tt.id}>{tt.first_name} {tt.last_name}</SelectItem>)}
+                    {subTeachers.map((tt) => <SelectItem key={tt.id} value={tt.id}>{fullName(tt)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

@@ -6,19 +6,22 @@ async function create(tenantId, data) {
   return cls;
 }
 
-async function findAll(tenantId, { page = 1, limit = 20, academic_year_id } = {}) {
+async function findAll(tenantId, { page = 1, limit = 20, academic_year_id, scopes } = {}) {
   let query = db('classes')
     .where({ 'classes.tenant_id': tenantId })
     .leftJoin('users', 'classes.class_teacher_id', 'users.id')
     .select(
       'classes.*',
       'users.first_name as teacher_first_name',
-      'users.last_name as teacher_last_name'
+      'users.middle_name as teacher_middle_name',
+      'users.last_name as teacher_last_name',
+      db.raw("(select count(*) from students s where s.class_id = classes.id and s.status = 'active')::int as student_count")
     )
     .orderBy(db.raw("CASE classes.level_group WHEN 'nursery' THEN 0 WHEN 'kg' THEN 1 WHEN 'primary' THEN 2 WHEN 'secondary' THEN 3 ELSE 4 END"), 'asc')
     .orderBy('classes.grade_level', 'asc')
     .orderBy('classes.name', 'asc');
 
+  if (scopes && scopes.length) query = query.whereIn('classes.level_group', scopes);
   if (academic_year_id) query = query.where('classes.academic_year_id', academic_year_id);
 
   return paginatedResult(query, page, limit);
@@ -31,6 +34,7 @@ async function findById(tenantId, id) {
     .select(
       'classes.*',
       'users.first_name as teacher_first_name',
+      'users.middle_name as teacher_middle_name',
       'users.last_name as teacher_last_name'
     )
     .first();
@@ -49,4 +53,12 @@ async function remove(tenantId, id) {
   return db('classes').where({ 'classes.tenant_id': tenantId, 'classes.id': id }).del();
 }
 
-module.exports = { create, findAll, findById, update, remove };
+async function setHomeroom(tenantId, id, teacherId) {
+  const [cls] = await db('classes')
+    .where({ tenant_id: tenantId, id })
+    .update({ class_teacher_id: teacherId || null, updated_at: db.fn.now() })
+    .returning('*');
+  return cls;
+}
+
+module.exports = { create, findAll, findById, update, remove, setHomeroom };

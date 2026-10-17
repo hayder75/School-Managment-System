@@ -1,4 +1,5 @@
 const classService = require('./classes.service');
+const { getUserScopes } = require('../../shared/scope');
 
 async function create(req, res) {
   const cls = await classService.create(req.tenant.id, req.validated.body);
@@ -7,7 +8,8 @@ async function create(req, res) {
 
 async function list(req, res) {
   const { page, limit, academic_year_id } = req.query;
-  const result = await classService.findAll(req.tenant.id, { page, limit, academic_year_id });
+  const scopes = await getUserScopes(req.tenant.id, req.user.userId);
+  const result = await classService.findAll(req.tenant.id, { page, limit, academic_year_id, scopes });
   res.json({ success: true, ...result });
 }
 
@@ -38,4 +40,10 @@ async function remove(req, res) {
   res.json({ success: true, data: null });
 }
 
-module.exports = { create, list, getById, update, remove };
+async function setHomeroom(req, res) {
+  const cls = await classService.setHomeroom(req.tenant.id, req.params.id, req.validated.body.class_teacher_id);
+  if (!cls) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Class not found' } });
+  res.json({ success: true, data: cls });
+}
+
+module.exports = { create, list, getById, update, remove, setHomeroom };

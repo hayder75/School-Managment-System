@@ -108,7 +108,7 @@ async function enroll(tenantId, userId, data) {
         .returning('*');
       allGuardians.push({ ...ng, parent_id: parentUser.id });
       creds.guardians.push({
-        name: `${ng.first_name} ${ng.last_name}`,
+        name: `${[ng.first_name, ng.middle_name, ng.last_name].filter(Boolean).join(' ')}`,
         username,
         relationship: ng.relationship || null,
       });
@@ -211,18 +211,19 @@ async function enroll(tenantId, userId, data) {
   throw lastErr;
 }
 
-async function findAll(tenantId, { page = 1, limit = 20, class_id, status, search, user_id } = {}) {
+async function findAll(tenantId, { page = 1, limit = 20, class_id, status, search, user_id, scopes } = {}) {
   let query = db('students')
     .where({ 'students.tenant_id': tenantId })
     .leftJoin('users', 'students.user_id', 'users.id')
     .leftJoin('classes', 'students.class_id', 'classes.id')
     .select(
       'students.*',
-      'users.first_name', 'users.last_name', 'users.email', 'users.phone',
+      'users.first_name', 'users.middle_name', 'users.last_name', 'users.email', 'users.phone',
       'classes.name as class_name'
     )
     .orderBy('users.last_name', 'asc');
   if (class_id) query = query.where('students.class_id', class_id);
+  if (scopes && scopes.length) query = query.whereIn('classes.level_group', scopes);
   if (user_id) query = query.where('students.user_id', user_id);
   if (status) query = query.where('students.status', status);
   if (search) {
@@ -233,6 +234,10 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, status, searc
         .orWhere('students.student_number', 'ilike', `%${search}%`)
         .orWhere('students.father_name', 'ilike', `%${search}%`)
         .orWhere('students.mother_name', 'ilike', `%${search}%`)
+        .orWhere('classes.name', 'ilike', `%${search}%`)
+        .orWhereRaw("CONCAT_WS(' ', users.first_name, users.middle_name, users.last_name) ILIKE ?", [`%${search}%`])
+        // match IDs ignoring O/0 confusion (e.g. "M0885" finds "MO885")
+        .orWhereRaw("regexp_replace(upper(students.student_number), 'O', '0', 'g') LIKE ?", [`%${String(search).toUpperCase().replace(/O/g, '0')}%`])
         .orWhereExists(function () {
           this.select(db.raw(1))
             .from('student_parents')
@@ -258,7 +263,7 @@ async function findAllByUserIds(tenantId, { page = 1, limit = 20, class_id, stat
     .leftJoin('classes', 'students.class_id', 'classes.id')
     .select(
       'students.*',
-      'users.first_name', 'users.last_name', 'users.email', 'users.phone',
+      'users.first_name', 'users.middle_name', 'users.last_name', 'users.email', 'users.phone',
       'classes.name as class_name'
     )
     .orderBy('users.last_name', 'asc');
@@ -283,7 +288,7 @@ async function findAllByClassIds(tenantId, { page = 1, limit = 20, status, searc
     .leftJoin('classes', 'students.class_id', 'classes.id')
     .select(
       'students.*',
-      'users.first_name', 'users.last_name', 'users.email', 'users.phone',
+      'users.first_name', 'users.middle_name', 'users.last_name', 'users.email', 'users.phone',
       'classes.name as class_name'
     )
     .orderBy('users.last_name', 'asc');
@@ -305,7 +310,7 @@ async function findById(tenantId, id) {
     .leftJoin('classes', 'students.class_id', 'classes.id')
     .select(
       'students.*',
-      'users.first_name', 'users.last_name', 'users.email', 'users.phone', 'users.avatar',
+      'users.first_name', 'users.middle_name', 'users.last_name', 'users.email', 'users.phone', 'users.avatar',
       'classes.name as class_name'
     )
     .first();
@@ -415,8 +420,34 @@ async function findByClass(tenantId, classId) {
   return db('students')
     .where({ 'students.tenant_id': tenantId, 'students.class_id': classId, 'students.status': 'active' })
     .leftJoin('users', 'students.user_id', 'users.id')
-    .select('students.*', 'users.first_name', 'users.last_name', 'users.email')
+    .select('students.*', 'users.first_name', 'users.middle_name', 'users.last_name', 'users.email', 'users.gender')
     .orderBy('users.last_name', 'asc');
+}
+
+// Active students with no real guardian linked (none, or only the placeholder
+// "0" parent the seeder created when there was no guardian phone).
+async function unlinkedStudents(tenantId, { search, class_id } = {}) {
+  let q = db('students as st').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
+    .where('st.tenant_id', tenantId).where('st.status', 'active')
+    .whereNotExists(function () {
+      this.select('*').from('student_parents as sp').join('users as p', 'sp.parent_id', 'p.id')
+        .whereRaw('sp.student_id = st.id')
+        .whereRaw("coalesce(p.phone, '') not in ('', '0')");
+    })
+    .select('st.id', 'st.student_number', 'u.first_name', 'u.middle_name', 'u.last_name', 'u.gender',
+      'c.name as class_name', 'c.grade_level', 'c.section', 'c.level_group')
+    .orderBy('c.grade_level').orderBy('c.section').orderBy('u.first_name');
+  if (class_id) q = q.where('st.class_id', class_id);
+  if (search) {
+    const term = `%${String(search).trim()}%`;
+    q = q.where(function () {
+      this.where('u.first_name', 'ilike', term).orWhere('u.last_name', 'ilike', term)
+        .orWhereRaw("concat_ws(' ', u.first_name, u.middle_name, u.last_name) ILIKE ?", [term])
+        .orWhere('st.student_number', 'ilike', term)
+        .orWhereRaw("regexp_replace(upper(st.student_number), 'O', '0', 'g') LIKE ?", [`%${String(search).toUpperCase().replace(/O/g, '0')}%`]);
+    });
+  }
+  return q;
 }
 
 async function promote(tenantId, userId, data) {
@@ -729,7 +760,7 @@ async function getEnrollmentStats(tenantId) {
 
 module.exports = {
   create, enroll, findAll, findAllByUserIds, findAllByClassIds, findById, update, remove,
-  findByClass, promote, graduate, transfer,
+  findByClass, promote, graduate, transfer, unlinkedStudents,
   getDocuments, addDocument, removeDocument,
   getMedical, upsertMedical,
   getDiscipline, addDiscipline, updateDisciplineStatus, removeDiscipline,

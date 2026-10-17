@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -321,7 +322,7 @@ function GuardianStep({ guardians, setGuardians, newGuardians, setNewGuardians, 
   const alreadyIds = new Set(guardians.map((g) => g.parent_id));
   function add(p) { if (alreadyIds.has(p.id)) return; setGuardians([...guardians, { parent_id: p.id, first_name: p.first_name, last_name: p.last_name, phone: p.phone, relationship: p.relationship || "guardian", education_level: "", is_primary: guardians.length === 0 }]); }
   return (<div className="space-y-5">
-    <div><p className="text-sm font-medium mb-2 flex items-center gap-2"><Search size={15} /> {t("Link an existing guardian")}</p><Input placeholder={t("Type a parent name or phone…")} value={search} onChange={(e) => setSearch(e.target.value)} />{candidates.length > 0 && <div className="mt-2 space-y-1">{candidates.filter((c) => !alreadyIds.has(c.id)).map((c) => <button key={c.id} type="button" onClick={() => add(c)} className="w-full text-left text-sm px-2 py-1.5 rounded border hover:bg-muted flex justify-between"><span>{c.first_name} {c.last_name}</span><span className="text-muted-foreground text-xs">{c.phone}</span></button>)}</div>}</div>
+    <div><p className="text-sm font-medium mb-2 flex items-center gap-2"><Search size={15} /> {t("Link an existing guardian")}</p><Input placeholder={t("Type a parent name or phone…")} value={search} onChange={(e) => setSearch(e.target.value)} />{candidates.length > 0 && <div className="mt-2 space-y-1">{candidates.filter((c) => !alreadyIds.has(c.id)).map((c) => <button key={c.id} type="button" onClick={() => add(c)} className="w-full text-left text-sm px-2 py-1.5 rounded border hover:bg-muted flex justify-between"><span>{fullName(c)}</span><span className="text-muted-foreground text-xs">{c.phone}</span></button>)}</div>}</div>
     <div className="border-t pt-4"><p className="text-sm font-medium mb-3 flex items-center gap-2"><UserPlus size={15} /> {t("Create new guardian")}</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div><Label>{t("First name")} *</Label><Input value={ngForm.first_name} onChange={(e) => setNgForm({ ...ngForm, first_name: e.target.value })} /></div>
@@ -342,7 +343,7 @@ function GuardianList({ guardians, newGuardians, setGuardians, setNewGuardians }
   return (<div className="mt-4 space-y-2">
     {[...guardians.map((g) => ({ ...g, _new: false })), ...newGuardians.map((g) => ({ ...g, _new: true }))].map((g, i) => (
       <div key={i} className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
-        <div><span className="font-medium">{g.first_name} {g.last_name}</span><span className="text-muted-foreground"> · {g.phone}{g.relationship ? ` · ${g.relationship}` : ""}{g.education_level ? ` · ${g.education_level}` : ""}</span>{g.is_primary && <span className="ml-2 px-1.5 py-0.5 rounded bg-neutral-900 text-white text-[10px] font-bold">{t("PRIMARY")}</span>}</div>
+        <div><span className="font-medium">{fullName(g)}</span><span className="text-muted-foreground"> · {g.phone}{g.relationship ? ` · ${g.relationship}` : ""}{g.education_level ? ` · ${g.education_level}` : ""}</span>{g.is_primary && <span className="ml-2 px-1.5 py-0.5 rounded bg-neutral-900 text-white text-[10px] font-bold">{t("PRIMARY")}</span>}</div>
         <button className="text-gray-400 hover:text-red-600" onClick={() => g._new ? setNewGuardians(newGuardians.filter((_, j) => j !== (i - guardians.length))) : setGuardians(guardians.filter((x) => x.parent_id !== g.parent_id))}><Trash2 size={15} /></button>
       </div>
     ))}
@@ -357,7 +358,7 @@ function ReviewStep({ student, selectedClass, guardians, newGuardians, docs, med
     <Row l={t("Admission")} v={`${student.admission_type} · prev: ${student.previous_school || "—"}`} />
     <Row l={t("National ID")} v={student.national_id || "—"} />
     <Row l={t("Class")} v={selectedClass ? `${selectedClass.name}${selectedClass.section ? ` (${selectedClass.section})` : ""}` : "—"} />
-    <Row l={t("Guardians")} v={[...guardians, ...newGuardians].map((g) => `${g.first_name} ${g.last_name} (${g.phone})`).join(", ") || "—"} />
+    <Row l={t("Guardians")} v={[...guardians, ...newGuardians].map((g) => `${fullName(g)} (${g.phone})`).join(", ") || "—"} />
     <Row l={t("Emergency contact")} v={student.emergency_contact || "—"} />
     <Row l={t("Medical notes")} v={Object.values(medicalInfo).filter(Boolean).join(", ") || "—"} />
     <Row l={t("Documents")} v={`${docs.length} ${t("attached")}`} />
@@ -505,7 +506,7 @@ function PaymentDialog({ enrolledStudent, onDone }) {
             </select>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><Label>{t("Amount (ETB)")}</Label><Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
           <div><Label>{t("Method")}</Label><Select value={method} onValueChange={setMethod}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">{t("Cash")}</SelectItem><SelectItem value="bank">{t("Bank Transfer")}</SelectItem><SelectItem value="mobile">{t("Mobile Money (Telebirr/CBE Birr)")}</SelectItem></SelectContent></Select></div>
         </div>

@@ -1,5 +1,87 @@
 const reportService = require('./reports.service');
+const reportingService = require('./reporting.service');
+const shareService = require('./share.service');
+const excelService = require('../../services/excel.service');
 const access = require('../../shared/access');
+
+async function getReportDetail(req, res) {
+  const allowed = reportingService.catalogFor(req.user.role).some((r) => r.id === req.params.id);
+  if (!allowed) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Report not available for your role' } });
+  const sheets = await excelService.listTables(req.params.id, req.tenant.id, req.user.userId, req.query);
+  const tables = sheets.map((s) => ({ name: s.name, total: s.rows.length }));
+  const wanted = req.query.table || sheets[0]?.name;
+  const sheet = sheets.find((s) => s.name === wanted) || sheets[0];
+  if (!sheet) return res.json({ success: true, data: { tables: [], name: null, columns: [], rows: [], total: 0, page: 1, limit: 25 } });
+  let rows = sheet.rows;
+  const search = String(req.query.search || '').toLowerCase();
+  if (search) rows = rows.filter((r) => Object.values(r).some((v) => String(v ?? '').toLowerCase().includes(search)));
+  const total = rows.length;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(5, parseInt(req.query.limit, 10) || 25));
+  const paged = rows.slice((page - 1) * limit, page * limit);
+  res.json({ success: true, data: { tables, name: sheet.name, columns: sheet.columns, rows: paged, total, page, limit } });
+}
+
+async function exportData(req, res) {
+  const ok = await excelService.streamNamedWorkbook(req.params.kind, req.tenant.id, res);
+  if (!ok) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Unknown export' } });
+}
+
+async function exportExcel(req, res) {
+  const allowed = reportingService.catalogFor(req.user.role).some((r) => r.id === req.params.id);
+  if (!allowed) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Report not available for your role' } });
+  const ok = await excelService.streamWorkbook(req.params.id, req.tenant.id, req.user.userId, req.query, res);
+  if (!ok) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Report not found' } });
+}
+
+async function getCatalog(req, res) {
+  res.json({ success: true, data: reportingService.catalogFor(req.user.role) });
+}
+
+async function getReport(req, res) {
+  const allowed = reportingService.catalogFor(req.user.role).some((r) => r.id === req.params.id);
+  if (!allowed) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Report not available for your role' } });
+  const data = await reportingService.buildReport(req.params.id, req.tenant.id, req.user.userId, req.query);
+  if (!data) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Report not found' } });
+  res.json({ success: true, data });
+}
+
+async function getOverview(req, res) {
+  res.json({ success: true, data: await reportService.getOverviewReport(req.tenant.id, req.query) });
+}
+
+async function createShare(req, res) {
+  try {
+    const { reportId, title, filters, expiresAt, includeNames } = req.body || {};
+    const result = await shareService.createShare(req.tenant.id, req.user.userId, {
+      reportId, title, filters, expiresAt, includeNames,
+    });
+    res.status(201).json({ success: true, data: { ...result, url: `/share/r/${result.token}` } });
+  } catch (err) {
+    if (err.code === 'UNKNOWN_REPORT') {
+      return res.status(400).json({ success: false, error: { code: 'UNKNOWN_REPORT', message: 'Unknown report' } });
+    }
+    throw err;
+  }
+}
+
+async function listShares(req, res) {
+  res.json({ success: true, data: await shareService.listShares(req.tenant.id, req.user.userId, req.user.role) });
+}
+
+async function revokeShare(req, res) {
+  await shareService.revokeShare(req.tenant.id, req.params.id, req.user.userId, req.user.role);
+  res.json({ success: true, data: null });
+}
+
+async function getPublicShare(req, res) {
+  const data = await shareService.getPublicShare(req.params.token);
+  if (!data) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'This link does not exist' } });
+  if (data.revoked) return res.status(410).json({ success: false, error: { code: 'REVOKED', message: 'This link has been revoked' } });
+  if (data.expired) return res.status(410).json({ success: false, error: { code: 'EXPIRED', message: 'This link has expired' } });
+  res.json({ success: true, data });
+}
+
 
 async function getStudentReport(req, res) {
   const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, req.params.studentId);
@@ -23,7 +105,8 @@ async function getClassReport(req, res) {
 
 async function getEnrollmentReport(req, res) {
   const { academic_year_id } = req.query;
-  const report = await reportService.getStudentEnrollmentReport(req.tenant.id, { academic_year_id });
+  const scopes = await require('../../shared/scope').getUserScopes(req.tenant.id, req.user.userId);
+  const report = await reportService.getStudentEnrollmentReport(req.tenant.id, { academic_year_id, scopes });
   res.json({ success: true, data: report });
 }
 
@@ -157,4 +240,6 @@ module.exports = {
   getFeeCollection, getOutstandingBalances, getRevenueVsExpenses,
   getStaffDirectory, getPayrollSummary, getHeadcount,
   getStudentGradeSummary, getStudentAttendanceSummary,
+  getOverview, createShare, listShares, revokeShare, getPublicShare,
+  getCatalog, getReport, exportExcel, getReportDetail, exportData,
 };

@@ -26,11 +26,11 @@ async function listSubstitutions(tenantId, { date, from, to, status, teacherId }
     .where('s.tenant_id', tenantId)
     .select(
       's.*',
-      knex.raw("CONCAT(orig.first_name, ' ', orig.last_name) as original_teacher_name"),
+      knex.raw("CONCAT_WS(' ', orig.first_name, orig.middle_name, orig.last_name) as original_teacher_name"),
       'orig.email as original_teacher_email',
-      knex.raw("CONCAT(sub.first_name, ' ', sub.last_name) as substitute_teacher_name"),
+      knex.raw("CONCAT_WS(' ', sub.first_name, sub.middle_name, sub.last_name) as substitute_teacher_name"),
       'sub.email as substitute_teacher_email',
-      knex.raw("CONCAT(creator.first_name, ' ', creator.last_name) as created_by_name")
+      knex.raw("CONCAT_WS(' ', creator.first_name, creator.middle_name, creator.last_name) as created_by_name")
     )
     .orderBy('s.date', 'desc')
     .orderBy('s.created_at', 'desc');
@@ -75,8 +75,8 @@ async function createSubstitution(tenantId, userId, data) {
   try {
     const [orig] = await knex('users').where('id', data.originalTeacherId).select('first_name', 'last_name');
     const [subTeacher] = await knex('users').where('id', data.substituteTeacherId).select('first_name', 'last_name');
-    const origName = orig ? `${orig.first_name} ${orig.last_name}` : 'a teacher';
-    const subName = subTeacher ? `${subTeacher.first_name} ${subTeacher.last_name}` : 'a substitute';
+    const origName = orig ? `${[orig.first_name, orig.middle_name, orig.last_name].filter(Boolean).join(' ')}` : 'a teacher';
+    const subName = subTeacher ? `${[subTeacher.first_name, subTeacher.middle_name, subTeacher.last_name].filter(Boolean).join(' ')}` : 'a substitute';
 
     await notifService.create(
       tenantId, data.substituteTeacherId,
@@ -140,8 +140,8 @@ async function getLiveShiftRoster(tenantId, { date } = {}) {
     .where('s.date', targetDate)
     .select(
       's.*',
-      knex.raw("CONCAT(orig.first_name, ' ', orig.last_name) as original_teacher_name"),
-      knex.raw("CONCAT(sub.first_name, ' ', sub.last_name) as substitute_teacher_name")
+      knex.raw("CONCAT_WS(' ', orig.first_name, orig.middle_name, orig.last_name) as original_teacher_name"),
+      knex.raw("CONCAT_WS(' ', sub.first_name, sub.middle_name, sub.last_name) as substitute_teacher_name")
     );
 
   // Merge into structured roster
@@ -167,7 +167,7 @@ async function getLiveShiftRoster(tenantId, { date } = {}) {
 
     return {
       staffId: s.id,
-      name: `${s.first_name} ${s.last_name}`,
+      name: `${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ')}`,
       email: s.email,
       phone: s.phone,
       role: s.role,
@@ -200,10 +200,10 @@ async function listGuardShifts(tenantId, { date, shiftType, status } = {}) {
     .where('g.tenant_id', tenantId)
     .select(
       'g.*',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as guard_name"),
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as guard_name"),
       'u.email as guard_email',
       'u.phone as guard_phone',
-      knex.raw("CONCAT(a.first_name, ' ', a.last_name) as assigned_by_name")
+      knex.raw("CONCAT_WS(' ', a.first_name, a.middle_name, a.last_name) as assigned_by_name")
     )
     .orderBy('g.shift_date', 'desc')
     .orderBy('g.created_at', 'desc');
@@ -273,7 +273,7 @@ async function getShiftReports(tenantId) {
     .where('s.status', 'completed')
     .select(
       'sub.id',
-      knex.raw("CONCAT(sub.first_name, ' ', sub.last_name) as teacher_name"),
+      knex.raw("CONCAT_WS(' ', sub.first_name, sub.middle_name, sub.last_name) as teacher_name"),
       knex.raw('COUNT(*)::integer as coverage_count')
     )
     .groupBy('sub.id', 'sub.first_name', 'sub.last_name')

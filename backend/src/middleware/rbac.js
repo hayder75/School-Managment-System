@@ -14,6 +14,7 @@ const rolesHierarchy = {
   cashier: ['cashier'],
   support: ['support'],
   general_services: ['general_services'],
+  librarian: ['librarian'],
   security_head: ['security_head'],
   accountant: ['accountant'],
   shift_coordinator: ['shift_coordinator', 'teacher'],

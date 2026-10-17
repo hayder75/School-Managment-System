@@ -6,10 +6,18 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Routes that must never be redirected away from on a 401, because they are
+// reachable without signing in.
+const PUBLIC_PATHS = ["/auth/", "/help", "/share/"];
+
+function isPublicPath(pathname) {
+  return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+}
+
 api.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    if (err.response?.status === 401 && !window.location.pathname.startsWith("/auth/")) {
+    if (err.response?.status === 401 && !isPublicPath(window.location.pathname)) {
       window.location.href = "/auth/login";
     }
     return Promise.reject(err.response?.data || err);

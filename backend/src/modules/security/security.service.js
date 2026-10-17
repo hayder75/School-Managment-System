@@ -24,7 +24,7 @@ async function listVisitors(tenantId, { search, date } = {}) {
     .where('v.tenant_id', tenantId)
     .select(
       'v.*',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as recorded_by_name")
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as recorded_by_name")
     )
     .orderBy('v.time_in', 'desc')
     .limit(300);
@@ -77,8 +77,8 @@ async function listGatePasses(tenantId, { status, date } = {}) {
       'su.first_name as student_first_name',
       'su.last_name as student_last_name',
       'st.student_number as student_code',
-      knex.raw("CONCAT(issuer.first_name, ' ', issuer.last_name) as issued_by_name"),
-      knex.raw("CONCAT(verifier.first_name, ' ', verifier.last_name) as verified_by_name")
+      knex.raw("CONCAT_WS(' ', issuer.first_name, issuer.middle_name, issuer.last_name) as issued_by_name"),
+      knex.raw("CONCAT_WS(' ', verifier.first_name, verifier.middle_name, verifier.last_name) as verified_by_name")
     )
     .orderBy('gp.created_at', 'desc')
     .limit(300);
@@ -133,7 +133,7 @@ async function listIncidents(tenantId, { severity, status } = {}) {
   const query = knex('security_incidents as i')
     .leftJoin('users as u', 'i.reported_by', 'u.id')
     .where('i.tenant_id', tenantId)
-    .select('i.*', knex.raw("CONCAT(u.first_name, ' ', u.last_name) as reported_by_name"))
+    .select('i.*', knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as reported_by_name"))
     .orderBy('i.created_at', 'desc')
     .limit(300);
   if (severity && severity !== 'all') query.where('i.severity', severity);

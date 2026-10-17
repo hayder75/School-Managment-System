@@ -51,34 +51,38 @@ function isLeave(status) {
 }
 
 function unpaidWeight(status) {
-  if (status === 'absent') return 1;
+  // Two sessions per day: an absent session is half a day.
+  if (status === 'absent') return 0.5;
   if (status === 'half_day') return 0.5;
   return 0;
 }
 
-function summarizeDays(days) {
+// Summarise a flat list of session statuses. Unmarked sessions default to
+// present (staff are present unless marked otherwise). Each absent/half-day
+// session counts 0.5 of an unpaid day, so a full absent day = 1.
+function summarizeStatuses(statuses) {
   const stats = {
     present: 0, absent: 0, late: 0, leave: 0, emergency: 0,
-    half_day: 0, unmarked: 0, unpaid_days: 0,
+    half_day: 0, unmarked: 0, unpaid_days: 0, late_minutes: 0,
   };
-  for (const d of days) {
-    const s = d.status;
-    if (!s) stats.unmarked++;
-    else if (s === 'present') stats.present++;
-    else if (s === 'late') stats.late++;
-    else if (s === 'absent') stats.absent++;
+  for (const raw of statuses) {
+    const item = raw && typeof raw === 'object' ? raw : { status: raw };
+    const s = item.status || 'present';
+    if (s === 'present') stats.present++;
+    else if (s === 'late') { stats.late++; stats.late_minutes += Number(item.late_minutes) || 0; }
+    else if (s === 'absent') { stats.absent++; stats.unpaid_days += 0.5; }
     else if (isLeave(s)) stats.leave++;
     else if (s === 'emergency') stats.emergency++;
-    else if (s === 'half_day') stats.half_day++;
-    else stats.unmarked++;
-    stats.unpaid_days += unpaidWeight(s);
+    else if (s === 'half_day') { stats.half_day++; stats.unpaid_days += 0.5; }
+    else stats.present++;
   }
-  const marked = days.length - stats.unmarked;
+  const marked = statuses.length;
   stats.marked = marked;
   stats.attendance_rate = marked > 0 ? round2(((stats.present + stats.late + stats.leave + stats.emergency) / marked) * 100) : 0;
   stats.unpaid_days = round2(stats.unpaid_days);
   return stats;
 }
+const SESSIONS = ['am', 'pm'];
 
 function buildStaffQuery(tenantId, { role, search } = {}) {
   let q = knex('users')
@@ -88,11 +92,18 @@ function buildStaffQuery(tenantId, { role, search } = {}) {
     .select('id', 'first_name', 'last_name', 'role', 'email', 'job_title', 'phone');
   if (role) q = q.where('role', role);
   if (search) {
-    q = q.where((b) =>
-      b.whereILike('first_name', `%${search}%`)
-        .orWhereILike('last_name', `%${search}%`)
-        .orWhereILike('email', `%${search}%`)
-    );
+    const { phoneDigits } = require('../../shared/search');
+    const term = `%${String(search).trim()}%`;
+    const digits = phoneDigits(search);
+    q = q.where((b) => {
+      b.whereILike('first_name', term)
+        .orWhereILike('last_name', term)
+        .orWhereILike('email', term)
+        .orWhereILike('job_title', term)
+        .orWhereILike('role', term)
+        .orWhereILike('phone', term);
+      if (digits) b.orWhereRaw("regexp_replace(coalesce(phone, ''), '\\D', '', 'g') LIKE ?", [`%${digits}%`]);
+    });
   }
   return q.orderBy([{ column: 'role' }, { column: 'first_name' }]);
 }
@@ -106,10 +117,10 @@ async function listStaffAttendance(tenantId, { date, month, staffId, role, searc
     .where('sa.tenant_id', tenantId)
     .select(
       'sa.*',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as staff_name"),
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as staff_name"),
       'u.role',
       'u.email',
-      knex.raw("CONCAT(rec.first_name, ' ', rec.last_name) as recorded_by_name")
+      knex.raw("CONCAT_WS(' ', rec.first_name, rec.middle_name, rec.last_name) as recorded_by_name")
     )
     .orderBy('sa.date', 'desc')
     .orderBy('u.first_name');
@@ -121,19 +132,26 @@ async function listStaffAttendance(tenantId, { date, month, staffId, role, searc
   if (staffId) query = query.where('sa.staff_id', staffId);
   if (role) query = query.where('u.role', role);
   if (search) {
-    query = query.where((b) =>
-      b.whereILike('u.first_name', `%${search}%`)
-        .orWhereILike('u.last_name', `%${search}%`)
-        .orWhereILike('u.email', `%${search}%`)
-    );
+    const { phoneDigits } = require('../../shared/search');
+    const term = `%${String(search).trim()}%`;
+    const digits = phoneDigits(search);
+    query = query.where((b) => {
+      b.whereILike('u.first_name', term)
+        .orWhereILike('u.last_name', term)
+        .orWhereILike('u.email', term)
+        .orWhereILike('u.job_title', term)
+        .orWhereILike('u.role', term)
+        .orWhereILike('u.phone', term);
+      if (digits) b.orWhereRaw("regexp_replace(coalesce(u.phone, ''), '\\D', '', 'g') LIKE ?", [`%${digits}%`]);
+    });
   }
 
   return await query;
 }
 
-async function upsertAttendance(tenantId, recordedBy, { staffId, date, status, checkIn, checkOut, notes }) {
+async function upsertAttendance(tenantId, recordedBy, { staffId, date, session = 'am', status, checkIn, checkOut, notes, lateMinutes }) {
   const existing = await knex('staff_attendance')
-    .where({ tenant_id: tenantId, staff_id: staffId, date })
+    .where({ tenant_id: tenantId, staff_id: staffId, date, session })
     .first();
 
   if (existing) {
@@ -144,6 +162,7 @@ async function upsertAttendance(tenantId, recordedBy, { staffId, date, status, c
         check_in: checkIn || null,
         check_out: checkOut || null,
         notes: notes || null,
+        late_minutes: Number(lateMinutes) || 0,
         recorded_by: recordedBy,
         updated_at: knex.fn.now(),
       })
@@ -156,10 +175,12 @@ async function upsertAttendance(tenantId, recordedBy, { staffId, date, status, c
       tenant_id: tenantId,
       staff_id: staffId,
       date,
+      session,
       status: status || 'present',
       check_in: checkIn || null,
       check_out: checkOut || null,
       notes: notes || null,
+      late_minutes: Number(lateMinutes) || 0,
       recorded_by: recordedBy,
     })
     .returning('*');
@@ -172,7 +193,9 @@ async function bulkMarkAttendance(tenantId, recordedBy, { date, records }) {
     results.push(await upsertAttendance(tenantId, recordedBy, {
       staffId: item.staffId,
       date,
+      session: item.session,
       status: item.status,
+      lateMinutes: item.lateMinutes,
       checkIn: item.checkIn,
       checkOut: item.checkOut,
       notes: item.notes,
@@ -188,7 +211,9 @@ async function bulkMarkRange(tenantId, recordedBy, { entries = [] }) {
     results.push(await upsertAttendance(tenantId, recordedBy, {
       staffId: e.staffId,
       date: e.date,
+      session: e.session,
       status: e.status,
+      lateMinutes: e.lateMinutes,
       checkIn: e.checkIn,
       checkOut: e.checkOut,
       notes: e.notes,
@@ -228,7 +253,7 @@ async function getStaffAttendanceSummary(tenantId, { date = new Date().toISOStri
 
     return {
       staffId: s.id,
-      name: `${s.first_name} ${s.last_name}`,
+      name: `${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ')}`,
       role: s.role,
       email: s.email,
       status: rec ? rec.status : 'present',
@@ -259,26 +284,23 @@ async function getStaffAttendanceGrid(tenantId, { weekStart, role, search } = {}
       .select('*');
   }
   const map = new Map();
-  records.forEach((r) => map.set(`${r.staff_id}|${dateKey(r.date)}`, r));
+  records.forEach((r) => map.set(`${r.staff_id}|${dateKey(r.date)}|${r.session || 'am'}`, r));
+  const recObj = (r) => (r ? { status: r.status, check_in: r.check_in, check_out: r.check_out, notes: r.notes, late_minutes: r.late_minutes || 0 } : { status: null, check_in: null, check_out: null, notes: null, late_minutes: 0 });
 
-  const totals = { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unmarked: 0, unpaid_days: 0 };
+  const totals = { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unmarked: 0, unpaid_days: 0, late_minutes: 0 };
 
   const rows = staff.map((s) => {
     const days = dates.map((d) => {
-      const rec = map.get(`${s.id}|${d}`);
-      return {
-        date: d,
-        status: rec ? rec.status : null,
-        check_in: rec ? rec.check_in : null,
-        check_out: rec ? rec.check_out : null,
-        notes: rec ? rec.notes : null,
-      };
+      const am = recObj(map.get(`${s.id}|${d}|am`));
+      const pm = recObj(map.get(`${s.id}|${d}|pm`));
+      return { date: d, am, pm };
     });
-    const stats = summarizeDays(days);
+    const statuses = days.flatMap((d) => [d.am, d.pm]);
+    const stats = summarizeStatuses(statuses);
     for (const k of Object.keys(totals)) totals[k] += stats[k] || 0;
     return {
       staff_id: s.id,
-      name: `${s.first_name} ${s.last_name}`,
+      name: `${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ')}`,
       role: s.role,
       email: s.email,
       job_title: s.job_title,
@@ -293,6 +315,7 @@ async function getStaffAttendanceGrid(tenantId, { weekStart, role, search } = {}
     week_start: start,
     week_end: dates[dates.length - 1],
     dates,
+    sessions: SESSIONS,
     rows,
     totals,
   };
@@ -320,11 +343,11 @@ async function getStaffAttendanceStats(tenantId, { from, to, staffId, role, sear
   const byStaff = new Map();
   records.forEach((r) => {
     if (!byStaff.has(r.staff_id)) {
-      byStaff.set(r.staff_id, { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unmarked: 0, unpaid_days: 0 });
+      byStaff.set(r.staff_id, { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unmarked: 0, unpaid_days: 0, late_minutes: 0 });
     }
     const s = byStaff.get(r.staff_id);
     if (r.status === 'present') s.present++;
-    else if (r.status === 'late') s.late++;
+    else if (r.status === 'late') { s.late++; s.late_minutes += Number(r.late_minutes) || 0; }
     else if (r.status === 'absent') s.absent++;
     else if (isLeave(r.status)) s.leave++;
     else if (r.status === 'emergency') s.emergency++;
@@ -332,13 +355,13 @@ async function getStaffAttendanceStats(tenantId, { from, to, staffId, role, sear
     s.unpaid_days += unpaidWeight(r.status);
   });
 
-  const totals = { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unpaid_days: 0 };
+  const totals = { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unpaid_days: 0, late_minutes: 0 };
   const rows = filtered.map((s) => {
-    const c = byStaff.get(s.id) || { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unpaid_days: 0 };
+    const c = byStaff.get(s.id) || { present: 0, absent: 0, late: 0, leave: 0, emergency: 0, half_day: 0, unpaid_days: 0, late_minutes: 0 };
     const marked = c.present + c.absent + c.late + c.leave + c.emergency + c.half_day;
     const result = {
       staff_id: s.id,
-      name: `${s.first_name} ${s.last_name}`,
+      name: `${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ')}`,
       role: s.role,
       email: s.email,
       present: c.present,
@@ -347,6 +370,7 @@ async function getStaffAttendanceStats(tenantId, { from, to, staffId, role, sear
       leave: c.leave,
       emergency: c.emergency,
       half_day: c.half_day,
+      late_minutes: c.late_minutes || 0,
       marked,
       unpaid_days: round2(c.unpaid_days),
       attendance_rate: marked > 0 ? round2(((c.present + c.late + c.leave + c.emergency) / marked) * 100) : 0,
@@ -358,6 +382,7 @@ async function getStaffAttendanceStats(tenantId, { from, to, staffId, role, sear
     totals.emergency += c.emergency;
     totals.half_day += c.half_day;
     totals.unpaid_days += c.unpaid_days;
+    totals.late_minutes += c.late_minutes || 0;
     return result;
   });
 
@@ -432,15 +457,17 @@ async function computeUnpaidDays(tenantId, staffId, from, to) {
   const rows = await knex('staff_attendance')
     .where({ tenant_id: tenantId, staff_id: staffId })
     .whereBetween('date', [from, to])
-    .select('status');
+    .select('status', 'late_minutes');
   let absent = 0;
   let half = 0;
   let unpaid = 0;
+  let lateMinutes = 0;
   for (const r of rows) {
-    if (r.status === 'absent') { unpaid += 1; absent++; }
+    if (r.status === 'absent') { unpaid += 0.5; absent++; }
     else if (r.status === 'half_day') { unpaid += 0.5; half++; }
+    else if (r.status === 'late') { lateMinutes += Number(r.late_minutes) || 0; }
   }
-  return { unpaid_days: round2(unpaid), absent_days: absent, half_days: half };
+  return { unpaid_days: round2(unpaid), absent_days: absent, half_days: half, late_minutes: lateMinutes };
 }
 
 // --- Teacher KPI Metrics ---
@@ -452,9 +479,9 @@ async function listTeacherKpis(tenantId, { periodName, teacherId } = {}) {
     .where('kpi.tenant_id', tenantId)
     .select(
       'kpi.*',
-      knex.raw("CONCAT(t.first_name, ' ', t.last_name) as teacher_name"),
+      knex.raw("CONCAT_WS(' ', t.first_name, t.middle_name, t.last_name) as teacher_name"),
       't.email as teacher_email',
-      knex.raw("CONCAT(eval.first_name, ' ', eval.last_name) as evaluator_name")
+      knex.raw("CONCAT_WS(' ', eval.first_name, eval.middle_name, eval.last_name) as evaluator_name")
     )
     .orderBy('kpi.created_at', 'desc');
 
@@ -570,9 +597,228 @@ async function setHomeroom(tenantId, classId, teacherId) {
   return cls;
 }
 
+// --- Overtime ---
+
+const OVERTIME_SETTINGS_KEY = 'overtime';
+
+// Formula (adjustable by admin): hourly = basic / working_days / hours_per_day,
+// then × multiplier by type. Day window is editable; weekends/rest days and the
+// holiday list are used to auto-classify entries when no explicit type is given.
+const DEFAULT_OVERTIME_SETTINGS = {
+  working_days: 26,
+  hours_per_day: 8,
+  day_multiplier: 1.5,   // day overtime (working day, within window)
+  night_multiplier: 1.75, // night overtime (outside day window)
+  rest_day_multiplier: 2, // weekends / rest days
+  holiday_multiplier: 2.5, // public holidays
+  day_start: '06:00',
+  day_end: '22:00',
+  holidays: [],
+};
+
+function toTime24(value, fallback) {
+  const s = String(value || '').slice(0, 5);
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+  return fallback;
+}
+
+function classifyOvertime(dateStr, startTime, settings) {
+  const d = dateKey(dateStr);
+  const holidays = (settings.holidays || []).map((x) => String(x).slice(0, 10));
+  if (d && holidays.includes(d)) return 'holiday';
+  const dow = new Date(`${d || '2000-01-01'}T00:00:00Z`).getUTCDay();
+  if (dow === 0 || dow === 6) return 'rest_day';
+  const t = toTime24(startTime, null);
+  if (t) {
+    const ds = toTime24(settings.day_start, '06:00');
+    const de = toTime24(settings.day_end, '22:00');
+    if (t >= ds && t <= de) return 'day';
+  }
+  return 'night';
+}
+
+const OT_MULT_KEY = { day: 'day_multiplier', night: 'night_multiplier', rest_day: 'rest_day_multiplier', holiday: 'holiday_multiplier' };
+
+function computeOvertimePay(hours, type, settings, basicSalary) {
+  const h = Number(hours) || 0;
+  const basic = Number(basicSalary) || 0;
+  const hourly = basic > 0 ? round2(basic / (Number(settings.working_days) || 26) / (Number(settings.hours_per_day) || 8)) : 0;
+  const multiplier = Number(settings[OT_MULT_KEY[type]] != null ? settings[OT_MULT_KEY[type]] : settings.day_multiplier) || 1.5;
+  const amount = round2(h * hourly * multiplier);
+  return { hourly_rate: hourly, multiplier, amount };
+}
+
+async function getOvertimeSettings(tenantId) {
+  const stored = await settingsService.getByKey(tenantId, OVERTIME_SETTINGS_KEY);
+  return { ...DEFAULT_OVERTIME_SETTINGS, ...(stored || {}), holidays: (stored?.holidays || DEFAULT_OVERTIME_SETTINGS.holidays) || [] };
+}
+
+async function updateOvertimeSettings(tenantId, data = {}) {
+  const current = await getOvertimeSettings(tenantId);
+  const pick = (k, d) => (data[k] !== undefined && data[k] !== null && data[k] !== '' ? Number(data[k]) : d);
+  const next = {
+    working_days: pick('working_days', current.working_days),
+    hours_per_day: pick('hours_per_day', current.hours_per_day),
+    day_multiplier: pick('day_multiplier', current.day_multiplier),
+    night_multiplier: pick('night_multiplier', current.night_multiplier),
+    rest_day_multiplier: pick('rest_day_multiplier', current.rest_day_multiplier),
+    holiday_multiplier: pick('holiday_multiplier', current.holiday_multiplier),
+    day_start: data.day_start != null && data.day_start !== '' ? String(data.day_start).slice(0, 5) : current.day_start,
+    day_end: data.day_end != null && data.day_end !== '' ? String(data.day_end).slice(0, 5) : current.day_end,
+    holidays: Array.isArray(data.holidays) ? data.holidays.map((x) => String(x).slice(0, 10)).filter(Boolean) : current.holidays,
+  };
+  await settingsService.set(tenantId, OVERTIME_SETTINGS_KEY, next);
+  return next;
+}
+
+async function listOvertime(tenantId, { from, to, staffId, status, month, search } = {}) {
+  let query = knex('staff_overtime as ot')
+    .join('users as u', 'ot.staff_id', 'u.id')
+    .where('ot.tenant_id', tenantId)
+    .select(
+      'ot.*',
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as staff_name"),
+      'u.role', 'u.email', 'u.job_title',
+      knex.raw("(SELECT CONCAT_WS(' ', ab.first_name, ab.middle_name, ab.last_name) FROM users ab WHERE ab.id = ot.approved_by) as approved_by_name")
+    )
+    .orderBy('ot.date', 'desc')
+    .orderBy('u.first_name');
+
+  if (from) query = query.where('ot.date', '>=', from);
+  if (to) query = query.where('ot.date', '<=', to);
+  if (month) query = query.whereRaw("TO_CHAR(ot.date, 'YYYY-MM') = ?", [month]);
+  if (staffId) query = query.where('ot.staff_id', staffId);
+  if (status) query = query.where('ot.status', status);
+  if (search) {
+    const term = `%${String(search).trim()}%`;
+    query = query.where((b) => {
+      b.whereILike('u.first_name', term).orWhereILike('u.last_name', term).orWhereILike('u.email', term).orWhereILike('u.job_title', term);
+    });
+  }
+  return await query;
+}
+
+async function createOvertime(tenantId, data, performedBy) {
+  const staff = await knex('users').where({ tenant_id: tenantId, id: data.staffId }).first();
+  if (!staff) { const e = new Error('STAFF_NOT_FOUND'); e.code = 'STAFF_NOT_FOUND'; throw e; }
+  const settings = await getOvertimeSettings(tenantId);
+  const type = ['day', 'night', 'rest_day', 'holiday'].includes(data.overtimeType) ? data.overtimeType : classifyOvertime(data.date, data.startTime, settings);
+  const { hourly_rate, multiplier, amount } = computeOvertimePay(data.hours, type, settings, staff.basic_salary);
+  const [inserted] = await knex('staff_overtime').insert({
+    tenant_id: tenantId,
+    staff_id: data.staffId,
+    date: data.date,
+    hours: Number(data.hours) || 0,
+    overtime_type: type,
+    multiplier,
+    hourly_rate,
+    amount,
+    status: data.status === 'approved' ? 'approved' : 'pending',
+    notes: data.notes || null,
+    approved_by: data.status === 'approved' ? performedBy : null,
+  }).returning('*');
+  return inserted;
+}
+
+async function bulkCreateOvertime(tenantId, entries, performedBy) {
+  const results = [];
+  for (const e of entries || []) results.push(await createOvertime(tenantId, e, performedBy));
+  return results;
+}
+
+async function updateOvertime(tenantId, id, data, performedBy) {
+  const existing = await knex('staff_overtime').where({ tenant_id: tenantId, id }).first();
+  if (!existing) return undefined;
+  const staff = await knex('users').where({ tenant_id: tenantId, id: data.staffId || existing.staff_id }).first();
+  const settings = await getOvertimeSettings(tenantId);
+  const hours = data.hours != null ? Number(data.hours) : Number(existing.hours);
+  const type = ['day', 'night', 'rest_day', 'holiday'].includes(data.overtimeType) ? data.overtimeType : existing.overtime_type;
+  const { hourly_rate, multiplier, amount } = computeOvertimePay(hours, type, settings, staff?.basic_salary);
+  const [updated] = await knex('staff_overtime')
+    .where({ tenant_id: tenantId, id })
+    .update({
+      staff_id: data.staffId || existing.staff_id,
+      date: data.date || existing.date,
+      hours,
+      overtime_type: type,
+      multiplier,
+      hourly_rate,
+      amount,
+      notes: data.notes !== undefined ? (data.notes || null) : existing.notes,
+      status: data.status === 'approved' ? 'approved' : existing.status,
+      approved_by: data.status === 'approved' ? performedBy : existing.approved_by,
+      updated_at: knex.fn.now(),
+    })
+    .returning('*');
+  return updated;
+}
+
+async function approveOvertime(tenantId, id, approvedBy) {
+  const [row] = await knex('staff_overtime')
+    .where({ tenant_id: tenantId, id })
+    .update({ status: 'approved', approved_by: approvedBy, updated_at: knex.fn.now() })
+    .returning('*');
+  return row;
+}
+
+async function deleteOvertime(tenantId, id) {
+  return knex('staff_overtime').where({ tenant_id: tenantId, id }).del();
+}
+
+async function getOvertimeSummary(tenantId, { month } = {}) {
+  let q = knex('staff_overtime').where({ tenant_id: tenantId });
+  if (month) q = q.whereRaw("TO_CHAR(date, 'YYYY-MM') = ?", [month]);
+  const byType = await q.clone().groupBy('overtime_type').select('overtime_type').count('* as entries').sum('hours as hours').sum('amount as amount');
+  const byStaff = await q.clone().groupBy('staff_id').select('staff_id')
+    .sum('hours as hours').sum('amount as amount')
+    .orderByRaw('SUM(amount) DESC');
+  // Join staff names
+  const staffIds = byStaff.map((s) => s.staff_id);
+  const staff = staffIds.length ? await knex('users').whereIn('id', staffIds).select('id', 'first_name', 'last_name', 'role') : [];
+  const staffMap = new Map(staff.map((s) => [s.id, s]));
+  const pending = await q.clone().where('status', 'pending').sum('amount as amount').count('* as entries').first();
+  const approved = await q.clone().where('status', 'approved').sum('amount as amount').count('* as entries').first();
+  return {
+    by_type: byType.map((r) => ({ type: r.overtime_type, entries: Number(r.entries), hours: round2(Number(r.hours)), amount: round2(Number(r.amount)) })),
+    by_staff: byStaff.map((r) => {
+      const s = staffMap.get(r.staff_id);
+      return { staff_id: r.staff_id, name: s ? `${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ')}` : '—', role: s?.role || '', hours: round2(Number(r.hours)), amount: round2(Number(r.amount)) };
+    }),
+    pending: { entries: Number(pending?.entries || 0), amount: round2(Number(pending?.amount || 0)) },
+    approved: { entries: Number(approved?.entries || 0), amount: round2(Number(approved?.amount || 0)) },
+  };
+}
+
+// Approved overtime amount for a staff member + month (used by payroll prefill).
+async function getApprovedOvertimeAmount(tenantId, userId, month, year) {
+  try {
+    const m = String(month).padStart(2, '0');
+    const r = await knex('staff_overtime')
+      .where({ tenant_id: tenantId, staff_id: userId, status: 'approved' })
+      .whereRaw("TO_CHAR(date, 'YYYY-MM') = ?", [`${year}-${m}`])
+      .sum('amount as v').first();
+    return round2(Number(r?.v || 0));
+  } catch (e) {
+    // Never let overtime lookup break payroll creation.
+    return 0;
+  }
+}
+
 module.exports = {
   getHomeroom,
   setHomeroom,
+  getOvertimeSettings,
+  updateOvertimeSettings,
+  listOvertime,
+  createOvertime,
+  bulkCreateOvertime,
+  updateOvertime,
+  approveOvertime,
+  deleteOvertime,
+  getOvertimeSummary,
+  getApprovedOvertimeAmount,
+  classifyOvertime,
+  computeOvertimePay,
   STAFF_ROLES,
   listStaffAttendance,
   bulkMarkAttendance,

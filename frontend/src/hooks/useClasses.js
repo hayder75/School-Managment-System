@@ -23,3 +23,11 @@ export function useDeleteClass() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["classes"] }),
   });
 }
+
+export function useSetHomeroom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, class_teacher_id }) => api.put(`/classes/${id}/homeroom`, { class_teacher_id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["classes"] }),
+  });
+}

@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useClassAttendanceStats } from "../hooks/useAttendance";
@@ -59,7 +60,7 @@ function RankedList({ title, items, tone, emptyText }) {
                 </span>
                 <StudentAvatar student={s} className="w-9 h-9" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{s.first_name} {s.last_name}</p>
+                  <p className="text-sm font-medium truncate">{fullName(s)}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {s.present} {tone === "best" ? "attended" : "missed"} · {s.absent} {tone === "best" ? "absent" : "absences"}
                   </p>
@@ -106,7 +107,7 @@ export default function ClassAttendanceStatsPage() {
 
   const trendPoints = trend.map((d) => ({ label: shortDate(d.date), value: d.present_rate }));
   const attendanceBars = students.slice(0, 12).map((s) => ({
-    label: `${s.first_name?.[0] || ""}${s.last_name?.[0] || ""}`,
+    label: `${fullName(s)}`,
     value: s.present_rate,
     color: s.present_rate >= 90 ? "#2c5a5e" : s.present_rate >= 75 ? "#c9a86a" : "#d47a6a",
   }));
@@ -205,7 +206,7 @@ export default function ClassAttendanceStatsPage() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <StudentAvatar student={s} className="w-8 h-8" />
-                      <span className="font-medium">{s.first_name} {s.last_name}</span>
+                      <span className="font-medium">{fullName(s)}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right text-emerald-700">{s.present}</TableCell>

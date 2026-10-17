@@ -8,7 +8,7 @@ async function dailyCollections(tenantId, { date } = {}) {
     .whereRaw('DATE(p.paid_date) = ?', [targetDate])
     .select(
       'u.id as cashier_id',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as cashier_name"),
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as cashier_name"),
       'p.payment_method as method',
       knex.raw('COUNT(*)::int as tx_count'),
       knex.raw('COALESCE(SUM(p.amount_paid), 0)::numeric as total'),
@@ -79,7 +79,7 @@ async function listBatches(tenantId, { limit } = {}) {
   return await knex('payment_reconciliation_batches as b')
     .leftJoin('users as u', 'b.reconciled_by', 'u.id')
     .where('b.tenant_id', tenantId)
-    .select('b.*', knex.raw("CONCAT(u.first_name, ' ', u.last_name) as reconciled_by_name"))
+    .select('b.*', knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as reconciled_by_name"))
     .orderBy('b.batch_date', 'desc')
     .orderBy('b.created_at', 'desc')
     .limit(Math.min(Number(limit) || 60, 200));
@@ -132,7 +132,7 @@ async function defaulterAging(tenantId, { asOf } = {}) {
     }
     const entry = {
       student_id: row.student_id,
-      student_name: `${row.first_name} ${row.last_name}`,
+      student_name: `${[row.first_name, row.middle_name, row.last_name].filter(Boolean).join(' ')}`,
       class_name: row.class_name,
       expected: parseFloat(row.expected_total),
       paid: paidMap.get(row.student_id) || 0,

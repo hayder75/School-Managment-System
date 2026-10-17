@@ -40,7 +40,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground">Configure your school settings</p>
@@ -256,6 +256,7 @@ function GradingSettings({ settings, onSave, saving }) {
 
   const [scale, setScale] = useState(parsedScale);
   const [weights, setWeights] = useState(parsedWeights);
+  const [periodType, setPeriodType] = useState(settings["report_card.period_type"] || "semester");
   const [saved, setSaved] = useState(false);
 
   function updateBand(i, field, value) {
@@ -267,6 +268,7 @@ function GradingSettings({ settings, onSave, saving }) {
     await onSave({
       "grading.scale": JSON.stringify(scale),
       "grading.weights": JSON.stringify({ ca_pct: caPct, exam_pct: Math.max(100 - caPct, 0) }),
+      "report_card.period_type": periodType,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -276,9 +278,34 @@ function GradingSettings({ settings, onSave, saving }) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
+          <CardTitle>Report Card Period</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Whether the school issues report cards quarterly (4 per year) or per semester (2 per year).
+            Create the matching terms under Terms so each report card has its own period.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            {[{ v: "quarter", label: "Quarterly", note: "4 report cards per year" }, { v: "semester", label: "Semester", note: "2 report cards per year" }].map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => setPeriodType(o.v)}
+                className={`flex-1 rounded-lg border p-3 text-left transition-colors ${periodType === o.v ? "border-primary bg-primary/5" : "hover:bg-muted"}`}
+              >
+                <div className="font-medium">{o.label}</div>
+                <div className="text-xs text-muted-foreground">{o.note}</div>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Assessment Weights</CardTitle>
           <p className="text-sm text-muted-foreground">
-            How semester marks are combined out of 100 — e.g. continuous assessment 50% + semester exam 50%.
+            How each period's mark is combined out of 100 — e.g. continuous assessment (classwork, homework, quizzes, midterms) 50% + final exam 50%.
           </p>
         </CardHeader>
         <CardContent className="flex items-end gap-3">
@@ -436,7 +463,7 @@ function TermsManager() {
           </table></div>
         )}
 
-        <form onSubmit={addTerm} className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-2 sm:grid-cols-5 gap-3 items-end">
+        <form onSubmit={addTerm} className="border-t pt-4 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
           <div className="sm:col-span-2">
             <Label>Academic year</Label>
             <select value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })}

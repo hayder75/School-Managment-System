@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, useEffect } from "react";
 import { useDebouncedValue } from "../hooks/useDebounce";
 import { 
@@ -5,10 +6,12 @@ import {
   Search, Plus, BookOpen, Clock, ThumbsUp, X
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { useAuthStore } from "../store/auth";
 import { useI18n } from "../i18n/I18nContext";
 
 export default function TeacherKpiPage() {
   const { t } = useI18n();
+  const role = useAuthStore((s) => s.user?.role);
   const [summary, setSummary] = useState(null);
   const [kpiList, setKpiList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,13 +37,14 @@ export default function TeacherKpiPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [resKpis, resSummary] = await Promise.all([
+      const wants = role === "teacher" ? [fetch("/api/hr-enhancements/teacher-kpis").then((r) => r.json())] : [
         fetch("/api/hr-enhancements/teacher-kpis").then((r) => r.json()),
         fetch("/api/hr-enhancements/teacher-kpis/summary").then((r) => r.json()),
-      ]);
+      ];
+      const [resKpis, resSummary] = await Promise.all(wants);
 
       if (resKpis.success) setKpiList(resKpis.data);
-      if (resSummary.success) setSummary(resSummary.data);
+      if (resSummary?.success) setSummary(resSummary.data);
     } catch (err) {
       console.error("Failed to load KPI metrics", err);
     } finally {
@@ -129,7 +133,7 @@ export default function TeacherKpiPage() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{t("Avg Overall Score")}</p>
@@ -265,7 +269,7 @@ export default function TeacherKpiPage() {
                 >
                   <option value="">{t("-- Choose Teacher --")}</option>
                   {summary?.teachers?.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>{teacher.first_name} {teacher.last_name}</option>
+                    <option key={teacher.id} value={teacher.id}>{fullName(teacher)}</option>
                   ))}
                 </select>
               </div>

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import api from "../lib/api";
+import { clearClientCache } from "../lib/queryClient";
 
 export const useAuthStore = create((set) => ({
   user: null,
@@ -13,6 +14,8 @@ export const useAuthStore = create((set) => ({
   login: async (identifier, password) => {
     const res = await api.post("/auth/login", { identifier, password });
     const { user, token } = res.data;
+    // Drop any cached data belonging to a previous session.
+    await clearClientCache();
     set({ user, token, isAuthenticated: true, isLoading: false });
     return user;
   },
@@ -23,6 +26,7 @@ export const useAuthStore = create((set) => ({
     } catch {
       // ignore
     }
+    await clearClientCache();
     set({ user: null, isAuthenticated: false, isLoading: false });
   },
 

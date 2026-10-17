@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, useEffect } from "react";
 import { useDebouncedValue } from "../hooks/useDebounce";
 import {
@@ -203,7 +204,7 @@ export default function AssetManagementPage() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{t("Total Valuation")}</p>
@@ -558,7 +559,7 @@ export default function AssetManagementPage() {
                   >
                     <option value="">{t("— Not assigned —")}</option>
                     {staffOptions.map((s) => (
-                      <option key={s.id} value={s.id}>{s.first_name} {s.last_name} ({s.role.replace(/_/g, " ")})</option>
+                      <option key={s.id} value={s.id}>{fullName(s)} ({s.role.replace(/_/g, " ")})</option>
                     ))}
                   </select>
                 </div>

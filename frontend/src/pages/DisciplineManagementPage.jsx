@@ -1,11 +1,14 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useI18n } from "../i18n/I18nContext";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "../hooks/useDebounce";
 import api from "../lib/api";
+import { useAuthStore } from "../store/auth";
 import {
   useDisciplineCases, useCreateDisciplineCase, useResolveDisciplineCase,
 } from "../hooks/useRoleModules";
+import { useTeacherAssignments } from "../hooks/useTeachers";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
@@ -15,11 +18,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Gavel } from "lucide-react";
 
-const INCIDENT_TYPES = ["fighting", "cheating", "disrespect", "vandalism", "absenteeism", "other"];
+const INCIDENT_TYPES = [
+  "fighting", "cheating", "disrespect", "vandalism", "absenteeism", "late",
+  "left_early", "uniform", "unexcused_absence", "phone", "cyberbullying",
+  "disruptive", "skipping_class", "littering", "other",
+];
 const SANCTIONS = ["warning", "parent_conference", "detention", "suspension", "expulsion"];
 
 export default function DisciplineManagementPage() {
   const { t } = useI18n();
+  const user = useAuthStore((s) => s.user);
+  const isParent = user?.role === "parent";
+  const isTeacher = user?.role === "teacher";
+  const canManage = !isParent && !isTeacher;
   const [statusFilter, setStatusFilter] = useState("all");
   const { data: casesData } = useDisciplineCases({ status: statusFilter });
   const resolve = useResolveDisciplineCase();
@@ -29,10 +40,10 @@ export default function DisciplineManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">{t.disc.title}</h1>
-          <p className="text-muted-foreground">{t.disc.subtitle}</p>
+          <h1 className="text-3xl font-bold">{isParent ? t.disc.myCases : t.disc.title}</h1>
+          <p className="text-muted-foreground">{isParent ? t.disc.subtitle : t.disc.subtitle}</p>
         </div>
-        <NewCaseDialog />
+        {!isParent && <NewCaseDialog isTeacher={isTeacher} />}
       </div>
 
       <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -45,14 +56,15 @@ export default function DisciplineManagementPage() {
       </Select>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[680px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[680px] table-sticky-col">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.security.studentCol}</th>
             <th className="p-3 font-medium">{t.disc.incidentType}</th>
             <th className="p-3 font-medium">{t.security.descriptionCol}</th>
             <th className="p-3 font-medium">{t.disc.sanction}</th>
             <th className="p-3 font-medium">{t.qa.status}</th>
-            <th className="p-3"></th>
+            <th className="p-3 font-medium">{t.common.date}</th>
+            {canManage && <th className="p-3"></th>}
           </tr></thead>
           <tbody>
             {rows.map((d) => (
@@ -66,21 +78,24 @@ export default function DisciplineManagementPage() {
                     {t.disc[d.status]}
                   </span>
                 </td>
-                <td className="p-3 text-right">
-                  {d.status === "open" && (
-                    <Button size="sm" variant="outline" onClick={() => {
-                      const sanction = window.prompt(t.disc.promptSanction + "\n" + SANCTIONS.map((s) => t.disc[`san_${s}`]).join(", "));
-                      if (!sanction) return;
-                      const match = SANCTIONS.find((s) => s.startsWith(sanction.toLowerCase().slice(0, 4))) || "warning";
-                      resolve.mutate({ id: d.id, sanction: match, outcome: d.description, parent_notified: true });
-                    }}>
-                      <Gavel className="h-3 w-3 mr-1" />{t.disc.resolveBtn}
-                    </Button>
-                  )}
-                </td>
+                <td className="p-3 text-muted-foreground text-xs">{String(d.created_at || "").slice(0, 10)}</td>
+                {canManage && (
+                  <td className="p-3 text-right">
+                    {d.status === "open" && (
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const sanction = window.prompt(t.disc.promptSanction + "\n" + SANCTIONS.map((s) => t.disc[`san_${s}`]).join(", "));
+                        if (!sanction) return;
+                        const match = SANCTIONS.find((s) => s.startsWith(sanction.toLowerCase().slice(0, 4))) || "warning";
+                        resolve.mutate({ id: d.id, sanction: match, outcome: d.description, parent_notified: true });
+                      }}>
+                        <Gavel className="h-3 w-3 mr-1" />{t.disc.resolveBtn}
+                      </Button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
+            {!rows.length && <tr><td colSpan={canManage ? 7 : 6} className="p-8 text-center text-muted-foreground">{t.common.noData}</td></tr>}
           </tbody>
         </table></div>
       </CardContent></Card>
@@ -88,9 +103,12 @@ export default function DisciplineManagementPage() {
   );
 }
 
-function NewCaseDialog() {
+function NewCaseDialog({ isTeacher }) {
   const { t } = useI18n();
+  const user = useAuthStore((s) => s.user);
   const create = useCreateDisciplineCase();
+  const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
+  const teacherClassIds = (assignmentsData?.data || []).map((a) => a.class_id);
   const [open, setOpen] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
   const debouncedStudentSearch = useDebouncedValue(studentSearch);
@@ -98,16 +116,22 @@ function NewCaseDialog() {
   const [hearingDate, setHearingDate] = useState("");
 
   const { data: studentsData } = useQuery({
-    queryKey: ["discipline-student-search", debouncedStudentSearch],
-    queryFn: () => api.get("/students", { params: { search: debouncedStudentSearch, limit: 10 } }),
+    queryKey: ["discipline-student-search", debouncedStudentSearch, isTeacher, JSON.stringify(teacherClassIds)],
+    queryFn: () => api.get("/students", { params: { search: debouncedStudentSearch, limit: 20 } }),
     enabled: open && studentSearch.length >= 2,
   });
-  const candidates = studentsData?.data || [];
+  let candidates = studentsData?.data || [];
+  if (isTeacher && teacherClassIds.length) {
+    candidates = candidates.filter((s) => teacherClassIds.includes(s.class_id));
+  }
 
   function submit(e) {
     e.preventDefault();
     const fd = Object.fromEntries(new FormData(e.target).entries());
-    create.mutate({ ...fd, student_id: studentId }, { onSuccess: () => { setOpen(false); setStudentId(""); setStudentSearch(""); } });
+    create.mutate(
+      { ...fd, student_id: studentId, parent_notified: true },
+      { onSuccess: () => { setOpen(false); setStudentId(""); setStudentSearch(""); } }
+    );
   }
 
   return (
@@ -119,13 +143,19 @@ function NewCaseDialog() {
           <div className="space-y-1">
             <Label>{t.security.studentCol}</Label>
             <Input value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder={t.disc.searchStudent} required={!studentId} />
-            {candidates.slice(0, 5).map((s) => (
+            {isTeacher && !teacherClassIds.length && (
+              <p className="text-xs text-amber-600">{t.common.noData}</p>
+            )}
+            {candidates.slice(0, 6).map((s) => (
               <button key={s.id} type="button"
-                onClick={() => { setStudentId(s.id); setStudentSearch(`${s.first_name} ${s.last_name}`); }}
+                onClick={() => { setStudentId(s.id); setStudentSearch(`${fullName(s)}${s.class_name ? " — " + s.class_name : ""}`); }}
                 className={`w-full text-left text-sm px-2 py-1.5 rounded border ${studentId === s.id ? "border-neutral-900 bg-muted" : "hover:bg-muted"}`}>
-                {s.first_name} {s.last_name}
+                {fullName(s)}{s.class_name ? <span className="text-xs text-muted-foreground"> · {s.class_name}</span> : null}
               </button>
             ))}
+            {candidates.length === 0 && studentSearch.length >= 2 && !studentId && (
+              <p className="text-xs text-muted-foreground">{t.common.noResults}</p>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1"><Label>{t.disc.incidentType}</Label>
@@ -139,7 +169,8 @@ function NewCaseDialog() {
               <EthiopianDateInput value={hearingDate} onChange={setHearingDate} />
             </div>
           </div>
-          <div className="space-y-1"><Label>{t.security.descriptionCol}</Label><textarea name="description" rows={4} required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
+          <div className="space-y-1"><Label>{t.security.descriptionCol}</Label><textarea name="description" rows={4} required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder={t.disc.describe} /></div>
+          <p className="text-xs text-muted-foreground">{t.disc.parentNotifiedNote}</p>
           <Button type="submit" className="w-full" disabled={create.isPending || !studentId}>{t.common.save}</Button>
         </form>
       </DialogContent>

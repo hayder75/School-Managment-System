@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 
-export function useUsers(params = {}) {
+export function useUsers(params = {}, options = {}) {
   return useQuery({
     queryKey: ["users", params],
     queryFn: () => api.get("/users", { params }),
+    ...options,
   });
 }
 
@@ -28,7 +29,21 @@ export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) => api.put(`/users/${id}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["teachers"] });
+    },
+  });
+}
+
+export function useUpdateUserCompensation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/users/${id}/compensation`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["teachers"] });
+    },
   });
 }
 

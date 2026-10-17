@@ -8,4 +8,11 @@ const assignSubjectSchema = z.object({
   }),
 });
 
-module.exports = { assignSubjectSchema };
+const bulkAssignSchema = z.object({
+  body: z.object({
+    subject_ids: z.array(z.string().uuid()).min(1, 'Select at least one subject').max(100),
+    class_ids: z.array(z.string().uuid()).min(1, 'Select at least one class').max(200),
+  }),
+});
+
+module.exports = { assignSubjectSchema, bulkAssignSchema };

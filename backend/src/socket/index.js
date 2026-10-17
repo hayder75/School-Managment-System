@@ -1,17 +1,33 @@
 const { Server } = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const db = require('../config/database');
 const logger = require('../config/logger');
 const broadcast = require('./broadcast');
 
-function setupSocket(httpServer) {
+async function setupSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
       origin: config.frontendUrl,
       credentials: true,
     },
   });
+
+  // Share rooms/broadcasts across clustered workers. If Redis is unavailable
+  // the app still works in single-instance mode.
+  try {
+    const pubClient = createClient({ url: config.redis.url });
+    const subClient = pubClient.duplicate();
+    pubClient.on('error', (err) => logger.error('Redis pub client error', { error: err.message }));
+    subClient.on('error', (err) => logger.error('Redis sub client error', { error: err.message }));
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    logger.info('Socket.io Redis adapter enabled');
+  } catch (err) {
+    logger.error('Socket.io Redis adapter disabled (single-instance mode)', { error: err.message });
+  }
 
   broadcast.setIo(io);
 

@@ -9,6 +9,19 @@ const router = Router();
 router.use(auth);
 router.use(tenant);
 
+// Executive overview + sharing
+const OVERVIEW_ROLES = ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'hr', 'finance', 'accountant', 'cashier', 'shift_coordinator', 'security_head', 'general_services'];
+router.get('/overview', requireAccess(OVERVIEW_ROLES, ['reports.view']), controller.getOverview);
+const ALL_STAFF = ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'hr', 'finance', 'accountant', 'cashier', 'shift_coordinator', 'security_head', 'general_services', 'teacher', 'student', 'parent', 'support'];
+router.get('/catalog', requireAccess(ALL_STAFF, ['reports.view']), controller.getCatalog);
+router.get('/report/:id', requireAccess(ALL_STAFF, ['reports.view']), controller.getReport);
+router.get('/export/:id', requireAccess(ALL_STAFF, ['reports.view']), controller.exportExcel);
+router.get('/detail/:id', requireAccess(ALL_STAFF, ['reports.view']), controller.getReportDetail);
+router.get('/export-data/:kind', requireAccess(['admin', 'owner', 'general_manager', 'principal', 'vice_principal'], ['reports.view']), controller.exportData);
+router.post('/share', requireAccess(ALL_STAFF, ['reports.view']), controller.createShare);
+router.get('/shares', requireAccess(ALL_STAFF, ['reports.view']), controller.listShares);
+router.delete('/shares/:id', requireAccess(ALL_STAFF, ['reports.view']), controller.revokeShare);
+
 // Admin/Owner reports
 router.get('/semester-results', requireAccess(['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'teacher'], ['reports.view']), controller.getSemesterResults);
 // Report card meta: remarks + publish gate
@@ -58,6 +71,35 @@ router.put('/report-card-meta', requireAccess(['admin', 'owner', 'principal', 'v
   res.json({ success: true, data: await db('report_card_meta').where({ tenant_id: req.tenant.id, student_id, term_id }).first() });
 });
 
+// Publish / unpublish every report card for a class + term in one action.
+router.post('/report-cards/publish-all', requireAccess(['admin', 'owner', 'principal', 'vice_principal'], ['reports.view', 'discipline.manage']), async (req, res) => {
+  const db = require('../../config/database');
+  const { term_id, class_id, published } = req.body;
+  if (!term_id || !class_id) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'term_id and class_id are required' } });
+  }
+  const students = await db('students').where({ tenant_id: req.tenant.id, class_id }).select('id');
+  if (!students.length) return res.json({ success: true, data: { updated: 0 } });
+  const ids = students.map((s) => s.id);
+  const existing = await db('report_card_meta')
+    .where({ tenant_id: req.tenant.id, term_id }).whereIn('student_id', ids)
+    .select('student_id');
+  const have = new Set(existing.map((r) => r.student_id));
+  const now = db.fn.now();
+  const toInsert = ids.filter((id) => !have.has(id)).map((student_id) => ({
+    tenant_id: req.tenant.id, student_id, term_id, published: !!published, remarks: '',
+  }));
+  if (toInsert.length) await db('report_card_meta').insert(toInsert);
+  await db('report_card_meta')
+    .where({ tenant_id: req.tenant.id, term_id }).whereIn('student_id', ids)
+    .update({
+      published: !!published,
+      published_at: published ? now : null,
+      published_by: published ? req.user.userId : null,
+    });
+  res.json({ success: true, data: { updated: ids.length, published: !!published } });
+});
+
 router.get('/enrollment', requireAccess(['admin', 'owner'], ['reports.view']), controller.getEnrollmentReport);
 router.get('/grade-distribution', requireAccess(['admin', 'owner', 'teacher'], ['reports.view']), controller.getGradeDistribution);
 router.get('/class-performance', requireAccess(['admin', 'owner'], ['reports.view']), controller.getClassPerformance);
@@ -76,7 +118,7 @@ router.get('/outstanding', requireAccess(['admin', 'owner', 'finance'], ['report
 router.get('/revenue-expenses', requireAccess(['admin', 'owner', 'finance'], ['reports.view']), controller.getRevenueVsExpenses);
 
 // HR reports
-router.get('/staff-directory', requireAccess(['admin', 'owner', 'hr'], ['reports.view']), controller.getStaffDirectory);
+router.get('/staff-directory', requireAccess(['admin', 'owner', 'hr', 'finance', 'accountant', 'general_manager', 'principal', 'vice_principal'], ['reports.view', 'payroll.view', 'staff-attendance.manage']), controller.getStaffDirectory);
 router.get('/payroll-summary', requireAccess(['admin', 'owner', 'hr', 'finance'], ['reports.view']), controller.getPayrollSummary);
 router.get('/headcount', requireAccess(['admin', 'owner', 'hr'], ['reports.view']), controller.getHeadcount);
 

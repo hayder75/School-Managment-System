@@ -17,7 +17,7 @@ async function findConflict(tenantId, { class_id, teacher_id, day_of_week, start
       'timetable_entries.start_time',
       'timetable_entries.end_time',
       'subjects.name as subject_name',
-      db.raw("CONCAT(users.first_name, ' ', users.last_name) as teacher_name")
+      db.raw("CONCAT_WS(' ', users.first_name, users.middle_name, users.last_name) as teacher_name")
     )
     .first();
   const classConflict = await classQ;

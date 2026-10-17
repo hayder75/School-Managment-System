@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useHomeroom, useSetHomeroom } from "../hooks/useHr";
 import { useToast } from "../store/toast";
@@ -74,7 +75,7 @@ export default function HrHomeroomPage() {
                           <SelectContent>
                             <SelectItem value="none">{t("— Unassigned —")}</SelectItem>
                             {teachers.map((tt) => (
-                              <SelectItem key={tt.id} value={tt.id}>{tt.first_name} {tt.last_name}</SelectItem>
+                              <SelectItem key={tt.id} value={tt.id}>{fullName(tt)}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

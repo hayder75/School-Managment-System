@@ -18,6 +18,7 @@ router.get('/', requireAccess(['admin', 'owner', 'cashier', 'teacher', 'general_
 router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'cashier', 'general_manager', 'principal', 'vice_principal', 'quality_director'], ['parents.manage', 'students.manage']), controller.getById);
 router.put('/:id', requireAccess(['admin', 'owner', 'cashier', 'general_manager', 'principal', 'vice_principal'], ['parents.manage', 'students.manage']), validate(updateParentSchema), controller.updateParent);
 router.post('/link', requireAccess(['admin', 'owner'], ['parents.manage']), validate(linkParentSchema), controller.link);
+router.post('/guardian', requireAccess(['admin', 'owner', 'hr', 'cashier', 'general_manager', 'principal', 'vice_principal', 'quality_director'], ['parents.manage', 'students.manage']), controller.linkGuardian);
 router.put('/link/:id', requireAccess(['admin', 'owner'], ['parents.manage']), validate(updateLinkSchema), controller.updateLink);
 router.delete('/link/:id', requireAccess(['admin', 'owner'], ['parents.manage']), controller.unlink);
 

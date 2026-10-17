@@ -36,4 +36,17 @@ router.post('/teacher-kpis', requireAccess(['admin', 'owner', 'hr', 'principal',
 router.get('/homeroom', requireAccess(['admin', 'owner', 'hr', 'principal', 'vice_principal', 'quality_director'], ['staff-attendance.manage', 'reports.view', 'classes.manage']), ctrl.getHomeroom);
 router.put('/homeroom/:classId', requireAccess(['admin', 'owner', 'hr'], []), ctrl.setHomeroom);
 
+// Overtime (HR & Finance)
+const OT_ROLES = ['admin', 'owner', 'hr', 'finance', 'accountant', 'general_manager', 'principal', 'vice_principal'];
+const OT_EDIT_ROLES = ['admin', 'owner', 'hr', 'finance', 'accountant'];
+router.get('/overtime', requireAccess(OT_ROLES, ['payroll.view', 'reports.view', 'staff-attendance.manage']), ctrl.listOvertime);
+router.get('/overtime/summary', requireAccess(OT_ROLES, ['payroll.view', 'reports.view', 'staff-attendance.manage']), ctrl.getOvertimeSummary);
+router.get('/overtime/settings', requireAccess(OT_ROLES, ['payroll.view', 'reports.view', 'staff-attendance.manage']), ctrl.getOvertimeSettings);
+router.put('/overtime/settings', requireAccess(['admin', 'owner', 'hr', 'finance', 'accountant'], ['payroll.view', 'staff-attendance.manage']), ctrl.updateOvertimeSettings);
+router.post('/overtime', requireAccess(OT_EDIT_ROLES, ['payroll.view', 'staff-attendance.manage']), ctrl.createOvertime);
+router.post('/overtime/bulk', requireAccess(OT_EDIT_ROLES, ['payroll.view', 'staff-attendance.manage']), ctrl.bulkCreateOvertime);
+router.put('/overtime/:id', requireAccess(OT_EDIT_ROLES, ['payroll.view', 'staff-attendance.manage']), ctrl.updateOvertime);
+router.patch('/overtime/:id/approve', requireAccess(OT_EDIT_ROLES, ['payroll.view', 'staff-attendance.manage']), ctrl.approveOvertime);
+router.delete('/overtime/:id', requireAccess(OT_EDIT_ROLES, ['payroll.view', 'staff-attendance.manage']), ctrl.deleteOvertime);
+
 module.exports = router;

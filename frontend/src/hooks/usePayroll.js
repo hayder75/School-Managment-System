@@ -24,10 +24,11 @@ export function useDeleteSalaryGrade() {
   });
 }
 
-export function usePayroll(params = {}) {
+export function usePayroll(params = {}, options = {}) {
   return useQuery({
     queryKey: ["payroll", params],
     queryFn: () => api.get("/payroll", { params }),
+    ...options,
   });
 }
 
@@ -50,5 +51,38 @@ export function usePayrollSummary(month, year) {
     queryKey: ["payroll-summary", month, year],
     queryFn: () => api.get("/payroll/summary", { params: { month, year } }),
     enabled: !!month && !!year,
+  });
+}
+
+export function useGeneratePayroll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => api.post("/payroll/generate", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payroll"] });
+      qc.invalidateQueries({ queryKey: ["payroll-summary"] });
+    },
+  });
+}
+
+export function useUpdatePayroll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/payroll/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payroll"] });
+      qc.invalidateQueries({ queryKey: ["payroll-summary"] });
+    },
+  });
+}
+
+export function useSettlePayroll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => api.post("/payroll/settle", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payroll"] });
+      qc.invalidateQueries({ queryKey: ["payroll-summary"] });
+    },
   });
 }

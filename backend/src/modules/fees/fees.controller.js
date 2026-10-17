@@ -99,13 +99,13 @@ async function createBulkPayments(req, res) {
 }
 
 async function listPayments(req, res) {
-  const { page, limit, student_id, status, collected_by, fee_structure_id, payment_method, month, year } = req.query;
+  const { page, limit, student_id, status, collected_by, fee_structure_id, payment_method, month, year, search } = req.query;
   const isCashier = req.user.role === 'cashier';
   const scopedCollector = isCashier ? req.user.userId : collected_by;
   const result = await feeService.findAllPayments(req.tenant.id, {
     page, limit, student_id, status,
     collected_by: scopedCollector,
-    fee_structure_id, payment_method, month, year,
+    fee_structure_id, payment_method, month, year, search,
   });
   res.json({ success: true, ...result });
 }

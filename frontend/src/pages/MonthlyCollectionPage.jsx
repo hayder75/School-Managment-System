@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, useMemo, useEffect } from "react";
 import { useClasses } from "../hooks/useClasses";
 import { useMonthlyCollection, useGenerateMonthlyBills, useMarkMonthsPaid, useStudentBills } from "../hooks/useFees";
@@ -127,7 +128,7 @@ export default function MonthlyCollectionPage() {
                   {bills.map((b) => (
                     <TableRow key={b.id}>
                       <TableCell className="font-medium">
-                        {b.first_name} {b.last_name}
+                        {fullName(b)}
                         <span className="block text-xs text-muted-foreground font-mono">{b.student_number || "—"}</span>
                       </TableCell>
                       <TableCell>{b.class_name || "—"}</TableCell>
@@ -212,7 +213,7 @@ function PayDialog({ student, defaultPeriod, onClose, onDone, onError }) {
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{t("Record Payment")} — {student.first_name} {student.last_name}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("Record Payment")} — {fullName(student)}</DialogTitle></DialogHeader>
         {isLoading ? (
           <p className="text-muted-foreground">{t("Loading...")}</p>
         ) : unpaid.length === 0 ? (

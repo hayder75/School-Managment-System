@@ -15,6 +15,15 @@ async function assignSubject(req, res) {
   res.status(201).json({ success: true, data: assignment });
 }
 
+async function assignBulk(req, res) {
+  const result = await teacherService.assignSubjectsBulk(
+    req.tenant.id,
+    req.params.teacherId,
+    req.validated.body
+  );
+  res.status(201).json({ success: true, data: result });
+}
+
 async function getAssignments(req, res) {
   const assignments = await teacherService.getAssignments(req.tenant.id, req.params.teacherId);
   res.json({ success: true, data: assignments });
@@ -29,4 +38,4 @@ async function removeAssignment(req, res) {
   res.json({ success: true, data: null });
 }
 
-module.exports = { list, assignSubject, getAssignments, removeAssignment };
+module.exports = { list, assignSubject, assignBulk, getAssignments, removeAssignment };

@@ -1,5 +1,8 @@
 const studentsService = require('./students.service');
 const access = require('../../shared/access');
+const { getUserScopes } = require('../../shared/scope');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function create(req, res) {
   const student = await studentsService.create(req.tenant.id, req.validated.body);
@@ -46,11 +49,15 @@ async function list(req, res) {
     }
   }
 
-  const result = await studentsService.findAll(req.tenant.id, { page, limit, class_id: scopedClassId, status, search, user_id: scopedUserId });
+  const scopes = await getUserScopes(req.tenant.id, userId);
+  const result = await studentsService.findAll(req.tenant.id, { page, limit, class_id: scopedClassId, status, search, user_id: scopedUserId, scopes });
   res.json({ success: true, ...result });
 }
 
 async function getById(req, res) {
+  if (!UUID_RE.test(req.params.id)) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
+  }
   const canView = await access.canViewStudentRecord(req.tenant.id, req.user.userId, req.user.role, req.params.id);
   if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
   const student = await studentsService.findById(req.tenant.id, req.params.id);
@@ -71,12 +78,22 @@ async function remove(req, res) {
 
 async function listByClass(req, res) {
   if (req.user.role === 'teacher') {
-    if (!(await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, req.params.classId))) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view students in classes you teach' } });
+    // A teacher may view a class's students if they teach it OR are its
+    // homeroom (class) teacher.
+    const assigned = await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, req.params.classId);
+    const homeroom = assigned ? true : await access.isHomeroomTeacherOfClass(req.tenant.id, req.user.userId, req.params.classId);
+    if (!assigned && !homeroom) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view students in classes you teach or lead' } });
     }
   }
   const students = await studentsService.findByClass(req.tenant.id, req.params.classId);
   res.json({ success: true, data: students });
+}
+
+async function unlinked(req, res) {
+  const { search, class_id } = req.query;
+  const data = await studentsService.unlinkedStudents(req.tenant.id, { search, class_id });
+  res.json({ success: true, data, meta: { total: data.length } });
 }
 
 async function promote(req, res) {
@@ -201,7 +218,7 @@ async function removeEnrollment(req, res) {
 }
 
 module.exports = {
-  create, enroll, list, getById, update, remove, listByClass,
+  create, enroll, list, getById, update, remove, listByClass, unlinked,
   promote, graduate, transfer,
   listDocuments, addDocument, removeDocument,
   getMedical, upsertMedical,

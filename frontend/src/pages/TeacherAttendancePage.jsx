@@ -74,19 +74,33 @@ function StatCard({ title, value, sub, icon: Icon, tone = "primary" }) {
   );
 }
 
-function StatusCell({ value, onChange }) {
+function StatusCell({ value, onChange, lateMinutes = 0, onLateChange }) {
   const meta = statusMeta(value);
+  const h = Math.floor((lateMinutes || 0) / 60);
+  const m = (lateMinutes || 0) % 60;
   return (
-    <select
-      value={value || ""}
-      onChange={(e) => onChange(e.target.value)}
-      className={`w-full min-w-[92px] rounded-md border px-1.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary ${meta.cls}`}
-    >
-      <option value="">—</option>
-      {STATUS_OPTIONS.map((s) => (
-        <option key={s.value} value={s.value}>{s.label}</option>
-      ))}
-    </select>
+    <div className="space-y-0.5">
+      <select
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full min-w-[92px] rounded-md border px-1.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary ${meta.cls}`}
+      >
+        <option value="">—</option>
+        {STATUS_OPTIONS.map((s) => (
+          <option key={s.value} value={s.value}>{s.label}</option>
+        ))}
+      </select>
+      {value === "late" && (
+        <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+          <input type="number" min="0" value={h} onChange={(e) => onLateChange((Number(e.target.value) || 0) * 60 + m)}
+            className="w-9 rounded border px-1 py-0.5 text-center" />
+          <span>h</span>
+          <input type="number" min="0" max="59" value={m} onChange={(e) => onLateChange(h * 60 + (Number(e.target.value) || 0))}
+            className="w-9 rounded border px-1 py-0.5 text-center" />
+          <span>m</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -150,21 +164,25 @@ export default function TeacherAttendancePage() {
     if (tab === "stats") fetchStats();
   }, [tab, fetchStats]);
 
-  function cellStatus(row, day) {
-    const key = `${row.staff_id}|${day.date}`;
-    if (edits[key] !== undefined) return edits[key];
-    return day.status || "";
+  function cellValue(row, day, session) {
+    const key = `${row.staff_id}|${day.date}|${session}`;
+    const edit = edits[key];
+    return {
+      status: edit?.status ?? (day[session]?.status || "present"),
+      late_minutes: edit?.late_minutes ?? (day[session]?.late_minutes || 0),
+    };
   }
 
-  function handleCell(row, day, status) {
-    setEdits((prev) => ({ ...prev, [`${row.staff_id}|${day.date}`]: status }));
+  function handleCell(row, day, session, patch) {
+    const key = `${row.staff_id}|${day.date}|${session}`;
+    setEdits((prev) => ({ ...prev, [key]: { ...cellValue(row, day, session), ...patch } }));
     setSaved(false);
   }
 
   async function handleSave() {
-    const entries = Object.entries(edits).map(([key, status]) => {
-      const [staffId, date] = key.split("|");
-      return { staffId, date, status };
+    const entries = Object.entries(edits).map(([key, v]) => {
+      const [staffId, date, session] = key.split("|");
+      return { staffId, date, session, status: v.status, lateMinutes: v.late_minutes || 0 };
     });
     if (entries.length === 0) return;
     setSaving(true);
@@ -280,7 +298,7 @@ export default function TeacherAttendancePage() {
             {ROLE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{t(r)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input className="w-56" placeholder={t("Search name or email")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input className="w-56" placeholder={t("Search name, email, or phone")} value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="flex items-center gap-1 rounded-lg border p-0.5">
           <button type="button" onClick={() => setTab("week")} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${tab === "week" ? "bg-neutral-900 text-white" : "text-muted-foreground"}`}>{t("Weekly Grid")}</button>
           <button type="button" onClick={() => setTab("stats")} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${tab === "stats" ? "bg-neutral-900 text-white" : "text-muted-foreground"}`}>{t("Statistics")}</button>
@@ -311,7 +329,7 @@ export default function TeacherAttendancePage() {
                       <TableHead className="sticky left-0 bg-card z-20 min-w-[180px] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.2)]">{t("Staff / Teacher")}</TableHead>
                       <TableHead>{t("Role")}</TableHead>
                       {dates.map((d, i) => (
-                        <TableHead key={d} className="text-center min-w-[100px]">
+                        <TableHead key={d} className="text-center min-w-[120px]">
                           <span className="block text-xs">{t(DAY_LABELS[i])}</span>
                           <span className="block text-[10px] font-normal text-muted-foreground">{d.slice(5)}</span>
                         </TableHead>
@@ -330,7 +348,18 @@ export default function TeacherAttendancePage() {
                         <TableCell><Badge variant="secondary">{t(row.role)}</Badge></TableCell>
                         {row.days.map((day) => (
                           <TableCell key={day.date} className="p-1">
-                            <StatusCell value={cellStatus(row, day)} onChange={(s) => handleCell(row, day, s)} />
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] font-semibold text-muted-foreground w-5">{t("AM")}</span>
+                                <StatusCell value={cellValue(row, day, "am").status} lateMinutes={cellValue(row, day, "am").late_minutes}
+                                  onChange={(s) => handleCell(row, day, "am", { status: s })} onLateChange={(mins) => handleCell(row, day, "am", { late_minutes: mins })} />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] font-semibold text-muted-foreground w-5">{t("PM")}</span>
+                                <StatusCell value={cellValue(row, day, "pm").status} lateMinutes={cellValue(row, day, "pm").late_minutes}
+                                  onChange={(s) => handleCell(row, day, "pm", { status: s })} onLateChange={(mins) => handleCell(row, day, "pm", { late_minutes: mins })} />
+                              </div>
+                            </div>
                           </TableCell>
                         ))}
                         <TableCell className="text-right text-sm font-medium">{row.stats.attendance_rate}%</TableCell>

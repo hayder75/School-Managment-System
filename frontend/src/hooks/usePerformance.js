@@ -38,3 +38,19 @@ export function usePerformanceScores(params = {}) {
     queryFn: () => api.get("/performance/scores", { params }),
   });
 }
+
+export function usePerformanceMonthly(period) {
+  return useQuery({
+    queryKey: ["performance-monthly", period],
+    queryFn: () => api.get("/performance/monthly", { params: { period } }),
+    enabled: !!period,
+  });
+}
+
+export function useSavePerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ staffId, period, items }) => api.put(`/performance/monthly/${staffId}`, { period, items }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["performance-monthly"] }),
+  });
+}

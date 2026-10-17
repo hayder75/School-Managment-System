@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 620" width="512" height="620" role="img" aria-label="Mount Olive School">
+  <defs>
+    <clipPath id="innerClip"><circle cx="256" cy="256" r="184" /></clipPath>
+    <path id="topArc" d="M38 256 A218 218 0 0 1 474 256" />
+    <path id="botArc" d="M44 268 A212 212 0 0 0 468 268" />
+    <g id="star">
+      <path d="M0 -12 L3.5 -3.7 L12 -3.7 L5.1 1.4 L7.7 9.7 L0 4.6 L-7.7 9.7 L-5.1 1.4 L-12 -3.7 L-3.5 -3.7 Z" fill="#ffd21e" />
+    </g>
+  </defs>
+
+  <!-- outer red disc -->
+  <circle cx="256" cy="256" r="250" fill="#e21f26" />
+  <circle cx="256" cy="256" r="186" fill="#1f3fbf" />
+
+  <!-- scene inside inner circle -->
+  <g clip-path="url(#innerClip)">
+    <!-- sky -->
+    <rect x="70" y="70" width="372" height="372" fill="#1f3fbf" />
+    <!-- hills -->
+    <ellipse cx="140" cy="452" rx="215" ry="180" fill="#2fae4a" />
+    <ellipse cx="392" cy="470" rx="225" ry="195" fill="#2fae4a" />
+    <path d="M40 380 Q150 300 256 372 Q360 300 472 380 L472 460 L40 460 Z" fill="#37bd53" />
+    <!-- winding road -->
+    <path d="M232 460 C258 420 214 396 242 356 C262 328 300 316 300 316 L322 332 C300 344 282 354 272 384 C258 424 286 438 280 460 Z" fill="#f06b8b" />
+    <!-- sun -->
+    <path d="M182 306 A74 74 0 0 1 330 306 Z" fill="#ffd21e" />
+    <g stroke="#ffd21e" stroke-width="7" stroke-linecap="round">
+      <line x1="256" y1="196" x2="256" y2="216" />
+      <line x1="196" y1="214" x2="208" y2="230" />
+      <line x1="316" y1="214" x2="304" y2="230" />
+      <line x1="166" y1="262" x2="184" y2="268" />
+      <line x1="346" y1="262" x2="328" y2="268" />
+      <line x1="188" y1="300" x2="204" y2="298" />
+      <line x1="324" y1="300" x2="308" y2="298" />
+    </g>
+    <!-- stars -->
+    <use href="#star" x="150" y="150" />
+    <use href="#star" x="212" y="120" transform="scale(0.9) translate(24 14)" />
+    <use href="#star" x="300" y="130" />
+    <use href="#star" x="356" y="170" transform="scale(0.85) translate(60 20)" />
+    <use href="#star" x="120" y="220" transform="scale(0.8) translate(30 50)" />
+    <use href="#star" x="388" y="238" transform="scale(0.75) translate(80 60)" />
+    <use href="#star" x="256" y="150" transform="scale(0.6) translate(170 90)" />
+  </g>
+
+  <!-- ring text -->
+  <text fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="42" letter-spacing="1">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">Mount Olive School</textPath>
+  </text>
+  <text fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="40" letter-spacing="1">
+    <textPath href="#botArc" startOffset="50%" text-anchor="middle">English Medium</textPath>
+  </text>
+
+  <!-- ribbon banner -->
+  <g>
+    <polygon points="40,556 62,536 62,592 40,572" fill="#efe9d2" stroke="#cdc6a8" stroke-width="2" />
+    <polygon points="472,556 450,536 450,592 472,572" fill="#efe9d2" stroke="#cdc6a8" stroke-width="2" />
+    <rect x="60" y="536" width="392" height="56" rx="6" fill="#f7f3e3" stroke="#cdc6a8" stroke-width="2" />
+    <text x="256" y="572" text-anchor="middle" fill="#3a3a3a" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="21">
+      "Never settle for less than your best"
+    </text>
+  </g>
+</svg>

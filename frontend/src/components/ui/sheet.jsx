@@ -55,6 +55,14 @@ function SheetContent({ className, children, side = "left", ...props }) {
         {...props}
       >
         {children}
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => onOpenChange(false)}
+          className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
     </div>
   )

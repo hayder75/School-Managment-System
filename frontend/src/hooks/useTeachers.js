@@ -25,6 +25,15 @@ export function useAssignSubject() {
   });
 }
 
+export function useAssignSubjectsBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teacherId, subject_ids, class_ids }) =>
+      api.post(`/teachers/${teacherId}/assignments/bulk`, { subject_ids, class_ids }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-assignments"] }),
+  });
+}
+
 export function useRemoveAssignment() {
   const qc = useQueryClient();
   return useMutation({

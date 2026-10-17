@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState, useEffect } from "react";
 import { useI18n } from "../i18n/I18nContext";
 import api from "../lib/api";
@@ -87,7 +88,7 @@ function SubstitutionBoard() {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[600px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[600px] table-sticky-col">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.shift.absentTeacher}</th>
             <th className="p-3 font-medium">→</th>
@@ -125,7 +126,7 @@ function SubstitutionBoard() {
                 <select required value={form.originalTeacherId} onChange={(e) => setForm({ ...form, originalTeacherId: e.target.value })}
                   className="w-full mt-1 px-3 py-2 border rounded-lg text-sm bg-white">
                   <option value="">—</option>
-                  {teachers.map((x) => <option key={x.id} value={x.id}>{x.first_name} {x.last_name}</option>)}
+                  {teachers.map((x) => <option key={x.id} value={x.id}>{fullName(x)}</option>)}
                 </select>
               </div>
               <div>
@@ -134,7 +135,7 @@ function SubstitutionBoard() {
                   className="w-full mt-1 px-3 py-2 border rounded-lg text-sm bg-white">
                   <option value="">—</option>
                   {teachers.filter((x) => x.id !== form.originalTeacherId).map((x) => (
-                    <option key={x.id} value={x.id}>{x.first_name} {x.last_name}</option>
+                    <option key={x.id} value={x.id}>{fullName(x)}</option>
                   ))}
                 </select>
               </div>
@@ -169,7 +170,7 @@ function TodayBoard({ date }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-8 w-8 text-green-500" /><div><p className="text-2xl font-bold">{present.length}</p><p className="text-xs text-muted-foreground">{t.shift.onDuty}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><UserX className="h-8 w-8 text-red-500" /><div><p className="text-2xl font-bold">{absent.length}</p><p className="text-xs text-muted-foreground">{t.shift.absentToday}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CalendarClock className="h-8 w-8 text-blue-500" /><div><p className="text-2xl font-bold">{onLeave.length}</p><p className="text-xs text-muted-foreground">{t.shift.onLeaveToday}</p></div></div></CardContent></Card>
@@ -182,7 +183,7 @@ function TodayBoard({ date }) {
           <CardContent>
             {(absent || []).length ? absent.map((s) => (
               <div key={s.id || s.email} className="flex items-center justify-between border-b py-2 last:border-0">
-                <span className="text-sm font-medium">{s.first_name} {s.last_name}</span>
+                <span className="text-sm font-medium">{fullName(s)}</span>
                 <span className="text-xs text-muted-foreground">{s.job_title || s.role}</span>
               </div>
             )) : <p className="py-4 text-sm text-muted-foreground">{t.shift.everyoneReported}</p>}
@@ -193,7 +194,7 @@ function TodayBoard({ date }) {
           <CardContent>
             {(onLeave || []).length ? onLeave.map((l, i) => (
               <div key={l.id || i} className="border-b py-2 last:border-0 text-sm">
-                <span className="font-medium">{l.staff_name || l.name || `${l.first_name || ""} ${l.last_name || ""}`}</span>
+                <span className="font-medium">{l.staff_name || l.name || `${fullName(l)}`}</span>
                 <span className="ml-2 text-xs text-muted-foreground">{l.leave_type} · {l.start_date} → {l.end_date}</span>
               </div>
             )) : <p className="py-4 text-sm text-muted-foreground">{t.shift.noLeaves}</p>}
@@ -226,7 +227,7 @@ function GuardRoster({ date }) {
           <tbody>
             {rows.map((g) => (
               <tr key={g.id} className="border-b hover:bg-muted/30">
-                <td className="p-3 font-medium">{g.guard_name || `${g.first_name || ""} ${g.last_name || ""}`}</td>
+                <td className="p-3 font-medium">{g.guard_name || `${fullName(g)}`}</td>
                 <td className="p-3">{g.shift_date?.slice(0, 10)}</td>
                 <td className="p-3">
                   <span className="inline-flex items-center gap-1.5 font-mono text-xs">
@@ -289,7 +290,7 @@ function NewGuardShiftDialog({ open, onClose, defaultDate }) {
               <SelectTrigger><SelectValue placeholder={t.shift.selectGuard} /></SelectTrigger>
               <SelectContent>
                 {candidates.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{fullName(c)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

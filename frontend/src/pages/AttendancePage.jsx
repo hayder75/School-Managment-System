@@ -1,10 +1,10 @@
+import { fullName } from "../lib/fullName";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
-import { useAttendance, useMarkAttendance, useTeacherAttendanceOverview } from "../hooks/useAttendance";
+import { useAttendance, useMarkAttendance, useTeacherAttendanceOverview, useMyHomeroomClasses } from "../hooks/useAttendance";
 import { useStudentsByClass } from "../hooks/useStudents";
-import { useTeacherAssignments } from "../hooks/useTeachers";
 import { Button } from "../components/ui/button";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -103,7 +103,7 @@ function TeacherAttendanceView() {
 
   const fromDate = new Date(Date.now() - rangeWeeks * 7 * 86400000).toISOString().split("T")[0];
   const { data: classesData } = useClasses({ limit: 200 });
-  const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
+  const { data: homeroomData, isLoading: loadingHomeroom } = useMyHomeroomClasses();
   const { data: overviewData, isLoading: loadingOverview } = useTeacherAttendanceOverview({
     from_date: fromDate,
     to_date: today,
@@ -114,9 +114,10 @@ function TeacherAttendanceView() {
   const markAttendance = useMarkAttendance();
 
   const allClasses = classesData?.data || [];
-  const assignments = assignmentsData?.data || [];
-  const assignedClassIds = new Set(isTeacher ? assignments.map((a) => a.class_id) : []);
-  const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.has(c.id)) : allClasses;
+  // Attendance is the homeroom teacher's responsibility: a teacher only sees
+  // the classes they are the class teacher of.
+  const homeroomClasses = homeroomData?.data?.classes || [];
+  const classes = isTeacher ? homeroomClasses : allClasses;
   const attendanceRecords = attendanceData?.data || [];
   const classStudents = classStudentsData?.data || [];
   const overview = overviewData?.data || {};
@@ -138,13 +139,13 @@ function TeacherAttendanceView() {
   const displayRecords = attendanceRecords.length > 0
     ? attendanceRecords.map((r) => ({
         id: r.student_id,
-        name: `${r.first_name} ${r.last_name}`,
+        name: `${fullName(r)}`,
         number: r.student_number,
         status: r.status,
       }))
     : classStudents.map((s) => ({
         id: s.user_id,
-        name: `${s.first_name} ${s.last_name}`,
+        name: `${fullName(s)}`,
         number: s.student_number,
         status: statusMap[s.user_id] || "present",
       }));
@@ -173,6 +174,20 @@ function TeacherAttendanceView() {
     { label: t("Late"), value: summary.late || 0, color: "#c9a86a" },
     { label: t("Excused"), value: summary.excused || 0, color: "#8f9bb3" },
   ];
+
+  if (isTeacher && !loadingHomeroom && homeroomClasses.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Users className="h-6 w-6" />
+        </div>
+        <h1 className="text-2xl font-bold">{t("Attendance")}</h1>
+        <p className="max-w-md text-muted-foreground">
+          {t("Attendance is taken by the homeroom teacher of each class. You are not assigned as a homeroom teacher, so there is nothing to mark here.")}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -367,7 +382,7 @@ function TeacherAttendanceView() {
                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-yellow-400 text-yellow-950" : "bg-muted text-muted-foreground"}`}>{i + 1}</span>
                         <StudentAvatar student={s} className="w-9 h-9" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{s.first_name} {s.last_name}</p>
+                          <p className="text-sm font-medium truncate">{fullName(s)}</p>
                           <p className="text-xs text-muted-foreground truncate">{s.class_name}</p>
                         </div>
                         <div className="text-right">
@@ -395,7 +410,7 @@ function TeacherAttendanceView() {
                         <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-muted text-muted-foreground">{i + 1}</span>
                         <StudentAvatar student={s} className="w-9 h-9" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{s.first_name} {s.last_name}</p>
+                          <p className="text-sm font-medium truncate">{fullName(s)}</p>
                           <p className="text-xs text-muted-foreground truncate">{s.class_name}</p>
                         </div>
                         <div className="text-right">

@@ -25,4 +25,8 @@ const updateClassSchema = z.object({
   }),
 });
 
-module.exports = { createClassSchema, updateClassSchema };
+const homeroomSchema = z.object({
+  body: z.object({ class_teacher_id: z.string().uuid().nullable().optional() }),
+});
+
+module.exports = { createClassSchema, updateClassSchema, homeroomSchema };

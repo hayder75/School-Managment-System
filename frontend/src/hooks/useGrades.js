@@ -17,3 +17,11 @@ export function useEnterGrades() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["grades"] }),
   });
 }
+
+export function useStudentGrades(studentId) {
+  return useQuery({
+    queryKey: ["grades", "student", studentId],
+    queryFn: () => api.get(`/grades/students/${studentId}`),
+    enabled: !!studentId,
+  });
+}

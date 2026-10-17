@@ -4,7 +4,7 @@ const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
-const { createClassSchema, updateClassSchema } = require('./classes.validation');
+const { createClassSchema, updateClassSchema, homeroomSchema } = require('./classes.validation');
 
 const router = Router();
 
@@ -14,6 +14,7 @@ router.post('/', requireAccess(['admin', 'owner'], ['classes.manage']), validate
 router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'shift_coordinator', 'accountant', 'general_services', 'security_head'], ['classes.manage']), controller.list);
 router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'shift_coordinator', 'accountant', 'general_services', 'security_head'], ['classes.manage']), controller.getById);
 router.put('/:id', requireAccess(['admin', 'owner'], ['classes.manage']), validate(updateClassSchema), controller.update);
+router.put('/:id/homeroom', requireAccess(['admin', 'owner', 'hr', 'general_manager', 'principal', 'vice_principal', 'quality_director'], ['classes.manage', 'staff-attendance.manage']), validate(homeroomSchema), controller.setHomeroom);
 router.delete('/:id', requireAccess(['admin', 'owner'], ['classes.manage']), controller.remove);
 
 module.exports = router;

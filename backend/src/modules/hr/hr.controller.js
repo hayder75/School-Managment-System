@@ -99,6 +99,60 @@ async function setHomeroom(req, res) {
   }
 }
 
+async function getOvertimeSettings(req, res) {
+  const data = await service.getOvertimeSettings(req.tenant.id);
+  res.json({ success: true, data });
+}
+
+async function updateOvertimeSettings(req, res) {
+  const data = await service.updateOvertimeSettings(req.tenant.id, req.body);
+  res.json({ success: true, data });
+}
+
+async function listOvertime(req, res) {
+  const { from, to, staff_id, status, month, search } = req.query;
+  const data = await service.listOvertime(req.tenant.id, { from, to, staffId: staff_id, status, month, search });
+  res.json({ success: true, data });
+}
+
+async function createOvertime(req, res) {
+  const performedBy = req.user.userId || req.user.id;
+  const data = await service.createOvertime(req.tenant.id, req.body, performedBy);
+  res.json({ success: true, data });
+}
+
+async function bulkCreateOvertime(req, res) {
+  const performedBy = req.user.userId || req.user.id;
+  const data = await service.bulkCreateOvertime(req.tenant.id, req.body.entries || [], performedBy);
+  res.json({ success: true, data });
+}
+
+async function updateOvertime(req, res) {
+  const performedBy = req.user.userId || req.user.id;
+  const data = await service.updateOvertime(req.tenant.id, req.params.id, req.body, performedBy);
+  if (!data) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Overtime entry not found' } });
+  res.json({ success: true, data });
+}
+
+async function approveOvertime(req, res) {
+  const performedBy = req.user.userId || req.user.id;
+  const data = await service.approveOvertime(req.tenant.id, req.params.id, performedBy);
+  if (!data) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Overtime entry not found' } });
+  res.json({ success: true, data });
+}
+
+async function deleteOvertime(req, res) {
+  const removed = await service.deleteOvertime(req.tenant.id, req.params.id);
+  if (!removed) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Overtime entry not found' } });
+  res.json({ success: true, data: { deleted: true } });
+}
+
+async function getOvertimeSummary(req, res) {
+  const { month } = req.query;
+  const data = await service.getOvertimeSummary(req.tenant.id, { month });
+  res.json({ success: true, data });
+}
+
 module.exports = {
   getHomeroom,
   setHomeroom,
@@ -113,4 +167,13 @@ module.exports = {
   listTeacherKpis,
   saveTeacherKpi,
   getKpiSummary,
+  getOvertimeSettings,
+  updateOvertimeSettings,
+  listOvertime,
+  createOvertime,
+  bulkCreateOvertime,
+  updateOvertime,
+  approveOvertime,
+  deleteOvertime,
+  getOvertimeSummary,
 };

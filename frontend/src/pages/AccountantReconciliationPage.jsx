@@ -65,7 +65,7 @@ function DailyTab({ today }) {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[520px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[520px] table-sticky-col">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.acct.cashier}</th>
             <th className="p-3 font-medium">{t.acct.method}</th>
@@ -128,7 +128,7 @@ function AgingTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {BUCKETS.map(([key, label, color]) => (
           <Card key={key}><CardContent className="pt-6">
             <div className={`w-full h-1.5 rounded ${color} mb-3`} />

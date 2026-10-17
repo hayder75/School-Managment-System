@@ -1,6 +1,8 @@
+import { fullName } from "../../lib/fullName";
 import { useState, useMemo, useEffect } from "react";
 import { useRoles, useRolePermissions, useCreateRole, useUpdateRole, useDeleteRole, useUserRoles, useSetUserRoles } from "../../hooks/useRoles";
-import { useUsers } from "../../hooks/useUsers";
+import { useQuery } from "@tanstack/react-query";
+import api from "../../lib/api";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -130,7 +132,13 @@ function RoleDialog({ open, onOpenChange, role, permissions, onSubmit, submitLab
             </div>
           </div>
           <div>
-            <Label>{t("Permissions")}</Label>
+            <div className="flex items-center justify-between">
+              <Label>{t("Permissions")}</Label>
+              <div className="flex gap-2">
+                <button type="button" className="text-xs text-primary font-medium" onClick={() => setKeys(new Set(permissions.map((p) => p.key)))}>{t("Select all")}</button>
+                <button type="button" className="text-xs text-muted-foreground font-medium" onClick={() => setKeys(new Set())}>{t("Clear")}</button>
+              </div>
+            </div>
             <div className="mt-2 space-y-3 max-h-[50vh] overflow-y-auto pr-1">
               {groupPermissions(permissions).map((g) => (
                 <div key={g.label}>
@@ -307,7 +315,7 @@ function RolesTab({ permissions }) {
 function UserOverridesTab({ permissions, customRoles }) {
   const { t } = useI18n();
   const [userId, setUserId] = useState("");
-  const { data: usersData } = useUsers({ limit: 200 });
+  const { data: usersData } = useQuery({ queryKey: ["staff-directory"], queryFn: () => api.get("/reports/staff-directory") });
   const { data: userAccess } = useUserRoles(userId);
   const setUserRoles = useSetUserRoles();
   const [selectedRoles, setSelectedRoles] = useState(new Set());
@@ -315,7 +323,7 @@ function UserOverridesTab({ permissions, customRoles }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  const users = usersData?.data || [];
+  const users = usersData?.data?.staff || [];
   const access = userAccess?.data;
 
   function selectUser(id) {
@@ -378,7 +386,7 @@ function UserOverridesTab({ permissions, customRoles }) {
               <SelectContent>
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
-                    {u.first_name} {u.last_name} — {u.role}
+                    {fullName(u)} — {u.role}
                   </SelectItem>
                 ))}
               </SelectContent>

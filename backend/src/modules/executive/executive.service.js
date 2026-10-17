@@ -65,7 +65,7 @@ async function pendingExpenses(tenantId, threshold = 10000) {
     .where('e.approval_status', 'pending_gm')
     .select(
       'e.*',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as created_by_name")
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as created_by_name")
     )
     .orderBy('e.expense_date', 'desc')
     .limit(200);

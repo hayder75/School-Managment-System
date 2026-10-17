@@ -43,6 +43,18 @@ async function calculatePayroll(req, res) {
   res.json({ success: true, data });
 }
 
+
+async function generatePayroll(req, res) {
+  const data = await payrollService.generateMonthly(req.tenant.id, req.validated.body, req.user.userId);
+  res.json({ success: true, data });
+}
+
+
+async function settlePayroll(req, res) {
+  const data = await payrollService.settleMonth(req.tenant.id, req.validated.body, req.user.userId);
+  res.json({ success: true, data });
+}
+
 async function getSummary(req, res) {
   const { month, year } = req.query;
   const summary = await payrollService.getPayrollSummary(req.tenant.id, month, year);
@@ -109,6 +121,8 @@ async function approvePayrollGM(req, res) {
 }
 
 module.exports = {
+  generatePayroll,
+  settlePayroll,
   createSalaryGrade, listSalaryGrades, updateSalaryGrade, removeSalaryGrade,
   createPayroll, listPayroll, updatePayroll, getSummary, calculatePayroll, getAttendanceImpact,
   listTaxBrackets, upsertTaxBracket, removeTaxBracket,

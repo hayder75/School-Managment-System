@@ -1,5 +1,10 @@
 const service = require('./performance.service');
 
+function currentPeriod() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 async function listCriteria(req, res) {
   res.json({ success: true, data: await service.listCriteria(req.tenant.id) });
 }
@@ -24,4 +29,15 @@ async function listScores(req, res) {
   res.json({ success: true, data: await service.listScores(req.tenant.id, { academic_year: req.query.academic_year }) });
 }
 
-module.exports = { listCriteria, createCriteria, updateCriteria, removeCriteria, listScores };
+async function getMonthly(req, res) {
+  const period = /^\d{4}-\d{2}$/.test(req.query.period || '') ? req.query.period : currentPeriod();
+  res.json({ success: true, data: await service.getMonthly(req.tenant.id, period) });
+}
+
+async function saveMonthly(req, res) {
+  const { period, items } = req.validated.body;
+  const data = await service.saveMonthly(req.tenant.id, req.params.staffId, period, req.user.userId, items);
+  res.json({ success: true, data });
+}
+
+module.exports = { listCriteria, createCriteria, updateCriteria, removeCriteria, listScores, getMonthly, saveMonthly };

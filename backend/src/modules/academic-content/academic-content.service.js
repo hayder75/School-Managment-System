@@ -30,11 +30,11 @@ async function notifyTeacherDecision(tenantId, submission) {
 
 const TEACHER_SELECT = [
   'cs.*',
-  knex.raw("CONCAT(u.first_name, ' ', u.last_name) as teacher_name"),
+  knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as teacher_name"),
   'u.email as teacher_email',
   'c.name as class_name',
   's.name as subject_name',
-  knex.raw("CONCAT(r.first_name, ' ', r.last_name) as reviewer_name"),
+  knex.raw("CONCAT_WS(' ', r.first_name, r.middle_name, r.last_name) as reviewer_name"),
 ];
 
 function baseQuery(tenantId) {
@@ -74,7 +74,7 @@ async function listComments(tenantId, submissionId) {
   return await knex('submission_comments as sc')
     .join('users as u', 'sc.user_id', 'u.id')
     .where({ 'sc.tenant_id': tenantId, 'sc.submission_id': submissionId })
-    .select('sc.*', knex.raw("CONCAT(u.first_name, ' ', u.last_name) as author_name"), 'u.role as author_role')
+    .select('sc.*', knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as author_name"), 'u.role as author_role')
     .orderBy('sc.created_at', 'asc');
 }
 
@@ -212,7 +212,7 @@ async function summary(tenantId) {
     .where('cs.tenant_id', tenantId)
     .select(
       'cs.teacher_id',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as teacher_name"),
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as teacher_name"),
       knex.raw('COUNT(*)::int as total'),
       knex.raw("COUNT(*) FILTER (WHERE cs.status = 'approved')::int as approved")
     )

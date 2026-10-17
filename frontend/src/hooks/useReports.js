@@ -93,10 +93,11 @@ export function useRevenueVsExpenses(params = {}) {
   });
 }
 
-export function useStaffDirectory(params = {}) {
+export function useStaffDirectory(params = {}, options = {}) {
   return useQuery({
     queryKey: ["report-staff-dir", params],
     queryFn: () => api.get("/reports/staff-directory", { params }),
+    ...options,
   });
 }
 

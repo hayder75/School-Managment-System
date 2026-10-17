@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
@@ -210,7 +211,7 @@ export default function StudentDetailPage() {
           <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/10 transition-colors" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{student.first_name} {student.last_name}</h1>
+          <h1 className="text-2xl font-bold">{fullName(student)}</h1>
           <p className="text-sm text-muted-foreground">
             {student.student_number} &middot; {student.class_name || t("No class")} &middot;
             <Badge variant={student.status === "active" ? "success" : "secondary"} className="ml-1">
@@ -239,7 +240,7 @@ export default function StudentDetailPage() {
           <div className="flex flex-col items-center text-center gap-3">
             <StudentAvatar student={student} className="w-24 h-24 text-3xl ring-8 ring-muted" />
             <div>
-              <p className="text-lg font-bold">{student.first_name} {student.last_name}</p>
+              <p className="text-lg font-bold">{fullName(student)}</p>
               <p className="text-sm text-muted-foreground">
                 {student.student_number} &middot; {student.class_name || "No class"}
               </p>
@@ -248,7 +249,7 @@ export default function StudentDetailPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl border p-3">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone size={12} /> Contact</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone size={12} /> Primary Contact</p>
               <p className="font-medium mt-0.5">{student.phone || student.emergency_contact || "—"}</p>
             </div>
             <div className="rounded-xl border p-3">
@@ -258,10 +259,12 @@ export default function StudentDetailPage() {
             <div className="rounded-xl border p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><UserRound size={12} /> Father</p>
               <p className="font-medium mt-0.5">{student.father_name || "—"}</p>
+              {student.father_phone && <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1"><Phone size={11} /> {student.father_phone}</p>}
             </div>
             <div className="rounded-xl border p-3">
               <p className="text-xs text-muted-foreground">Mother</p>
               <p className="font-medium mt-0.5">{student.mother_name || "—"}</p>
+              {student.mother_phone && <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1"><Phone size={11} /> {student.mother_phone}</p>}
             </div>
           </div>
 
@@ -273,7 +276,7 @@ export default function StudentDetailPage() {
               )}
               {(student.guardians || []).map((g) => (
                 <p key={g.id} className="text-sm">
-                  <span className="font-medium">{g.first_name} {g.last_name}</span>
+                  <span className="font-medium">{fullName(g)}</span>
                   <span className="text-muted-foreground"> · {g.relationship}</span>
                   {g.phone ? <span className="text-muted-foreground"> · {g.phone}</span> : null}
                 </p>
@@ -312,7 +315,7 @@ export default function StudentDetailPage() {
               <div key={g.id} className="flex items-center justify-between text-sm">
                 <div>
                   <p className="font-medium">
-                    {(g.first_name || g.last_name) ? `${g.first_name || ""} ${g.last_name || ""}`.trim() : <span className="text-muted-foreground italic">{t("Unnamed guardian")}</span>}
+                    {(g.first_name || g.last_name) ? `${fullName(g)}`.trim() : <span className="text-muted-foreground italic">{t("Unnamed guardian")}</span>}
                     {g.is_primary && <Badge variant="success" className="ml-2">Primary</Badge>}
                   </p>
                   <p className="text-xs text-muted-foreground capitalize">

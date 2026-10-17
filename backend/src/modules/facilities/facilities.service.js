@@ -5,7 +5,7 @@ async function listMaintenance(tenantId, { status, category } = {}) {
   const query = knex('maintenance_requests as m')
     .leftJoin('users as u', 'm.reported_by', 'u.id')
     .where('m.tenant_id', tenantId)
-    .select('m.*', knex.raw("CONCAT(u.first_name, ' ', u.last_name) as reported_by_name"))
+    .select('m.*', knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as reported_by_name"))
     .orderBy('m.created_at', 'desc')
     .limit(300);
   if (status && status !== 'all') query.where('m.status', status);
@@ -64,8 +64,8 @@ async function listPurchases(tenantId, { status } = {}) {
     .where('p.tenant_id', tenantId)
     .select(
       'p.*',
-      knex.raw("CONCAT(u.first_name, ' ', u.last_name) as requested_by_name"),
-      knex.raw("CONCAT(a.first_name, ' ', a.last_name) as approved_by_name")
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as requested_by_name"),
+      knex.raw("CONCAT_WS(' ', a.first_name, a.middle_name, a.last_name) as approved_by_name")
     )
     .orderBy('p.created_at', 'desc')
     .limit(300);

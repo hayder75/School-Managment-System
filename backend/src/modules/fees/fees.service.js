@@ -249,14 +249,15 @@ async function updatePayment(tenantId, id, data) {
   return payment;
 }
 
-async function findAllPayments(tenantId, { page = 1, limit = 20, student_id, status, collected_by, fee_structure_id, payment_method, month, year } = {}) {
+async function findAllPayments(tenantId, { page = 1, limit = 20, student_id, status, collected_by, fee_structure_id, payment_method, month, year, search } = {}) {
   let query = db('payments')
     .where({ 'payments.tenant_id': tenantId })
     .leftJoin('users', 'payments.student_id', 'users.id')
+    .leftJoin('students as st', 'st.user_id', 'payments.student_id')
     .leftJoin('fee_structures', 'payments.fee_structure_id', 'fee_structures.id')
     .leftJoin('users as collectors', 'payments.collected_by', 'collectors.id')
     .select(
-      'payments.*', 'users.first_name', 'users.last_name',
+      'payments.*', 'users.first_name', 'users.last_name', 'users.phone as guardian_phone', 'st.student_number',
       'fee_structures.name as fee_name',
       'collectors.first_name as collector_first_name', 'collectors.last_name as collector_last_name'
     )
@@ -268,6 +269,22 @@ async function findAllPayments(tenantId, { page = 1, limit = 20, student_id, sta
   if (payment_method) query = query.where('payments.payment_method', payment_method);
   if (month) query = query.whereRaw('EXTRACT(MONTH FROM payments.paid_date) = ?', [parseInt(month, 10)]);
   if (year) query = query.whereRaw('EXTRACT(YEAR FROM payments.paid_date) = ?', [parseInt(year, 10)]);
+  if (search) {
+    const { phoneDigits } = require('../../shared/search');
+    const term = `%${String(search).trim()}%`;
+    const digits = phoneDigits(search);
+    query = query.where(function () {
+      this.where('users.first_name', 'ilike', term)
+        .orWhere('users.last_name', 'ilike', term)
+        .orWhere('users.phone', 'ilike', term)
+        .orWhere('st.student_number', 'ilike', term)
+        .orWhere('payments.transaction_id', 'ilike', term)
+        .orWhere('payments.payment_method', 'ilike', term)
+        .orWhere('fee_structures.name', 'ilike', term)
+        .orWhereRaw("CONCAT_WS(' ', users.first_name, users.middle_name, users.last_name) ILIKE ?", [term]);
+      if (digits) this.orWhereRaw("regexp_replace(coalesce(users.phone, ''), '\\D', '', 'g') LIKE ?", [`%${digits}%`]);
+    });
+  }
   return paginatedResult(query, page, limit);
 }
 
@@ -576,8 +593,8 @@ async function listReconciliationBatches(tenantId, { page = 1, limit = 20, date 
     .where('b.tenant_id', tenantId)
     .select(
       'b.*',
-      db.raw("CONCAT(u.first_name, ' ', u.last_name) as reconciled_by_name"),
-      db.raw("CONCAT(c.first_name, ' ', c.last_name) as cashier_name")
+      db.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as reconciled_by_name"),
+      db.raw("CONCAT_WS(' ', c.first_name, c.middle_name, c.last_name) as cashier_name")
     )
     .orderBy('b.batch_date', 'desc')
     .orderBy('b.created_at', 'desc');

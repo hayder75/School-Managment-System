@@ -6,10 +6,12 @@ const { sendInviteEmail } = require('../../shared/email');
 const logger = require('../../config/logger');
 
 const userFields = [
-  'id', 'tenant_id', 'email', 'username', 'first_name', 'last_name',
+  'id', 'tenant_id', 'email', 'username', 'first_name', 'middle_name', 'last_name',
   'phone', 'avatar', 'role', 'status', 'last_login', 'created_at', 'updated_at',
   'job_title', 'qualification', 'field_of_study', 'gender',
   'section_count', 'periods_per_week', 'overtime_periods', 'total_periods',
+  'joined_at', 'basic_salary', 'allowance', 'housing_allowance', 'account_allowance', 'phone_allowance',
+  'scope_level_groups',
 ];
 
 async function create(tenantId, data) {
@@ -22,7 +24,7 @@ async function create(tenantId, data) {
       last_name: data.last_name,
       phone: data.phone || null,
       role: data.role,
-      status: 'invited',
+      status: data.status || 'invited',
       job_title: data.job_title || null,
       qualification: data.qualification || null,
       field_of_study: data.field_of_study || null,
@@ -34,7 +36,7 @@ async function create(tenantId, data) {
     })
     .returning(userFields);
 
-  if (data.send_invite !== false) {
+  if (data.send_invite !== false && (data.status || 'invited') !== 'active') {
     const token = jwt.sign(
       { userId: user.id, type: 'invitation', email: user.email },
       config.jwt.secret,
@@ -63,11 +65,10 @@ async function findAll(tenantId, { page = 1, limit = 20, role, status, search } 
   if (role) query = query.where({ role });
   if (status) query = query.where({ status });
   if (search) {
-    query = query.where(function () {
-      this.where('first_name', 'ilike', `%${search}%`)
-        .orWhere('last_name', 'ilike', `%${search}%`)
-        .orWhere('email', 'ilike', `%${search}%`);
-    });
+    const { applySearch } = require('../../shared/search');
+    query = applySearch(query, search,
+      ['first_name', 'last_name', 'email', 'username', 'job_title', 'role'],
+      ['phone']);
   }
 
   return paginatedResult(query, page, limit);
@@ -86,6 +87,11 @@ async function update(tenantId, id, data) {
     const ppw = data.periods_per_week ?? current?.periods_per_week ?? 0;
     const ot = data.overtime_periods ?? current?.overtime_periods ?? 0;
     data.total_periods = ppw + ot;
+  }
+  if (data.scope_level_groups !== undefined) {
+    data.scope_level_groups = data.scope_level_groups && data.scope_level_groups.length
+      ? JSON.stringify(data.scope_level_groups)
+      : null;
   }
   data.updated_at = db.fn.now();
   const [user] = await db('users')

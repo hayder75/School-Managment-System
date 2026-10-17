@@ -24,13 +24,6 @@ export function useCreateConversation() {
   });
 }
 
-export function useTeachers() {
-  return useQuery({
-    queryKey: ["chat-teachers"],
-    queryFn: () => api.get("/chat/teachers"),
-  });
-}
-
 export function useContacts(params = {}) {
   return useQuery({
     queryKey: ["chat-contacts", params],

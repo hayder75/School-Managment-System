@@ -52,6 +52,12 @@ async function isRestricted(tenantId, userId) {
   return !!row;
 }
 
+// Parents may have no name; fall back to their phone so chat never shows "?".
+function nameOf(u) {
+  const n = `${u.first_name || ''} ${u.last_name || ''}`.trim();
+  return n || u.phone || u.username || '';
+}
+
 async function listContacts(tenantId, user, { filter, q } = {}) {
   const role = user.role;
   let query = db('users').where({ tenant_id: tenantId, status: 'active' }).whereNot('id', user.userId);
@@ -76,10 +82,11 @@ async function listContacts(tenantId, user, { filter, q } = {}) {
 
   const rows = await query
     .select('id', 'first_name', 'last_name', 'role', 'email', 'phone')
+    .orderByRaw("CASE WHEN COALESCE(NULLIF(TRIM(first_name),''), NULLIF(TRIM(last_name),'')) IS NULL THEN 1 ELSE 0 END ASC")
     .orderBy('first_name')
     .orderBy('last_name')
     .limit(200);
-  return { contacts: rows, filters: allowed };
+  return { contacts: rows.map((r) => ({ ...r, name: nameOf(r) })), filters: allowed };
 }
 
 async function createConversation(tenantId, createdBy, { subject, participant_ids = [], creatorRole }) {
@@ -153,9 +160,9 @@ async function getUserConversations(tenantId, userId) {
     .join('users as u', 'cp.user_id', 'u.id')
     .whereIn('cp.conversation_id', ids)
     .whereNot('cp.user_id', userId)
-    .select('cp.conversation_id', 'u.id', 'u.first_name', 'u.last_name', 'u.role');
+    .select('cp.conversation_id', 'u.id', 'u.first_name', 'u.last_name', 'u.role', 'u.phone');
   const map = {};
-  for (const p of parts) (map[p.conversation_id] = map[p.conversation_id] || []).push({ id: p.id, first_name: p.first_name, last_name: p.last_name, role: p.role });
+  for (const p of parts) (map[p.conversation_id] = map[p.conversation_id] || []).push({ id: p.id, first_name: p.first_name, last_name: p.last_name, role: p.role, name: nameOf(p) });
 
   return convs.map((c) => ({ ...c, participants: map[c.id] || [] }));
 }
@@ -172,9 +179,9 @@ async function listAllConversations(tenantId, { q } = {}) {
   const parts = await db('chat_participants as cp')
     .join('users as u', 'cp.user_id', 'u.id')
     .whereIn('cp.conversation_id', ids)
-    .select('cp.conversation_id', 'u.id', 'u.first_name', 'u.last_name', 'u.role');
+    .select('cp.conversation_id', 'u.id', 'u.first_name', 'u.last_name', 'u.role', 'u.phone');
   const map = {};
-  for (const p of parts) (map[p.conversation_id] = map[p.conversation_id] || []).push({ id: p.id, first_name: p.first_name, last_name: p.last_name, role: p.role });
+  for (const p of parts) (map[p.conversation_id] = map[p.conversation_id] || []).push({ id: p.id, first_name: p.first_name, last_name: p.last_name, role: p.role, name: nameOf(p) });
   return convs.map((c) => ({ ...c, participants: map[c.id] || [] }));
 }
 
@@ -186,12 +193,12 @@ async function getConversationMessages(tenantId, conversationId, userId, role, {
   const query = db('chat_messages')
     .where({ 'chat_messages.tenant_id': tenantId, 'chat_messages.conversation_id': conversationId })
     .leftJoin('users', 'chat_messages.sender_id', 'users.id')
-    .select('chat_messages.*', 'users.first_name', 'users.last_name', 'users.role as sender_role')
+    .select('chat_messages.*', 'users.first_name', 'users.last_name', 'users.phone', 'users.role as sender_role')
     .orderBy('chat_messages.created_at', 'desc');
 
   // Newest-first pagination, then reverse so the client renders oldest->newest.
   const result = await paginatedResult(query, page, limit);
-  result.data = result.data.reverse();
+  result.data = result.data.map((m) => ({ ...m, name: nameOf(m) })).reverse();
   return result;
 }
 

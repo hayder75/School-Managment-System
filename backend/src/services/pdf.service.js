@@ -1,6 +1,7 @@
 const PDFDocument = require('pdfkit');
 const db = require('../config/database');
-const { getSemesterResults } = require('../modules/reports/reports.service');
+const { getSemesterResults, getOverviewReport } = require('../modules/reports/reports.service');
+const reportingService = require('../modules/reports/reporting.service');
 
 function gradeLetter(score, max) {
   if (score == null || !max || max <= 0) return '-';
@@ -19,6 +20,14 @@ function gpaFromPct(pct) {
 
 async function generateReportCard(tenantId, studentId, academicYear, termId) {
   if (termId) return generateTermReportCard(tenantId, studentId, termId);
+  // No term given: default to the current (latest) term so the button always
+  // produces the real, designed report card rather than the legacy card.
+  const latestTerm = await db('terms')
+    .where({ tenant_id: tenantId })
+    .orderBy('end_date', 'desc')
+    .first();
+  if (latestTerm) return generateTermReportCard(tenantId, studentId, latestTerm.id);
+
   const student = await db('students')
     .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
     .leftJoin('users', 'students.user_id', 'users.id')
@@ -114,13 +123,13 @@ async function generateReportCard(tenantId, studentId, academicYear, termId) {
   doc.fontSize(18).text('Report Card', { align: 'center' });
   doc.fontSize(10).text(schoolName, { align: 'center' });
   doc.moveDown();
-  doc.fontSize(12).text(`Student: ${student.first_name} ${student.last_name}`);
+  doc.fontSize(12).text(`Student: ${[student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')}`);
   doc.fontSize(10);
   doc.text(`Class: ${student.class_name || 'N/A'}   |   Student #: ${student.student_number || 'N/A'}`);
   if (primaryGuardian) {
     const rel = primaryGuardian.relationship || 'guardian';
     const edu = primaryGuardian.education_level ? `   |   Education: ${primaryGuardian.education_level}` : '';
-    doc.text(`Guardian: ${primaryGuardian.first_name} ${primaryGuardian.last_name} (${rel})${edu}`);
+    doc.text(`Guardian: ${[primaryGuardian.first_name, primaryGuardian.middle_name, primaryGuardian.last_name].filter(Boolean).join(' ')} (${rel})${edu}`);
   }
   doc.text(`Year: ${academicYear || new Date().getFullYear()}   |   Generated: ${new Date().toLocaleDateString()}`);
   doc.moveDown();
@@ -234,7 +243,7 @@ async function generateInvoice(tenantId, studentId) {
 
   doc.fontSize(20).text('INVOICE', { align: 'center' });
   doc.moveDown();
-  doc.fontSize(12).text(`Student: ${student.first_name} ${student.last_name}`);
+  doc.fontSize(12).text(`Student: ${[student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')}`);
   doc.text(`Class: ${student.class_name || 'N/A'}`);
   doc.text(`Date: ${new Date().toLocaleDateString()}`);
   doc.moveDown();
@@ -328,7 +337,7 @@ async function generatePayslip(tenantId, payrollId) {
   doc.fontSize(9).text(`Payroll Sheet for the Month of ${period}`, { align: 'center' });
   doc.moveDown();
 
-  doc.fontSize(11).text(`Employee: ${payroll.first_name} ${payroll.last_name}`);
+  doc.fontSize(11).text(`Employee: ${[payroll.first_name, payroll.middle_name, payroll.last_name].filter(Boolean).join(' ')}`);
   doc.fontSize(9);
   doc.text(`Job Title: ${payroll.job_title || 'N/A'}   |   Grade: ${payroll.grade_name || 'N/A'}`);
   if (payroll.work_days != null || payroll.absent_days != null) {
@@ -375,87 +384,238 @@ async function generatePayslip(tenantId, payrollId) {
 }
 
 
-// Semester-weighted MoE style report card (when a specific term is requested)
+// Build the report-card payload(s) for a term. Computes per-subject rank too.
+async function buildCardPayloads(tenantId, termId, classId, studentUserIds = null) {
+  const term = await db('terms').where({ id: termId }).first();
+  const termName = term?.name || '—';
+  const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
+  const academicYear = term?.academic_year_id
+    ? await db('academic_years').where({ id: term.academic_year_id }).select('name').first()
+    : null;
+  const grading = require('../shared/grading');
+  const { scale } = await grading.getGradingConfig(tenantId);
+
+  // Students in the class
+  let sQ = db('students as s').join('users as u', 's.user_id', 'u.id')
+    .where({ 's.tenant_id': tenantId, 's.class_id': classId })
+    .select('s.id as record_id', 's.user_id', 's.student_number', 's.status', 's.class_id',
+      'u.first_name', 'u.last_name');
+  if (studentUserIds && studentUserIds.length) sQ = sQ.whereIn('s.user_id', studentUserIds);
+  const students = await sQ;
+
+  const classInfo = await db('classes').where({ id: classId }).first();
+  const homeroom = classInfo?.class_teacher_id
+    ? await db('users').where({ id: classInfo.class_teacher_id }).select('first_name', 'last_name').first()
+    : null;
+  const classAdvisor = homeroom ? `${[homeroom.first_name, homeroom.middle_name, homeroom.last_name].filter(Boolean).join(' ')}` : '';
+
+  const results = await getSemesterResults(tenantId, { term_id: termId, class_id: classId });
+  const studentCount = results.students.length;
+
+  // subject names + per-subject ranks across the class
+  const allSubjectIds = [...new Set(results.students.flatMap((r) => r.subjects.map((s) => s.subject_id)).filter(Boolean))];
+  const subjNames = {};
+  if (allSubjectIds.length) {
+    const subs = await db('subjects').whereIn('id', allSubjectIds).select('id', 'name');
+    subs.forEach((s) => { subjNames[s.id] = s.name; });
+  }
+  const subjRank = {};
+  for (const r of results.students) {
+    for (const s of r.subjects) {
+      const key = s.subject_id;
+      if (!key) continue;
+      (subjRank[key] = subjRank[key] || []).push({ sid: r.student_id, mark: Number(s.mark || 0) });
+    }
+  }
+  const subjRankMap = {};
+  for (const key of Object.keys(subjRank)) {
+    subjRank[key].sort((a, b) => b.mark - a.mark);
+    subjRank[key].forEach((x, i) => {
+      subjRankMap[x.sid] = subjRankMap[x.sid] || {};
+      subjRankMap[x.sid][key] = i + 1;
+    });
+  }
+
+  // attendance + meta per student (batch)
+  const userIds = students.map((s) => s.user_id).filter(Boolean);
+  const attMap = {};
+  if (userIds.length && term) {
+    const att = await db('attendance')
+      .where({ tenant_id: tenantId }).whereIn('student_id', userIds)
+      .whereBetween('date', [term.start_date || '1900-01-01', term.end_date || '2100-01-01'])
+      .groupBy('student_id', 'status').count('* as c').select('student_id', 'status');
+    for (const a of att) {
+      const o = (attMap[a.student_id] = attMap[a.student_id] || { present: 0, absent: 0, late: 0 });
+      if (a.status === 'present') o.present += Number(a.c);
+      else if (a.status === 'absent') o.absent += Number(a.c);
+      else if (a.status === 'late') o.late += Number(a.c);
+    }
+  }
+  const recIds = students.map((s) => s.record_id).filter(Boolean);
+  const metaMap = {};
+  if (recIds.length) {
+    const metas = await db('report_card_meta')
+      .where({ tenant_id: tenantId, term_id: termId }).whereIn('student_id', recIds).select('student_id', 'remarks');
+    for (const m of metas) metaMap[m.student_id] = m.remarks || '';
+  }
+
+  const payloads = [];
+  for (const st of students) {
+    const mine = results.students.find((r) => r.student_id === st.user_id);
+    const subjects = (mine?.subjects || []).map((s) => ({
+      name: (s.subject_id && subjNames[s.subject_id]) || s.name || 'Subject',
+      ca: s.ca, exam: s.exam, mark: s.mark, letter: s.letter,
+      rank: subjRankMap[st.user_id]?.[s.subject_id] || null,
+    }));
+    const att = attMap[st.user_id] || { present: 0, absent: 0, late: 0 };
+    att.totalDays = att.present + att.absent + att.late;
+    const failed = subjects.filter((s) => Number(s.mark) < 50).length;
+    const promotionLine = st.status !== 'active' ? '' :
+      failed === 0 ? 'RESULT: PROMOTED to the next grade.'
+      : failed <= 2 ? `RESULT: CONDITIONAL — must improve ${failed} subject(s).`
+      : 'RESULT: NOT PROMOTED — repeat current grade.';
+
+    payloads.push({
+      __v2: true,
+      schoolName: tenant?.name || 'School',
+      schoolYear: academicYear?.name || '',
+      termLabel: termName,
+      reportType: (tenant?.name || 'SCHOOL') && (termName.toUpperCase().includes('QUARTER') ? 'QUARTERLY REPORT' : 'SEMESTER REPORT'),
+      studentName: `${st.first_name || ''} ${st.last_name || ''}`.trim(),
+      studentNumber: st.student_number,
+      className: classInfo?.name || '—',
+      gradeLevel: classInfo?.grade_level,
+      section: classInfo?.section,
+      classAdvisor,
+      subjects,
+      average: mine?.average ?? 0,
+      rank: mine?.rank ?? null,
+      studentCount,
+      attendance: att,
+      comment: metaMap[st.record_id] || '',
+      promotionLine,
+      scale,
+      issuedAt: new Date().toISOString().slice(0, 10),
+    });
+  }
+  // ordered by rank for printing
+  payloads.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+  return payloads;
+}
+
 async function generateTermReportCard(tenantId, studentId, termId) {
   const student = await db('students')
     .where({ 'students.tenant_id': tenantId, 'students.user_id': studentId })
-    .leftJoin('users', 'students.user_id', 'users.id')
-    .leftJoin('classes', 'students.class_id', 'classes.id')
-    .select(
-      'students.*',
-      'users.first_name', 'users.last_name',
-      'classes.name as class_name', 'classes.id as class_id'
-    )
     .first();
   if (!student) throw new Error('NOT_FOUND');
+  const payloads = await buildCardPayloads(tenantId, termId, student.class_id, [studentId]);
+  const payload = payloads[0] || { __v2: true, schoolName: 'School', subjects: [], attendance: {} };
+  const reportCard = require('../shared/report-card');
+  return reportCard.generateReportCard(payload, null, payload.attendance, { name: payload.termLabel });
+}
 
+// All report cards for a class+term, combined into one printable PDF.
+async function generateClassReportCardsPdf(tenantId, classId, termId) {
+  const payloads = await buildCardPayloads(tenantId, termId, classId);
+  const reportCard = require('../shared/report-card');
+  return reportCard.generateCombinedReportCards(payloads);
+}
+
+async function generateOverviewPdf(tenantId, { from, to } = {}, res) {
+  const data = await getOverviewReport(tenantId, { from, to });
   const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
-  const term = await db('terms').where({ id: termId }).first();
-  const termName = term?.name || '—';
+  const doc = new PDFDocument({ margin: 48, size: 'A4' });
+  doc.pipe(res);
 
-  const results = await getSemesterResults(tenantId, {
-    term_id: termId,
-    class_id: student.class_id,
-  });
-  const mine = results.students.find((r) => r.student_id === student.id) || {
-    subjects: [], total: 0, average: 0, letter: 'F', rank: null,
+  doc.fontSize(18).fillColor('#111').text(tenant?.name || 'School');
+  doc.moveDown(0.2);
+  doc.fontSize(13).fillColor('#333').text('School Overview Report');
+  doc.fontSize(9).fillColor('#888').text(`Period: ${data.period.from} - ${data.period.to}`);
+  doc.moveDown(1);
+
+  doc.fontSize(12).fillColor('#111').text('Key Metrics');
+  doc.moveDown(0.4);
+  for (const v of Object.values(data.kpis)) {
+    const delta = v.delta != null ? `  (${v.delta >= 0 ? '+' : ''}${v.delta}% vs previous)` : '';
+    const unit = v.unit ? ` ${v.unit}` : '';
+    doc.fontSize(10).fillColor('#222').text(`• ${v.label || ''}: ${v.value ?? '-'}${unit}${delta}`);
+  }
+
+  if (data.insights?.length) {
+    doc.moveDown(1);
+    doc.fontSize(12).fillColor('#111').text('Insights');
+    doc.moveDown(0.4);
+    for (const s of data.insights) doc.fontSize(10).fillColor('#444').text(`• ${s}`);
+  }
+
+  const table = (title, rows, suffix = '') => {
+    if (!rows?.length) return;
+    doc.moveDown(1);
+    doc.fontSize(12).fillColor('#111').text(title);
+    doc.moveDown(0.4);
+    for (const r of rows) {
+      doc.fontSize(10).fillColor('#222').text(`${r.label ?? ''}: ${Number(r.value ?? 0).toLocaleString()}${suffix}`);
+    }
   };
+  table('Enrollment by grade', data.enrollment_by_grade);
+  table('Attendance rate by grade', data.attendance_by_grade, '%');
+  table('Fee collection trend (ETB)', data.collection_trend);
+  table('Grade distribution', data.grade_distribution);
+  table('Staff by role', data.staff_by_role);
 
-  const subjectNames = {};
-  if (mine.subjects.some((s) => s.subject_id)) {
-    const ids = mine.subjects.map((s) => s.subject_id).filter(Boolean);
-    if (ids.length) {
-      const subs = await db('subjects').whereIn('id', ids).select('id', 'name');
-      subs.forEach((s) => { subjectNames[s.id] = s.name; });
+  doc.moveDown(2);
+  doc.fontSize(8).fillColor('#999').text(`Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
+  doc.end();
+}
+
+async function generateReportPdf(reportId, tenantId, userId, filters, res) {
+  const data = await reportingService.buildReport(reportId, tenantId, userId, filters || {});
+  if (!data) return false;
+  const tenant = await db('tenants').where({ id: tenantId }).select('name').first();
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${reportId}.pdf"`);
+  const doc = new PDFDocument({ margin: 48, size: 'A4' });
+  doc.pipe(res);
+
+  doc.fontSize(18).fillColor('#111').text(tenant?.name || 'School');
+  doc.moveDown(0.2);
+  doc.fontSize(14).fillColor('#333').text(data.title || reportId);
+  if (data.period?.from) doc.fontSize(9).fillColor('#888').text(`Period: ${data.period.from} - ${data.period.to}`);
+  doc.moveDown(1);
+
+  const kpis = Object.values(data.kpis || {});
+  if (kpis.length) {
+    doc.fontSize(12).fillColor('#111').text('Key Metrics');
+    doc.moveDown(0.4);
+    for (const v of kpis) {
+      const d = v.delta != null ? `  (${v.delta >= 0 ? '+' : ''}${v.delta}% vs previous)` : '';
+      const u = v.unit ? ` ${v.unit}` : '';
+      doc.fontSize(10).fillColor('#222').text(`• ${v.label || ''}: ${v.value ?? '-'}${u}${d}`);
     }
   }
 
-  const subjects = mine.subjects.map((s) => ({
-    name: (s.subject_id && subjectNames[s.subject_id]) || 'Subject',
-    ca: s.ca,
-    exam: s.exam,
-    mark: s.mark,
-    letter: s.letter,
-  }));
+  for (const section of data.sections || []) {
+    if (!section.data?.length) continue;
+    doc.moveDown(1);
+    doc.fontSize(12).fillColor('#111').text(section.title || '');
+    doc.moveDown(0.4);
+    for (const row of section.data.slice(0, 40)) {
+      doc.fontSize(10).fillColor('#222').text(`${row.label ?? ''}: ${Number(row.value ?? 0).toLocaleString()}${section.suffix || ''}`);
+    }
+  }
 
-  // attendance within the term window
-  const attRecords = await db('attendance')
-    .where({ tenant_id: tenantId, student_id: student.id })
-    .whereBetween('date', [term?.start_date || '1900-01-01', term?.end_date || '2100-01-01'])
-    .select('status').count('* as count').groupBy('status');
-  const attendance = {
-    present: Number(attRecords.find((r) => r.status === 'present')?.count || 0),
-    absent: Number(attRecords.find((r) => r.status === 'absent')?.count || 0),
-    late: Number(attRecords.find((r) => r.status === 'late')?.count || 0),
-  };
+  if (data.insights?.length) {
+    doc.moveDown(1);
+    doc.fontSize(12).fillColor('#111').text('Insights');
+    doc.moveDown(0.4);
+    for (const s of data.insights) doc.fontSize(10).fillColor('#444').text(`• ${s}`);
+  }
 
-  const failed = subjects.filter((s) => Number(s.mark) < 50).length;
-  const promotionLine =
-    student.status !== 'active' ? '' :
-    failed === 0
-      ? 'RESULT: PROMOTED to the next grade.'
-      : failed <= 2
-        ? `RESULT: CONDITIONAL — must improve ${failed} subject(s).`
-        : 'RESULT: NOT PROMOTED — repeat current grade.';
-
-  const payload = {
-    __v2: true,
-    schoolName: tenant?.name || 'School',
-    studentName: `${student.first_name} ${student.last_name}`,
-    studentNumber: student.student_number,
-    className: student.class_name || '—',
-    termName,
-    subjects,
-    average: mine.average,
-    rank: mine.rank,
-    studentCount: results.students.length,
-    remarks: '',
-    promotionLine,
-  };
-  void studentId;
-
-  const reportCard = require('../shared/report-card');
-  return reportCard.generateReportCard(payload, null, attendance, { name: termName });
+  doc.moveDown(2);
+  doc.fontSize(8).fillColor('#999').text(`Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
+  doc.end();
+  return true;
 }
 
-module.exports = { generateReportCard, generateInvoice, generatePayslip };
+module.exports = { generateReportCard, generateInvoice, generatePayslip, generateOverviewPdf, generateReportPdf, generateClassReportCardsPdf, buildCardPayloads };

@@ -6,6 +6,14 @@ const config = require('../../config');
 const logger = require('../../config/logger');
 const { getEffectivePermissions } = require('../roles/roles.service');
 
+// Parents have no stored name; show their phone instead of an empty/"?" label.
+function nameParts(user) {
+  const first = (user.first_name || '').trim();
+  const last = (user.last_name || '').trim();
+  if (first || last) return { firstName: first, lastName: last };
+  return { firstName: (user.phone || user.username || 'User'), lastName: '' };
+}
+
 async function login(identifier, password) {
   const raw = String(identifier || '').trim();
   const input = raw.toLowerCase();
@@ -13,13 +21,47 @@ async function login(identifier, password) {
     throw new Error('INVALID_CREDENTIALS');
   }
 
-  const user = await db('users')
-    .where(function () {
-      this.where('email', 'ilike', input)
-        .orWhere('username', 'ilike', input)
-        .orWhere('phone', '=', raw);
-    })
-    .first();
+  const digits = (() => {
+    let d = raw.replace(/\D/g, '');
+    if (d.startsWith('251')) d = d.slice(3);
+    if (d.startsWith('0')) d = d.slice(1);
+    return d.length >= 7 ? d : null;
+  })();
+
+// Staff take priority over parent/student accounts when a phone number is
+  // shared, so a staff member logging in with their phone never lands on a
+  // parent or student account.
+  const staffFirst = "CASE WHEN role IN ('parent','student') THEN 1 ELSE 0 END ASC, created_at ASC";
+
+  let user = null;
+
+  // Phone-like input: prefer a staff account over a parent/student sharing the
+  // same number. Parents still log in here when the number belongs only to them.
+  if (digits) {
+    user = await db('users')
+      .where('phone', '=', raw)
+      .orderByRaw(staffFirst)
+      .first();
+  }
+
+  // Username / email login.
+  if (!user) {
+    user = await db('users')
+      .where(function () {
+        this.whereILike('email', input).orWhereILike('username', input);
+      })
+      .first();
+  }
+
+  // Flexible phone match (09… / 9… / 2519…), staff first, only when unambiguous.
+  if (!user && digits) {
+    const candidates = await db('users')
+      .whereRaw("regexp_replace(coalesce(phone, ''), '\\D', '', 'g') LIKE ?", [`%${digits}%`])
+      .orderByRaw(staffFirst)
+      .limit(2);
+    user = candidates[0] || null;
+  }
+
   if (!user || !user.password_hash) {
     throw new Error('INVALID_CREDENTIALS');
   }
@@ -57,8 +99,9 @@ async function login(identifier, password) {
     user: {
       id: user.id,
       email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
+      firstName: nameParts(user).firstName,
+      middleName: user.middle_name || '',
+      lastName: nameParts(user).lastName,
       role: user.role,
       tenantId: user.tenant_id,
       avatar: user.avatar,
@@ -82,8 +125,9 @@ async function getMe(userId) {
   return {
     id: user.id,
     email: user.email,
-    firstName: user.first_name,
-    lastName: user.last_name,
+    firstName: nameParts(user).firstName,
+    middleName: user.middle_name || '',
+    lastName: nameParts(user).lastName,
     role: user.role,
     tenantId: user.tenant_id,
     avatar: user.avatar,
@@ -115,55 +159,54 @@ async function setPassword(token, password) {
   return { userId: payload.userId };
 }
 
-const DEMO_ACCOUNTS = {
-  owner: ['staff176@mountolive.edu.et'],
-  general_manager: ['staff177@mountolive.edu.et'],
-  principal: ['staff178@mountolive.edu.et'],
-  vice_principal: ['staff179@mountolive.edu.et'],
-  quality_director: ['staff180@mountolive.edu.et'],
-  admin: ['staff001@mountolive.edu.et'],
-  teacher: [
-    'teacher.one@mountolive.edu.et',
-    'teacher.two@mountolive.edu.et',
-    'staff027@mountolive.edu.et',
-    'staff026@mountolive.edu.et',
-    'staff056@mountolive.edu.et',
-    'staff011@mountolive.edu.et',
-  ],
-  finance: ['staff007@mountolive.edu.et'],
-  hr: ['staff099@mountolive.edu.et'],
-  cashier: ['staff104@mountolive.edu.et'],
-  accountant: ['staff183@mountolive.edu.et'],
-  general_services: ['staff181@mountolive.edu.et'],
-  shift_coordinator: ['staff182@mountolive.edu.et'],
-  security_head: ['staff184@mountolive.edu.et'],
-  support: ['staff107@mountolive.edu.et'],
-  parent: ['parent0001@mountolive.edu.et'],
-  student: ['student0001@mountolive.edu.et'],
-};
+const ROLE_ORDER = [
+  'owner', 'admin', 'general_manager', 'principal', 'vice_principal', 'quality_director',
+  'hr', 'finance', 'cashier', 'accountant', 'general_services', 'shift_coordinator',
+  'security_head', 'teacher', 'librarian', 'support', 'student', 'parent',
+];
 
 async function getDevUsers() {
-  const order = {};
-  const emails = [];
-  let i = 0;
-  for (const list of Object.values(DEMO_ACCOUNTS)) {
-    for (const email of list) {
-      order[email] = i;
-      emails.push(email);
-      i += 1;
-    }
-  }
+  const tenant = await db('tenants').orderBy('created_at').first();
+  if (!tenant) return { users: [], grouped: {} };
+
   const rows = await db('users')
-    .whereIn('email', emails)
-    .where({ status: 'active' })
-    .select('id', 'email', 'first_name', 'last_name', 'role')
-    .then((r) => r.filter((u) => order[u.email] !== undefined).sort((a, b) => order[a.email] - order[b.email]));
-  const grouped = {};
+    .where({ status: 'active', tenant_id: tenant.id })
+    .whereIn('role', ROLE_ORDER)
+    .select('id', 'username', 'email', 'first_name', 'last_name', 'role', 'created_at');
+
+  const byRole = {};
   for (const r of rows) {
-    if (!grouped[r.role]) grouped[r.role] = [];
-    grouped[r.role].push(r);
+    if (!byRole[r.role]) byRole[r.role] = [];
+    byRole[r.role].push(r);
   }
-  return { users: rows, grouped };
+
+  const users = [];
+  for (const role of ROLE_ORDER) {
+    const list = byRole[role] || [];
+    if (!list.length) continue;
+    list.sort((a, b) => {
+      const ad = /^demo[._]/i.test(a.username || '') ? 0 : 1;
+      const bd = /^demo[._]/i.test(b.username || '') ? 0 : 1;
+      if (ad !== bd) return ad - bd;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+    const u = list[0];
+    users.push({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      role: u.role,
+    });
+  }
+
+  const grouped = {};
+  for (const u of users) {
+    if (!grouped[u.role]) grouped[u.role] = [];
+    grouped[u.role].push(u);
+  }
+  return { users, grouped };
 }
 
 async function changePassword(userId, currentPassword, newPassword) {

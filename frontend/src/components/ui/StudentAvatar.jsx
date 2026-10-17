@@ -1,3 +1,4 @@
+import { fullName } from "../../lib/fullName";
 import { useState } from "react";
 import { cn } from "../../lib/utils";
 
@@ -31,7 +32,7 @@ function initials(name = "") {
 export function StudentAvatar({ student, name, variant = "avataaars", className, ring = true }) {
   const [err, setErr] = useState(false);
   const full = name || (student?.first_name && student?.last_name)
-    ? `${student?.first_name || ""} ${student?.last_name || ""}`.trim()
+    ? `${fullName(student)}`.trim()
     : student?.student_number || "Avatar";
   const seed = encodeURIComponent(student?.user_id || student?.id || full);
   const src = `https://api.dicebear.com/9.x/${variant}/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;

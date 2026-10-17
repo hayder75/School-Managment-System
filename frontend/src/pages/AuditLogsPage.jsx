@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
@@ -82,7 +83,7 @@ export default function AuditLogsPage() {
                 <TableBody>
                   {logs.map((log) => (
                     <TableRow key={log.id}>
-                      <TableCell className="font-medium">{log.first_name} {log.last_name}</TableCell>
+                      <TableCell className="font-medium">{fullName(log)}</TableCell>
                       <TableCell>
                         <Badge variant={log.action === "create" ? "success" : log.action === "delete" ? "destructive" : "secondary"}>
                           {log.action}

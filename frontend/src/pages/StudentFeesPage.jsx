@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useClasses } from "../hooks/useClasses";
 import { useDebouncedValue } from "../hooks/useDebounce";
@@ -53,7 +54,7 @@ export default function StudentFeesPage() {
                 {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Input className="w-64" placeholder={t("Search students...")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+            <Input className="w-64" placeholder={t("Search name, ID, or phone…")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             <span className="text-sm text-muted-foreground">{meta.total ?? students.length} {t("students")}{isFetching ? " …" : ""}</span>
           </div>
         </CardHeader>
@@ -85,7 +86,7 @@ export default function StudentFeesPage() {
                   {students.map((s) => (
                     <tr key={s.id} className="border-b last:border-0">
                       <TableCell className="font-medium">
-                        {s.first_name} {s.last_name}
+                        {fullName(s)}
                         <span className="block text-xs text-muted-foreground font-mono">{s.student_number || "—"}</span>
                       </TableCell>
                       <TableCell>{s.class_name || levelLabel(s.level_group, s.grade_level)}</TableCell>

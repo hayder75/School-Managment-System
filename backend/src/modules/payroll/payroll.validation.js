@@ -82,4 +82,21 @@ const calculatePayrollSchema = z.object({
 const taxBracketSchema = z.object({ body: z.object({ min_salary: z.number().min(0), max_salary: z.number().optional(), rate: z.number().min(0).max(100), deduction: z.number().default(0), is_active: z.boolean().optional() }) });
 const leaveSchema = z.object({ body: z.object({ leave_type: z.enum(['annual','sick','maternity','paternity','emergency','unpaid']), start_date: z.string(), end_date: z.string(), reason: z.string().optional() }) });
 
-module.exports = { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, calculatePayrollSchema, taxBracketSchema, leaveSchema };
+
+const generatePayrollSchema = z.object({
+  body: z.object({
+    month: z.number().int().min(1).max(12),
+    year: z.number().int().min(2000).max(2100),
+  }),
+});
+
+
+const settlePayrollSchema = z.object({
+  body: z.object({
+    month: z.number().int().min(1).max(12),
+    year: z.number().int().min(2000).max(2100),
+    status: z.enum(['paid', 'pending', 'cancelled']).default('paid'),
+  }),
+});
+
+module.exports = { createSalaryGradeSchema, updateSalaryGradeSchema, createPayrollSchema, updatePayrollSchema, calculatePayrollSchema, generatePayrollSchema, settlePayrollSchema, taxBracketSchema, leaveSchema };

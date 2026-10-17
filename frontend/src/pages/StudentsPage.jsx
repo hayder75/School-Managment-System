@@ -1,3 +1,4 @@
+import { fullName } from "../lib/fullName";
 import { useState } from "react";
 import { useDebouncedValue } from "../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +24,7 @@ export default function StudentsPage() {
   const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin" || user?.role === "owner";
+  const canListUsers = ["admin", "owner", "hr", "finance"].includes(user?.role);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
@@ -44,8 +46,8 @@ export default function StudentsPage() {
 
   const { data, isLoading } = useStudents({ page, limit: 20, search: debouncedSearch || undefined, class_id: classFilter || undefined, status: statusFilter || undefined });
   const { data: classesData } = useClasses({ limit: 200 });
-  const { data: usersData } = useUsers({ role: "student", limit: 200 });
-  const { data: statsData } = useEnrollmentStats();
+  const { data: usersData } = useUsers({ role: "student", limit: 200 }, { enabled: canListUsers });
+  const { data: statsData } = useEnrollmentStats({ enabled: isAdmin });
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
   const deleteStudent = useDeleteStudent();
@@ -135,7 +137,7 @@ export default function StudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Students")}</h1>
           <p className="text-muted-foreground">{t("Manage student records")}</p>
@@ -189,7 +191,7 @@ export default function StudentsPage() {
                   <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
                     <SelectTrigger><SelectValue placeholder={t("Select user")} /></SelectTrigger>
                     <SelectContent>
-                      {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.email})</SelectItem>)}
+                      {users.map((u) => <SelectItem key={u.id} value={u.id}>{fullName(u)} ({u.email})</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -363,7 +365,7 @@ export default function StudentsPage() {
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder={t("Search students...")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+              <Input className="pl-9" placeholder={t("Search name, ID, or phone…")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             </div>
             <Select value={classFilter} onValueChange={(v) => { setClassFilter(v); setPage(1); }}>
               <SelectTrigger className="w-40"><SelectValue placeholder={t("All classes")} /></SelectTrigger>
@@ -396,7 +398,7 @@ export default function StudentsPage() {
                 <div className="flex items-center gap-3">
                   <StudentAvatar student={s} className="w-10 h-10 text-xs shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{s.first_name} {s.last_name}</p>
+                    <p className="font-medium truncate">{fullName(s)}</p>
                     <p className="text-xs text-muted-foreground font-mono">{s.student_number || "—"}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[11px] shrink-0 ${s.status === "active" ? "bg-green-100 text-green-800" : s.status === "graduated" ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"}`}>{t(s.status)}</span>
@@ -437,7 +439,7 @@ export default function StudentsPage() {
                     <td className="p-3 font-medium">
                       <button className="hover:text-primary flex items-center gap-2 text-left" onClick={() => navigate(`/students/${s.id}`)}>
                         <StudentAvatar student={s} className="w-8 h-8 text-xs" />
-                        <span className="hover:underline">{s.first_name} {s.last_name}</span>
+                        <span className="hover:underline">{fullName(s)}</span>
                       </button>
                     </td>
                     <td className="p-3">{s.email}</td>

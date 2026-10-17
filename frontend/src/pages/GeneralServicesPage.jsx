@@ -29,7 +29,7 @@ export default function GeneralServicesPage() {
       </div>
 
       {/* Services report strip */}
-      <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[[
           s.open ?? 0, t.services.open, "text-blue-600",
         ], [
@@ -87,7 +87,7 @@ function MaintenanceBoard() {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[640px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[640px] table-sticky-col">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.qa.titleCol}</th>
             <th className="p-3 font-medium">{t.security.location}</th>
@@ -155,7 +155,7 @@ function PurchaseBoard() {
       </div>
 
       <Card><CardContent className="p-0 overflow-x-auto">
-        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[600px]">
+        <div className="overflow-x-auto -mx-px"><table className="w-full text-sm min-w-[600px] table-sticky-col">
           <thead><tr className="border-b bg-muted/50 text-left">
             <th className="p-3 font-medium">{t.services.itemName}</th>
             <th className="p-3 font-medium">{t.services.qty}</th>
