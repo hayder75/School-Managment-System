@@ -45,9 +45,18 @@ export default function UsersPage() {
     setFieldErrors({});
     try {
       const payload = { ...form };
-      payload.section_count = payload.section_count === "" ? null : Number(payload.section_count);
-      payload.periods_per_week = payload.periods_per_week === "" ? null : Number(payload.periods_per_week);
-      payload.overtime_periods = payload.overtime_periods === "" ? 0 : Number(payload.overtime_periods);
+      payload.overtime_periods = form.overtime_periods === "" ? 0 : Number(form.overtime_periods);
+      if (form.role === "teacher") {
+        payload.section_count = form.section_count === "" ? undefined : Number(form.section_count);
+        payload.periods_per_week = form.periods_per_week === "" ? undefined : Number(form.periods_per_week);
+      } else {
+        delete payload.section_count;
+        delete payload.periods_per_week;
+      }
+      // Drop empty optional fields so the API gets a clean payload.
+      for (const key of Object.keys(payload)) {
+        if (payload[key] === "" || payload[key] === null || payload[key] === undefined) delete payload[key];
+      }
       await createUser.mutateAsync(payload);
       setOpen(false);
       setForm({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "", section_count: "", periods_per_week: "", overtime_periods: "0" });

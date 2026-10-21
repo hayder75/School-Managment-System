@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const config = require('../../config');
 const { paginatedResult } = require('../../shared/pagination');
 const { sendInviteEmail } = require('../../shared/email');
@@ -24,7 +25,8 @@ async function create(tenantId, data) {
       last_name: data.last_name,
       phone: data.phone || null,
       role: data.role,
-      status: data.status || 'invited',
+      status: data.status || 'active',
+      password_hash: bcrypt.hashSync(data.password || '1234', 10),
       job_title: data.job_title || null,
       qualification: data.qualification || null,
       field_of_study: data.field_of_study || null,

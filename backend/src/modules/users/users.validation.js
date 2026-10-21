@@ -1,14 +1,20 @@
 const { z } = require('zod');
 
+const optionalString = z.string().max(150).nullable().optional();
+const optionalInt = z.number().int().min(0).nullable().optional();
+
 const baseUserFields = z.object({
-  job_title: z.string().max(150).optional(),
-  qualification: z.string().max(150).optional(),
-  field_of_study: z.string().max(150).optional(),
-  gender: z.enum(['male', 'female', 'other']).optional(),
-  section_count: z.number().int().min(0).optional(),
-  periods_per_week: z.number().int().min(0).optional(),
-  overtime_periods: z.number().int().min(0).optional().default(0),
-  total_periods: z.number().int().min(0).optional(),
+  job_title: optionalString,
+  qualification: optionalString,
+  field_of_study: optionalString,
+  gender: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.enum(['male', 'female', 'other']).optional()
+  ),
+  section_count: optionalInt,
+  periods_per_week: optionalInt,
+  overtime_periods: optionalInt,
+  total_periods: optionalInt,
 });
 
 const createUserSchema = z.object({
@@ -20,7 +26,8 @@ const createUserSchema = z.object({
       last_name: z.string().min(1, 'Last name is required').max(100),
       phone: z.string().optional().nullable(),
       role: z.enum(['owner', 'admin', 'teacher', 'student', 'parent', 'hr', 'finance', 'cashier', 'support', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'general_services', 'shift_coordinator', 'accountant', 'security_head', 'librarian']),
-      send_invite: z.boolean().optional().default(true),
+      password: z.string().min(4).max(100).optional(),
+      send_invite: z.boolean().optional().default(false),
       status: z.enum(['active', 'invited', 'suspended']).optional(),
     })
     .superRefine((data, ctx) => {
