@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { fullName } from "../lib/fullName";
+import KgScheduleEditor from "../components/kg/KgScheduleEditor";
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
@@ -319,20 +319,23 @@ export default function TimetablePage() {
   }
 
   const myClass = classes.find((c) => c.id === classId);
+  let earlyLevel = null;
+  if (myClass?.level_group === "nursery") earlyLevel = "nursery";
+  else if (myClass?.level_group === "kg") {
+    const n = String(myClass.name || "").toUpperCase();
+    earlyLevel = (Number(myClass.grade_level) === 2 || n.includes("UKG")) ? "ukg" : "lkg";
+  }
+  const isEarlyYears = !!earlyLevel;
 
   return (
     <div className="space-y-6">
-      {classId && myClass && ["nursery", "kg"].includes(myClass.level_group) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span>{t("This class uses the Early Years schedule")} ({myClass.name}).</span>
-          <Link to="/early-years" className="font-medium underline">{t("Open Early Years Schedule")}</Link>
-        </div>
-      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{t("Timetable")}</h1>
+          <h1 className="text-3xl font-bold">{isEarlyYears ? t("Early Years Schedule") : t("Timetable")}</h1>
           <p className="text-muted-foreground">
-            {isStudent && myClass
+            {isEarlyYears && myClass
+              ? t("Manage the {level} schedule — {name}", { level: earlyLevel.toUpperCase(), name: myClass.name })
+              : isStudent && myClass
               ? t("Your class schedule — {name}", { name: myClass.name })
               : isTeacher && myClass
                 ? t("Classes you teach — {name}", { name: myClass.name })
@@ -351,7 +354,7 @@ export default function TimetablePage() {
               </SelectContent>
             </Select>
           )}
-          {classId && (
+          {classId && !isEarlyYears && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" className="h-10 w-9" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label={t("Previous week")}>
                 <ChevronLeft className="h-4 w-4" />
@@ -368,12 +371,12 @@ export default function TimetablePage() {
               </div>
             </div>
           )}
-          {classId && canManageTimetable && entries.length === 0 && (
+          {classId && canManageTimetable && !isEarlyYears && entries.length === 0 && (
             <Button variant="outline" onClick={handleGenerate} disabled={generating}>
               <Wand2 className="h-4 w-4 mr-2" /> {generating ? t("Generating...") : t("Auto Generate")}
             </Button>
           )}
-          {classId && canManageTimetable && (
+          {classId && canManageTimetable && !isEarlyYears && (
             <Dialog open={open} onOpenChange={(v) => { setOpen(v); setCreateError(""); if (v && !editingId) setForm((f) => ({ ...f, class_id: classId })); }}>
               <DialogTrigger asChild>
                 <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" /> {t("Add Entry")}</Button>
@@ -496,7 +499,9 @@ export default function TimetablePage() {
         </div>
       </div>
 
-      {classId && (
+      {isEarlyYears && <KgScheduleEditor level={earlyLevel} />}
+
+      {classId && !isEarlyYears && (
         <Card>
           <CardHeader><CardTitle>{t("Weekly Schedule — {name}", { name: myClass?.name })}</CardTitle></CardHeader>
           <CardContent>
