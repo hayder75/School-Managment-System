@@ -1,5 +1,5 @@
 import { fullName } from "../lib/fullName";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useDebouncedValue } from "../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
@@ -8,6 +8,7 @@ import { extractApiErrors } from "../lib/form-utils";
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, usePromoteStudents, useEnrollmentStats } from "../hooks/useStudents";
 import { useClasses } from "../hooks/useClasses";
 import { useUsers } from "../hooks/useUsers";
+import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
@@ -43,6 +44,7 @@ export default function StudentsPage() {
     family_head_gender: "", home_address: "",
   });
   const [fieldErrors, setFieldErrors] = useState({});
+  const [editGuardians, setEditGuardians] = useState([]);
 
   const { data, isLoading } = useStudents({ page, limit: 20, search: debouncedSearch || undefined, class_id: classFilter || undefined, status: statusFilter || undefined });
   const { data: classesData } = useClasses({ limit: 200 });
@@ -69,6 +71,7 @@ export default function StudentsPage() {
       family_head_gender: "", home_address: "",
     });
     setEditing(null);
+    setEditGuardians([]);
   }
 
   function buildPayload() {
@@ -101,7 +104,15 @@ export default function StudentsPage() {
     }
   }
 
-  function handleEdit(student) {
+  const userOptions = useMemo(() => {
+    const list = [...users];
+    if (editing?.user_id && !list.some((u) => u.id === editing.user_id)) {
+      list.unshift({ id: editing.user_id, first_name: editing.first_name, last_name: editing.last_name, email: editing.email });
+    }
+    return list;
+  }, [users, editing]);
+
+  async function handleEdit(student) {
     setEditing(student);
     setForm({
       user_id: student.user_id, class_id: student.class_id, student_number: student.student_number || "",
@@ -118,7 +129,42 @@ export default function StudentsPage() {
       parent_status: student.parent_status || "", family_head_gender: student.family_head_gender || "",
       home_address: student.home_address || "",
     });
+    setEditGuardians([]);
     setOpen(true);
+    try {
+      const res = await api.get(`/students/${student.id}`);
+      const s2 = res.data || {};
+      setForm((f) => ({
+        ...f,
+        user_id: s2.user_id ?? f.user_id,
+        class_id: s2.class_id ?? f.class_id,
+        student_number: s2.student_number || f.student_number,
+        emergency_contact: s2.emergency_contact || "",
+        father_name: s2.father_name || "",
+        grandfather_name: s2.grandfather_name || "",
+        mother_name: s2.mother_name || "",
+        date_of_birth: (s2.date_of_birth || "").slice(0, 10) || "",
+        gender: s2.gender || "",
+        nationality: s2.nationality || "",
+        country_of_birth: s2.country_of_birth || "",
+        region_of_residence: s2.region_of_residence || "",
+        zone_of_residence: s2.zone_of_residence || "",
+        woreda_of_residence: s2.woreda_of_residence || "",
+        region_of_birth: s2.region_of_birth || "",
+        zone_of_birth: s2.zone_of_birth || "",
+        woreda_of_birth: s2.woreda_of_birth || "",
+        kebele: s2.kebele || "",
+        location_type: s2.location_type || "",
+        disability: !!s2.disability,
+        disability_type: s2.disability_type || "",
+        economic_status: s2.economic_status || "",
+        national_id: s2.national_id || "",
+        parent_status: s2.parent_status || "",
+        family_head_gender: s2.family_head_gender || "",
+        home_address: s2.home_address || "",
+      }));
+      setEditGuardians(s2.guardians || []);
+    } catch { /* keep list-row data */ }
   }
 
   async function handlePromote(e) {
@@ -191,11 +237,23 @@ export default function StudentsPage() {
                   <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
                     <SelectTrigger><SelectValue placeholder={t("Select user")} /></SelectTrigger>
                     <SelectContent>
-                      {users.map((u) => <SelectItem key={u.id} value={u.id}>{fullName(u)} ({u.email})</SelectItem>)}
+                      {userOptions.map((u) => <SelectItem key={u.id} value={u.id}>{fullName(u)} ({u.email})</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <FieldError errors={fieldErrors} field="user_id" />
+                {editing && editGuardians.length > 0 && (
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                    <p className="font-medium">{t("Linked guardians")}</p>
+                    {editGuardians.map((g) => (
+                      <p key={g.id}>
+                        {fullName(g)}
+                        {g.phone ? ` · ${g.phone}` : ""}
+                        {g.email ? ` · ${g.email}` : ""}
+                      </p>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>{t("Class")}</Label>
                   <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>

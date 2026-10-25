@@ -323,7 +323,7 @@ export default function StudentDetailPage() {
                   </p>
                 </div>
                 {(user?.role === "admin" || user?.role === "owner" || user?.role === "cashier") && (
-                  <Button variant="ghost" size="icon" onClick={() => setGuardianEdit({ id: g.id, first_name: g.first_name || "", last_name: g.last_name || "", phone: g.phone || "" })}>
+                  <Button variant="ghost" size="icon" onClick={() => setGuardianEdit({ id: g.parent_id || g.id, first_name: g.first_name || "", last_name: g.last_name || "", phone: g.phone || "" })}>
                     <Pencil className="h-4 w-4" />
                   </Button>
                 )}
