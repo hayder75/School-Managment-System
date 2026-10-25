@@ -8,6 +8,7 @@ export const am = {
     timetableConfig: "የጊዜ ሰንጠረዥ ራስ-ሰር ማዋቀሪያ",
     examResults: "ፈተናና ውጤት",
     sms: "የSMS መልእክት",
+    earlyYears: "የቅድመ መደበኛ መርሃ ግብር",
     faceAttendance: "የፊት መለያ ክትትል",
     staffAttendance: "የሰራተኞች ክትትል",
     schools: "ትምህርት ቤቶች",

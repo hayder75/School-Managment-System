@@ -69,6 +69,7 @@ const ExecutiveDashboardPage = lazy(() => import("./pages/ExecutiveDashboardPage
 const DisciplineManagementPage = lazy(() => import("./pages/DisciplineManagementPage"));
 const SmsPage = lazy(() => import("./pages/SmsPage"));
 const FaceAttendancePage = lazy(() => import("./pages/FaceAttendancePage"));
+const KgSchedulePage = lazy(() => import("./pages/KgSchedulePage"));
 const EnrollmentWizardPage = lazy(() => import("./pages/EnrollmentWizardPage"));
 const SetPasswordPage = lazy(() => import("./pages/auth/SetPasswordPage"));
 const LibraryPage = lazy(() => import("./pages/LibraryPage"));
@@ -165,6 +166,11 @@ function AppContent() {
           {/* Timetable auto-setup (admins / directors / HR) */}
           <Route element={<RoleRoute roles={["admin", "owner", "hr", "quality_director"]} />}>
             <Route path="/timetable-config" element={<TimetableConfigPage />} />
+          </Route>
+
+          {/* Early years (Nursery / LKG / UKG) schedule */}
+          <Route element={<RoleRoute roles={["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "hr"]} permissions={["timetable.manage", "timetable.view"]} />}>
+            <Route path="/early-years" element={<KgSchedulePage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "teacher", "parent", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator", "security_head", "support"]} permissions={["chat.access"]} />}>

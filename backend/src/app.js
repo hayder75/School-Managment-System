@@ -78,6 +78,7 @@ app.use('/api/public', require('./modules/public/public.routes'));
 app.use('/api/help', require('./modules/help/help.routes'));
 app.use('/api/sms', require('./modules/sms/sms.routes'));
 app.use('/api/face-attendance', require('./modules/face-attendance/face-attendance.routes'));
+app.use('/api/kg-schedule', require('./modules/kg-schedule/kg-schedule.routes'));
 
 app.get('/', (req, res) => {
   res.redirect(config.frontendUrl);

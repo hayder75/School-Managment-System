@@ -7,7 +7,7 @@ import {
   DollarSign, Wallet, TrendingDown,
   ShieldAlert, ShieldCheck, BarChart3, Upload, Megaphone, UserPlus,
   Bus, BedDouble, BookOpen as BookIcon, FileText, CalendarClock, ClipboardList,
-  Package, CalendarRange, UserCheck, Award,
+  Package, CalendarRange, CalendarDays, UserCheck, Award,
   BadgeCheck, LockKeyhole, HardHat, Calculator, Crown, Gavel, Clock, ScanFace,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -59,6 +59,7 @@ const navItems = {
     { to: "/settings", label: "settings", icon: Settings },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
     { to: "/sms", label: "sms", icon: MessageSquare },
+    { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
   admin: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -95,6 +96,7 @@ const navItems = {
     { to: "/import", label: "import", icon: Upload },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
     { to: "/sms", label: "sms", icon: MessageSquare },
+    { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
   teacher: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -127,6 +129,7 @@ const navItems = {
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/chat", label: "chat", icon: MessageSquare },
     { to: "/sms", label: "sms", icon: MessageSquare },
+    { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
   principal: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -145,6 +148,7 @@ const navItems = {
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/chat", label: "chat", icon: MessageSquare },
     { to: "/sms", label: "sms", icon: MessageSquare },
+    { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
   vice_principal: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -162,6 +166,7 @@ const navItems = {
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/sms", label: "sms", icon: MessageSquare },
+    { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
   quality_director: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -180,6 +185,7 @@ const navItems = {
     { to: "/chat", label: "chat", icon: MessageSquare },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
     { to: "/sms", label: "sms", icon: MessageSquare },
+    { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
   shift_coordinator: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
@@ -273,6 +279,7 @@ const navItems = {
     { to: "/payroll-audit", label: "payrollAudit", icon: ClipboardList },
     { to: "/users", label: "staff", icon: Users },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
+    { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
   parent: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },

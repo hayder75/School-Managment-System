@@ -7,6 +7,7 @@ export const en = {
     timetableConfig: "Timetable Auto-Setup",
     examResults: "Exam & Results",
     sms: "SMS Messaging",
+    earlyYears: "Early Years Schedule",
     faceAttendance: "Face Attendance",
     staffAttendance: "Staff Attendance",
     schools: "Schools",

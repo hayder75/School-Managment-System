@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { fullName } from "../lib/fullName";
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { useAuthStore } from "../store/auth";
@@ -321,6 +322,12 @@ export default function TimetablePage() {
 
   return (
     <div className="space-y-6">
+      {classId && myClass && ["nursery", "kg"].includes(myClass.level_group) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>{t("This class uses the Early Years schedule")} ({myClass.name}).</span>
+          <Link to="/early-years" className="font-medium underline">{t("Open Early Years Schedule")}</Link>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Timetable")}</h1>
