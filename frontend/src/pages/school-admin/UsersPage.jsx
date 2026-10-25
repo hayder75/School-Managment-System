@@ -99,7 +99,7 @@ export default function UsersPage() {
                 </div>
                 <FieldError errors={fieldErrors} field="first_name" />
                 <div className="space-y-2">
-                  <Label>Last Name</Label>
+                  <Label>{t("Grandfather name")}</Label>
                   <Input required value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
                 </div>
                 <FieldError errors={fieldErrors} field="last_name" />

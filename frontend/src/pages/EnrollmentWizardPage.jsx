@@ -326,7 +326,7 @@ function GuardianStep({ guardians, setGuardians, newGuardians, setNewGuardians, 
     <div className="border-t pt-4"><p className="text-sm font-medium mb-3 flex items-center gap-2"><UserPlus size={15} /> {t("Create new guardian")}</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div><Label>{t("First name")} *</Label><Input value={ngForm.first_name} onChange={(e) => setNgForm({ ...ngForm, first_name: e.target.value })} /></div>
-        <div><Label>{t("Last name")} *</Label><Input value={ngForm.last_name} onChange={(e) => setNgForm({ ...ngForm, last_name: e.target.value })} /></div>
+        <div><Label>{t("Grandfather name")} *</Label><Input value={ngForm.last_name} onChange={(e) => setNgForm({ ...ngForm, last_name: e.target.value })} /></div>
         <div><Label>{t("Phone")} *</Label><Input value={ngForm.phone} onChange={(e) => setNgForm({ ...ngForm, phone: e.target.value })} placeholder="09…" /></div>
         <div><Label>{t("Relationship")}</Label><Select value={ngForm.relationship} onValueChange={(v) => setNgForm({ ...ngForm, relationship: v })}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent>{RELATIONSHIPS.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}</SelectContent></Select></div>
         <div><Label>{t("Education level")}</Label><Select value={ngForm.education_level} onValueChange={(v) => setNgForm({ ...ngForm, education_level: v })}><SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger><SelectContent>{EDU_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent></Select></div>

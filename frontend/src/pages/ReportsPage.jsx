@@ -1253,7 +1253,7 @@ function SecurityReportsTab() {
         dateCol="time_in" />
 
       <ReportTable title="Student Gate Passes" loading={loadingPasses} rows={passes} empty="No gate passes"
-        cols={[["student_first_name", "First name"], ["student_last_name", "Last name"], ["student_code", "Student #"], ["pass_code", "Pass code"], ["status", "Status"]]}
+        cols={[["student_first_name", "First name"], ["student_last_name", "Grandfather name"], ["student_code", "Student #"], ["pass_code", "Pass code"], ["status", "Status"]]}
         dateCol="departure_date" />
 
       <ReportTable title="Security Incidents" loading={loadingIncidents} rows={incidents} empty="No incidents"

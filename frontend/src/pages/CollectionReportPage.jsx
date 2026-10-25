@@ -57,7 +57,7 @@ export default function CollectionReportPage() {
 
   function downloadCSV() {
     if (!report) return;
-    const rows = [[t("Class"), t("Student Number"), t("First Name"), t("Last Name"), t("Guardian Phone"), t("Expected"), t("Paid"), t("Balance"), t("Status")]];
+    const rows = [[t("Class"), t("Student Number"), t("First Name"), t("Grandfather name"), t("Guardian Phone"), t("Expected"), t("Paid"), t("Balance"), t("Status")]];
     for (const cls of report.classes) {
       for (const s of cls.students) {
         rows.push([cls.class_name, s.student_number, s.first_name, s.last_name, s.guardian_phone || "", s.expected, s.paid, s.balance, s.status]);

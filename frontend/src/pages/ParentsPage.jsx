@@ -140,7 +140,7 @@ function UnlinkedSection() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>{t("First name")}</Label><Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></div>
-                <div className="space-y-2"><Label>{t("Last name")}</Label><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></div>
+                <div className="space-y-2"><Label>{t("Grandfather name")}</Label><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></div>
                 <div className="space-y-2 col-span-2"><Label>{t("Phone")} *</Label><Input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="09… / 9… / 2519…" /></div>
               </div>
             )}

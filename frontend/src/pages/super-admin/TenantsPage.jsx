@@ -119,7 +119,7 @@ export default function TenantsPage() {
                     <Input value={form.owner_first_name} onChange={(e) => setForm({ ...form, owner_first_name: e.target.value })} placeholder="School" />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t("Last Name")}</Label>
+                    <Label>{t("Grandfather name")}</Label>
                     <Input value={form.owner_last_name} onChange={(e) => setForm({ ...form, owner_last_name: e.target.value })} placeholder="Owner" />
                   </div>
                 </div>

@@ -351,7 +351,7 @@ export default function StudentDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-sm">Demographics</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-1 [&_p]:break-words">
-            <p><span className="text-muted-foreground">Full Name:</span> {student.first_name} {student.father_name || ""} {student.grandfather_name || ""} {student.last_name}</p>
+            <p><span className="text-muted-foreground">Full Name:</span> {fullName(student)}</p>
             <p><span className="text-muted-foreground">Mother's Name:</span> {student.mother_name || "—"}</p>
             <p><span className="text-muted-foreground">DOB:</span> <EthiopianDate date={student.date_of_birth} /></p>
             <p><span className="text-muted-foreground">Gender:</span> {student.gender || "—"}</p>
@@ -406,7 +406,7 @@ export default function StudentDetailPage() {
           {guardianEdit && (
             <div className="space-y-3">
               <div><Label>{t("First name")}</Label><Input value={guardianEdit.first_name} onChange={(e) => setGuardianEdit({ ...guardianEdit, first_name: e.target.value })} /></div>
-              <div><Label>{t("Last name")}</Label><Input value={guardianEdit.last_name} onChange={(e) => setGuardianEdit({ ...guardianEdit, last_name: e.target.value })} /></div>
+              <div><Label>{t("Grandfather name")}</Label><Input value={guardianEdit.last_name} onChange={(e) => setGuardianEdit({ ...guardianEdit, last_name: e.target.value })} /></div>
               <div><Label>{t("Phone")}</Label><Input value={guardianEdit.phone} onChange={(e) => setGuardianEdit({ ...guardianEdit, phone: e.target.value })} placeholder="09…" /></div>
               <p className="text-xs text-muted-foreground">{t("The guardian's login username is their phone number; it updates automatically.")}</p>
               <div className="flex justify-end gap-2">

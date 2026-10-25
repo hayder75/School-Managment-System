@@ -140,7 +140,7 @@ export default function StaffEditDialog({ user, open, onOpenChange }) {
               <FieldError errors={errors} field="first_name" />
             </div>
             <div className="space-y-2">
-              <Label>{t("Last Name")}</Label>
+              <Label>{t("Grandfather name")}</Label>
               <Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required />
               <FieldError errors={errors} field="last_name" />
             </div>

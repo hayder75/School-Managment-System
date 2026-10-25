@@ -367,6 +367,19 @@ async function update(tenantId, id, data, userId = null) {
       .select('status', 'user_id', 'student_number')
       .first();
     const [student] = await trx('students').where({ tenant_id: tenantId, id }).update(data).returning('*');
+
+    // Keep the linked login account's name in sync with the student's parent
+    // names (Ethiopian naming: given + father(middle) + grandfather(last)).
+    if (student && student.user_id
+        && (data.father_name !== undefined || data.grandfather_name !== undefined)) {
+      const namePatch = {};
+      if (data.father_name !== undefined) namePatch.middle_name = data.father_name || '';
+      if (data.grandfather_name !== undefined) namePatch.last_name = data.grandfather_name || '';
+      if (Object.keys(namePatch).length) {
+        namePatch.updated_at = trx.fn.now();
+        await trx('users').where({ id: student.user_id, tenant_id: tenantId, role: 'student' }).update(namePatch);
+      }
+    }
     if (student && data.status && current && current.status !== data.status) {
       await trx('student_status_history').insert({
         tenant_id: tenantId,
