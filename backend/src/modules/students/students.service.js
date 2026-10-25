@@ -236,29 +236,38 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, status, searc
   if (user_id) query = query.where('students.user_id', user_id);
   if (status) query = query.where('students.status', status);
   if (search) {
-    query = query.where(function () {
-      this.where('users.first_name', 'ilike', `%${search}%`)
-        .orWhere('users.last_name', 'ilike', `%${search}%`)
-        .orWhere('users.phone', 'ilike', `%${search}%`)
-        .orWhere('students.student_number', 'ilike', `%${search}%`)
-        .orWhere('students.father_name', 'ilike', `%${search}%`)
-        .orWhere('students.mother_name', 'ilike', `%${search}%`)
-        .orWhere('classes.name', 'ilike', `%${search}%`)
-        .orWhereRaw("CONCAT_WS(' ', users.first_name, users.middle_name, users.last_name) ILIKE ?", [`%${search}%`])
-        // match IDs ignoring O/0 confusion (e.g. "M0885" finds "MO885")
-        .orWhereRaw("regexp_replace(upper(students.student_number), 'O', '0', 'g') LIKE ?", [`%${String(search).toUpperCase().replace(/O/g, '0')}%`])
-        .orWhereExists(function () {
-          this.select(db.raw(1))
-            .from('student_parents')
-            .join('users as parents', 'parents.id', 'student_parents.parent_id')
-            .whereRaw('student_parents.student_id = students.id')
-            .where(function () {
-              this.where('parents.first_name', 'ilike', `%${search}%`)
-                .orWhere('parents.last_name', 'ilike', `%${search}%`)
-                .orWhere('parents.phone', 'ilike', `%${search}%`);
-            });
-        });
-    });
+    // Match every word anywhere across the student's own name parts, father /
+    // grandfather / mother names, guardian names, class and student number.
+    // This makes "Yohanan Aman", "Aman Yohanan", "Aman Tolcha", etc. all work.
+    const tokens = String(search).trim().split(/\s+/).filter(Boolean).slice(0, 6);
+    for (const token of tokens) {
+      const like = `%${token}%`;
+      const idLike = `%${String(token).toUpperCase().replace(/O/g, '0')}%`;
+      query = query.where(function () {
+        this.where('users.first_name', 'ilike', like)
+          .orWhere('users.middle_name', 'ilike', like)
+          .orWhere('users.last_name', 'ilike', like)
+          .orWhere('users.phone', 'ilike', like)
+          .orWhere('students.student_number', 'ilike', like)
+          .orWhere('students.father_name', 'ilike', like)
+          .orWhere('students.grandfather_name', 'ilike', like)
+          .orWhere('students.mother_name', 'ilike', like)
+          .orWhere('classes.name', 'ilike', like)
+          // match IDs ignoring O/0 confusion (e.g. "M0885" finds "MO885")
+          .orWhereRaw("regexp_replace(upper(students.student_number), 'O', '0', 'g') LIKE ?", [idLike])
+          .orWhereExists(function () {
+            this.select(db.raw(1))
+              .from('student_parents')
+              .join('users as parents', 'parents.id', 'student_parents.parent_id')
+              .whereRaw('student_parents.student_id = students.id')
+              .where(function () {
+                this.where('parents.first_name', 'ilike', like)
+                  .orWhere('parents.last_name', 'ilike', like)
+                  .orWhere('parents.phone', 'ilike', like);
+              });
+          });
+      });
+    }
   }
   return paginatedResult(query, page, limit);
 }
