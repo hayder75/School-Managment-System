@@ -68,6 +68,7 @@ const AccountantReconciliationPage = lazy(() => import("./pages/AccountantReconc
 const ExecutiveDashboardPage = lazy(() => import("./pages/ExecutiveDashboardPage"));
 const DisciplineManagementPage = lazy(() => import("./pages/DisciplineManagementPage"));
 const SmsPage = lazy(() => import("./pages/SmsPage"));
+const FaceAttendancePage = lazy(() => import("./pages/FaceAttendancePage"));
 const EnrollmentWizardPage = lazy(() => import("./pages/EnrollmentWizardPage"));
 const SetPasswordPage = lazy(() => import("./pages/auth/SetPasswordPage"));
 const LibraryPage = lazy(() => import("./pages/LibraryPage"));
@@ -222,8 +223,11 @@ function AppContent() {
             <Route path="/shift-hub" element={<ShiftDutyHubPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "hr", "teacher", "shift_coordinator", "principal", "vice_principal", "quality_director", "general_services"]} permissions={["staff-attendance.manage", "quality.review"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "hr", "teacher", "shift_coordinator", "principal", "vice_principal", "quality_director", "general_services", "face_attendance"]} permissions={["staff-attendance.manage"]} />}>
             <Route path="/teacher-attendance" element={<TeacherAttendancePage />} />
+          </Route>
+
+          <Route element={<RoleRoute roles={["admin", "owner", "hr", "teacher", "shift_coordinator", "principal", "vice_principal", "quality_director", "general_services"]} permissions={["staff-attendance.manage", "quality.review"]} />}>
             <Route path="/teacher-kpis" element={<TeacherKpiPage />} />
           </Route>
 
@@ -279,6 +283,11 @@ function AppContent() {
           {/* SMS messaging — directors / admins send announcements to parents */}
           <Route element={<RoleRoute roles={["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"]} permissions={["sms.manage"]} />}>
             <Route path="/sms" element={<SmsPage />} />
+          </Route>
+
+          {/* Face-recognition staff attendance */}
+          <Route element={<RoleRoute roles={["face_attendance", "admin", "owner", "hr", "principal", "vice_principal", "quality_director"]} permissions={["staff-attendance.manage"]} />}>
+            <Route path="/face-attendance" element={<FaceAttendancePage />} />
           </Route>
 
           <Route element={<RoleRoute roles={["admin", "owner", "super_admin"]} permissions={["audit.view"]} />}>

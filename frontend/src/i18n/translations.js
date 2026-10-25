@@ -7,6 +7,8 @@ export const en = {
     timetableConfig: "Timetable Auto-Setup",
     examResults: "Exam & Results",
     sms: "SMS Messaging",
+    faceAttendance: "Face Attendance",
+    staffAttendance: "Staff Attendance",
     schools: "Schools",
     users: "Users",
     staff: "Staff",
@@ -103,6 +105,7 @@ export const en = {
     shift_coordinator: "Shift Coordinator",
     accountant: "Accountant",
     security_head: "Head of Security",
+    face_attendance: "Face Attendance Operator",
   },
   qa: {
     title: "Quality Assurance",

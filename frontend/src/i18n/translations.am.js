@@ -8,6 +8,8 @@ export const am = {
     timetableConfig: "የጊዜ ሰንጠረዥ ራስ-ሰር ማዋቀሪያ",
     examResults: "ፈተናና ውጤት",
     sms: "የSMS መልእክት",
+    faceAttendance: "የፊት መለያ ክትትል",
+    staffAttendance: "የሰራተኞች ክትትል",
     schools: "ትምህርት ቤቶች",
     users: "ተጠቃሚዎች",
     staff: "ሠራተኞች",
@@ -100,6 +102,7 @@ export const am = {
     shift_coordinator: "ፈረቃ አስተባባሪ",
     accountant: "አካውንታንት",
     security_head: "የጥበቃ ኃላፊ",
+    face_attendance: "የፊት መለያ ኦፕሬተር",
   },
   qa: {
     title: "የትምህርት ጥራት ማረጋገጫ",

@@ -8,7 +8,7 @@ import {
   ShieldAlert, ShieldCheck, BarChart3, Upload, Megaphone, UserPlus,
   Bus, BedDouble, BookOpen as BookIcon, FileText, CalendarClock, ClipboardList,
   Package, CalendarRange, UserCheck, Award,
-  BadgeCheck, LockKeyhole, HardHat, Calculator, Crown, Gavel, Clock,
+  BadgeCheck, LockKeyhole, HardHat, Calculator, Crown, Gavel, Clock, ScanFace,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { prefetchRoute } from "../../lib/prefetch";
@@ -42,6 +42,7 @@ const navItems = {
     { to: "/operations", label: "operations", icon: Bus },
     { to: "/assets", label: "assetManagement", icon: Package },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/face-attendance", label: "faceAttendance", icon: ScanFace },
     { to: "/teacher-kpis", label: "teacherKpi", icon: Award },
     { to: "/tax-settings", label: "taxBrackets", icon: FileText },
     { to: "/leave-management", label: "leaveManagement", icon: CalendarClock },
@@ -80,6 +81,7 @@ const navItems = {
     { to: "/operations", label: "operations", icon: Bus },
     { to: "/assets", label: "assetManagement", icon: Package },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/face-attendance", label: "faceAttendance", icon: ScanFace },
     { to: "/teacher-kpis", label: "teacherKpi", icon: Award },
     { to: "/tax-settings", label: "taxBrackets", icon: FileText },
     { to: "/leave-management", label: "leaveManagement", icon: CalendarClock },
@@ -106,6 +108,10 @@ const navItems = {
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/chat", label: "chat", icon: MessageSquare },
+  ],
+  face_attendance: [
+    { to: "/face-attendance", label: "faceAttendance", icon: ScanFace },
+    { to: "/teacher-attendance", label: "staffAttendance", icon: UserCheck },
   ],
   general_manager: [
     { to: "/executive-dashboard", label: "executiveDashboard", icon: Crown },
@@ -134,6 +140,7 @@ const navItems = {
     { to: "/report-cards", label: "reportCards", icon: Award },
     { to: "/timetable", label: "timetable", icon: Notebook },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/face-attendance", label: "faceAttendance", icon: ScanFace },
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/chat", label: "chat", icon: MessageSquare },
@@ -151,6 +158,7 @@ const navItems = {
     { to: "/report-cards", label: "reportCards", icon: Award },
     { to: "/shift-hub", label: "shiftHub", icon: CalendarRange },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/face-attendance", label: "faceAttendance", icon: ScanFace },
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/sms", label: "sms", icon: MessageSquare },
@@ -167,6 +175,7 @@ const navItems = {
     { to: "/timetable", label: "timetable", icon: Notebook },
     { to: "/teacher-kpis", label: "teacherKpi", icon: Award },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/face-attendance", label: "faceAttendance", icon: ScanFace },
     { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/chat", label: "chat", icon: MessageSquare },
     { to: "/timetable-config", label: "timetableConfig", icon: Notebook },
@@ -249,6 +258,7 @@ const navItems = {
   hr: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/face-attendance", label: "faceAttendance", icon: ScanFace },
     { to: "/teachers", label: "teachers", icon: Users },
     { to: "/timetable", label: "timetable", icon: Notebook },
     { to: "/teacher-kpis", label: "teacherKpi", icon: Award },

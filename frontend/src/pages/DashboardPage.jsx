@@ -1,3 +1,4 @@
+import { Navigate } from "react-router-dom";
 import { fullName } from "../lib/fullName";
 import { useAuthStore } from "../store/auth";
 import { useSystemStats } from "../hooks/useTenants";
@@ -671,6 +672,8 @@ function LibrarianDashboard() {
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const role = user?.role;
+
+  if (role === "face_attendance") return <Navigate to="/face-attendance" replace />;
 
   if (role === "super_admin") return <SuperAdminDashboard />;
   if (role === "admin" || role === "owner") return <AdminDashboard />;

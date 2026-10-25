@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 
-const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head", "librarian"];
+const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head", "librarian", "face_attendance"];
 
 export default function UsersPage() {
   const { t } = useI18n();

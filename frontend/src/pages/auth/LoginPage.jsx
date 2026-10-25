@@ -10,6 +10,10 @@ import {
 import api from "../../lib/api";
 import { warmRole } from "../../lib/prefetch";
 
+function homeFor(role) {
+  return role === "face_attendance" ? "/face-attendance" : "/dashboard";
+}
+
 const ROLE_LABELS = {
   owner: "School Owner",
   admin: "Administrator",
@@ -75,7 +79,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate("/dashboard", { replace: true });
+      navigate(homeFor(useAuthStore.getState().user?.role), { replace: true });
     }
   }, [isAuthenticated, isLoading, navigate]);
 
@@ -104,7 +108,7 @@ export default function LoginPage() {
     try {
       await login(id, "1234");
       warmRole(useAuthStore.getState().user?.role);
-      navigate("/dashboard");
+      navigate(homeFor(useAuthStore.getState().user?.role));
     } catch (err) {
       setError(err?.error?.message || err?.message || t.auth.loginFailed);
       setLoading(false);
@@ -118,7 +122,7 @@ export default function LoginPage() {
     try {
       await login(identifier, password);
       warmRole(useAuthStore.getState().user?.role);
-      navigate("/dashboard");
+      navigate(homeFor(useAuthStore.getState().user?.role));
     } catch (err) {
       setError(err?.error?.message || err?.message || t.auth.loginFailed);
     } finally {
