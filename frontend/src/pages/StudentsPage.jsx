@@ -37,7 +37,7 @@ export default function StudentsPage() {
   const [promoteForm, setPromoteForm] = useState({ from_class_id: "", to_class_id: "" });
   const [form, setForm] = useState({
     user_id: "", class_id: "", student_number: "", emergency_contact: "",
-    father_name: "", grandfather_name: "", mother_name: "", date_of_birth: "", gender: "",
+    first_name: "", father_name: "", grandfather_name: "", mother_name: "", date_of_birth: "", gender: "",
     nationality: "", country_of_birth: "", region_of_residence: "", zone_of_residence: "", woreda_of_residence: "",
     region_of_birth: "", zone_of_birth: "", woreda_of_birth: "", kebele: "", location_type: "",
     disability: false, disability_type: "", economic_status: "", national_id: "", parent_status: "",
@@ -64,7 +64,7 @@ export default function StudentsPage() {
   function resetForm() {
     setForm({
       user_id: "", class_id: "", student_number: "", emergency_contact: "",
-      father_name: "", grandfather_name: "", mother_name: "", date_of_birth: "", gender: "",
+      first_name: "", father_name: "", grandfather_name: "", mother_name: "", date_of_birth: "", gender: "",
       nationality: "", country_of_birth: "", region_of_residence: "", zone_of_residence: "", woreda_of_residence: "",
       region_of_birth: "", zone_of_birth: "", woreda_of_birth: "", kebele: "", location_type: "",
       disability: false, disability_type: "", economic_status: "", national_id: "", parent_status: "",
@@ -117,7 +117,7 @@ export default function StudentsPage() {
     setForm({
       user_id: student.user_id, class_id: student.class_id, student_number: student.student_number || "",
       emergency_contact: student.emergency_contact || "",
-      father_name: student.father_name || "", grandfather_name: student.grandfather_name || "",
+      first_name: student.first_name || "", father_name: student.father_name || "", grandfather_name: student.grandfather_name || "",
       mother_name: student.mother_name || "", date_of_birth: (student.date_of_birth || "").slice(0, 10) || "", gender: student.gender || "",
       nationality: student.nationality || "", country_of_birth: student.country_of_birth || "",
       region_of_residence: student.region_of_residence || "", zone_of_residence: student.zone_of_residence || "",
@@ -140,6 +140,7 @@ export default function StudentsPage() {
         class_id: s2.class_id ?? f.class_id,
         student_number: s2.student_number || f.student_number,
         emergency_contact: s2.emergency_contact || "",
+        first_name: s2.first_name ?? f.first_name,
         father_name: s2.father_name || "",
         grandfather_name: s2.grandfather_name || "",
         mother_name: s2.mother_name || "",
@@ -277,6 +278,10 @@ export default function StudentsPage() {
                 <div className="border-t pt-4">
                   <Label className="text-sm font-semibold">{t("Personal / Demographics")}</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>{t("First Name")}</Label>
+                      <Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} placeholder={t("Student's given name")} />
+                    </div>
                     <div className="space-y-2">
                       <Label>{t("Father's Name")}</Label>
                       <Input value={form.father_name} onChange={(e) => setForm({ ...form, father_name: e.target.value })} />

@@ -384,13 +384,26 @@ async function update(tenantId, id, data, userId = null) {
       .where({ tenant_id: tenantId, id })
       .select('status', 'user_id', 'student_number')
       .first();
-    const [student] = await trx('students').where({ tenant_id: tenantId, id }).update(data).returning('*');
 
-    // Keep the linked login account's name in sync with the student's parent
-    // names (Ethiopian naming: given + father(middle) + grandfather(last)).
-    if (student && student.user_id
-        && (data.father_name !== undefined || data.grandfather_name !== undefined)) {
+    // The student's own name/email live on the linked user account, not on the
+    // students table, so split them out before updating the student row.
+    const { first_name, middle_name, last_name, student_email, ...studentData } = data;
+
+    let student;
+    if (Object.keys(studentData).length) {
+      [student] = await trx('students').where({ tenant_id: tenantId, id }).update(studentData).returning('*');
+    } else {
+      student = await trx('students').where({ tenant_id: tenantId, id }).first();
+    }
+
+    // Keep the linked login account's name in sync: first_name = given name,
+    // father_name = middle, grandfather_name = last.
+    if (student && student.user_id) {
       const namePatch = {};
+      if (first_name !== undefined) namePatch.first_name = first_name;
+      if (middle_name !== undefined) namePatch.middle_name = middle_name;
+      if (last_name !== undefined) namePatch.last_name = last_name;
+      if (student_email !== undefined) namePatch.email = student_email;
       if (data.father_name !== undefined) namePatch.middle_name = data.father_name || '';
       if (data.grandfather_name !== undefined) namePatch.last_name = data.grandfather_name || '';
       if (Object.keys(namePatch).length) {
