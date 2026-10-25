@@ -199,6 +199,15 @@ async function enroll(tenantId, userId, data) {
       changed_by: userId,
     });
 
+    // Keep the linked login account's name aligned with the student's parent
+    // names (Ethiopian naming: given + father(middle) + grandfather(last)).
+    if (studentUserId && (studentData.father_name !== undefined || studentData.grandfather_name !== undefined)) {
+      const namePatch = { updated_at: trx.fn.now() };
+      if (studentData.father_name !== undefined) namePatch.middle_name = studentData.father_name || '';
+      if (studentData.grandfather_name !== undefined) namePatch.last_name = studentData.grandfather_name || '';
+      await trx('users').where({ id: studentUserId, tenant_id: tenantId }).update(namePatch);
+    }
+
         return { ...student, __credentials: creds };
       });
     } catch (err) {
