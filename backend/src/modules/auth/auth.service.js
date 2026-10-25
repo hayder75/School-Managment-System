@@ -162,7 +162,7 @@ async function setPassword(token, password) {
 const ROLE_ORDER = [
   'owner', 'admin', 'general_manager', 'principal', 'vice_principal', 'quality_director',
   'hr', 'finance', 'cashier', 'accountant', 'general_services', 'shift_coordinator',
-  'security_head', 'teacher', 'librarian', 'support', 'student', 'parent',
+  'security_head', 'teacher', 'librarian', 'support', 'face_attendance', 'student', 'parent',
 ];
 
 async function getDevUsers() {

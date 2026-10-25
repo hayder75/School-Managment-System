@@ -9,6 +9,7 @@ const DEMO_USERS = [
   { role: 'general_services', username: 'demo.services', first_name: 'Demo', last_name: 'Services', job_title: 'General Services' },
   { role: 'shift_coordinator', username: 'demo.shift', first_name: 'Demo', last_name: 'Shift', job_title: 'Shift Coordinator' },
   { role: 'security_head', username: 'demo.security', first_name: 'Demo', last_name: 'Security', job_title: 'Head of Security' },
+  { role: 'face_attendance', username: 'demo.face', first_name: 'Demo', last_name: 'Face', job_title: 'Face Attendance' },
 ];
 
 (async () => {

@@ -31,6 +31,7 @@ const ROLE_LABELS = {
   security_head: "Head of Security",
   support: "Support Staff",
   librarian: "Librarian",
+  face_attendance: "Face Attendance",
   parent: "Parent",
   student: "Student",
 };
@@ -52,6 +53,7 @@ const ROLE_LABELS_AM = {
   security_head: "የደኅንነት ኃላፊ",
   support: "የድጋፍ ሠራተኛ",
   librarian: "ቤተ መጻሕፍት",
+  face_attendance: "የፊት መለያ ኦፕሬተር",
   parent: "ወላጅ",
   student: "ተማሪ",
 };
