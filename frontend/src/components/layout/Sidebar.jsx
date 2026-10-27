@@ -369,8 +369,8 @@ export default function Sidebar({ onNavigate }) {
   }
 
   return (
-    <aside className="w-64 border-r bg-card flex flex-col h-screen">
-      <div className="p-6 border-b">
+    <aside className="w-64 border-r bg-card flex flex-col h-full min-h-0">
+      <div className="p-6 border-b shrink-0">
         <h1 className="text-xl font-bold">SMS</h1>
         <p className="text-sm text-muted-foreground mt-1">
           {`${user?.firstName || ""} ${user?.middleName || ""} ${user?.lastName || ""}`.trim()}
@@ -401,7 +401,7 @@ export default function Sidebar({ onNavigate }) {
         ))}
       </nav>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t shrink-0 bg-card">
         <a
           href="/help"
           target="_blank"

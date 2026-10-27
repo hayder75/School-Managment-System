@@ -32,13 +32,13 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen">
-      <div className="hidden lg:block">
+    <div className="flex h-[100dvh] overflow-hidden">
+      <div className="hidden lg:block h-[100dvh] shrink-0">
         <Sidebar />
       </div>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0">
+        <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0 h-[100dvh]">
           <Sidebar onNavigate={() => setSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
