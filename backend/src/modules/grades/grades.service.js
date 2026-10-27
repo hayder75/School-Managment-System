@@ -115,12 +115,50 @@ async function notifyGradesPosted(tenantId, exam, rows) {
   }
 }
 
-async function getByExam(tenantId, examId) {
+function examClassIds(exam) {
+  const ids = Array.isArray(exam.class_ids) ? exam.class_ids.filter(Boolean) : [];
+  if (ids.length) return ids;
+  return exam.class_id ? [exam.class_id] : [];
+}
+
+async function allowedExamClassIds(tenantId, exam, userId, role) {
+  const all = examClassIds(exam);
+  if (!all.length) return [];
+  if (role === 'teacher') {
+    if (!userId || !exam.subject_id) return [];
+    const rows = await db('teacher_subjects')
+      .where({ tenant_id: tenantId, teacher_id: userId, subject_id: exam.subject_id })
+      .whereIn('class_id', all)
+      .select('class_id');
+    const set = new Set(rows.map((r) => r.class_id));
+    return all.filter((id) => set.has(id));
+  }
+  return all;
+}
+
+async function getExamClasses(tenantId, examId, { userId, role } = {}) {
+  const exam = await db('exams').where({ tenant_id: tenantId, id: examId }).first();
+  if (!exam) return [];
+  const allowed = await allowedExamClassIds(tenantId, exam, userId, role);
+  if (!allowed.length) return [];
+  const rows = await db('classes')
+    .where({ tenant_id: tenantId })
+    .whereIn('id', allowed)
+    .select('id', 'name', 'section', 'grade_level');
+  const map = new Map(rows.map((r) => [r.id, r]));
+  return allowed.map((id) => map.get(id)).filter(Boolean);
+}
+
+async function getByExam(tenantId, examId, { classId, userId, role } = {}) {
   const exam = await db('exams').where({ tenant_id: tenantId, id: examId }).first();
   if (!exam) return [];
 
+  const allowed = await allowedExamClassIds(tenantId, exam, userId, role);
+  if (!allowed.length) return [];
+  const target = classId && allowed.includes(classId) ? classId : allowed[0];
+
   return db('students')
-    .where({ 'students.tenant_id': tenantId, 'students.class_id': exam.class_id })
+    .where({ 'students.tenant_id': tenantId, 'students.class_id': target })
     .leftJoin('users', 'students.user_id', 'users.id')
     .leftJoin('grades', function () {
       this.on('grades.student_id', '=', 'users.id')
@@ -132,6 +170,7 @@ async function getByExam(tenantId, examId) {
       'users.last_name',
       'users.email',
       'students.student_number',
+      'students.class_id',
       'grades.id as grade_id',
       'grades.marks_obtained',
       'grades.grade_letter',
@@ -183,4 +222,4 @@ async function lockGrades(tenantId, examId, lock, userId) {
   return { locked: lock };
 }
 
-module.exports = { upsertGrades, getByExam, getByStudent, lockGrades, computeGradeLetter };
+module.exports = { upsertGrades, getByExam, getExamClasses, getByStudent, lockGrades, computeGradeLetter };

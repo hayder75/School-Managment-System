@@ -132,40 +132,67 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, subject_id } 
 }
 
 async function findAllForTeacher(tenantId, { page = 1, limit = 20, class_id, subject_id, teacherId } = {}) {
+  const pairs = await db('teacher_subjects')
+    .where({ tenant_id: tenantId, teacher_id: teacherId })
+    .select('class_id', 'subject_id');
+  if (!pairs.length) return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+
   let query = db('exams')
     .where({ 'exams.tenant_id': tenantId })
-    .whereIn('exams.id', db('exams')
-      .select('exams.id')
-      .join('teacher_subjects', function () {
-        this.on('exams.class_id', '=', 'teacher_subjects.class_id')
-          .andOn('exams.subject_id', '=', 'teacher_subjects.subject_id');
-      })
-      .where('teacher_subjects.tenant_id', tenantId)
-      .where('teacher_subjects.teacher_id', teacherId))
+    .where(function () {
+      for (const p of pairs) {
+        this.orWhere(function () {
+          this.where('exams.subject_id', p.subject_id)
+            .andWhere(function () {
+              this.where('exams.class_id', p.class_id)
+                .orWhereRaw('exams.class_ids @> ?::jsonb', [JSON.stringify([p.class_id])]);
+            });
+        });
+      }
+    })
     .leftJoin('classes', 'exams.class_id', 'classes.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
     .select('exams.*', 'classes.name as class_name', 'subjects.name as subject_name')
     .orderBy('exams.date', 'desc');
 
-  if (class_id) query = query.where('exams.class_id', class_id);
+  if (class_id) {
+    query = query.where(function () {
+      this.where('exams.class_id', class_id)
+        .orWhereRaw('exams.class_ids @> ?::jsonb', [JSON.stringify([class_id])]);
+    });
+  }
   if (subject_id) query = query.where('exams.subject_id', subject_id);
 
   return paginatedResult(query, page, limit);
 }
 
 async function findAllForStudentUserIds(tenantId, { page = 1, limit = 20, subject_id, studentUserIds, requestedClassId } = {}) {
+  const classIds = await db('students')
+    .where({ tenant_id: tenantId })
+    .whereIn('user_id', studentUserIds)
+    .pluck('class_id');
+  const uniqueClassIds = [...new Set(classIds.filter(Boolean))];
+  if (!uniqueClassIds.length) return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+
   let query = db('exams')
     .where({ 'exams.tenant_id': tenantId })
-    .whereIn('exams.class_id', db('students')
-      .where({ tenant_id: tenantId })
-      .whereIn('user_id', studentUserIds)
-      .select('class_id'))
+    .where(function () {
+      for (const cid of uniqueClassIds) {
+        this.orWhere('exams.class_id', cid)
+          .orWhereRaw('exams.class_ids @> ?::jsonb', [JSON.stringify([cid])]);
+      }
+    })
     .leftJoin('classes', 'exams.class_id', 'classes.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
     .select('exams.*', 'classes.name as class_name', 'subjects.name as subject_name')
     .orderBy('exams.date', 'desc');
 
-  if (requestedClassId) query = query.where('exams.class_id', requestedClassId);
+  if (requestedClassId) {
+    query = query.where(function () {
+      this.where('exams.class_id', requestedClassId)
+        .orWhereRaw('exams.class_ids @> ?::jsonb', [JSON.stringify([requestedClassId])]);
+    });
+  }
   if (subject_id) query = query.where('exams.subject_id', subject_id);
 
   return paginatedResult(query, page, limit);

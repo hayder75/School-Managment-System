@@ -6,7 +6,7 @@ import { useExams, useCreateExam, useDeleteExam } from "../hooks/useExams";
 import { useClasses } from "../hooks/useClasses";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeacherAssignments } from "../hooks/useTeachers";
-import { useExamGrades, useEnterGrades } from "../hooks/useGrades";
+import { useExamGrades, useExamClasses, useEnterGrades } from "../hooks/useGrades";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { useI18n } from "../i18n/I18nContext";
@@ -21,14 +21,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Edit3 } from "lucide-react";
 
 function GradeEntry({ exam }) {
-  const { data: gradesData, isLoading } = useExamGrades(exam.id);
+  const { t } = useI18n();
+  const { data: classesData } = useExamClasses(exam.id);
+  const classes = classesData?.data || [];
+  const [selectedClass, setSelectedClass] = useState("");
+
+  useEffect(() => {
+    if (!selectedClass && classes.length) setSelectedClass(classes[0].id);
+  }, [classes, selectedClass]);
+
+  const { data: gradesData, isLoading } = useExamGrades(exam.id, selectedClass || undefined);
   const enterGrades = useEnterGrades();
   const [grades, setGrades] = useState({});
 
+  useEffect(() => { setGrades({}); }, [selectedClass]);
+
   const records = gradesData?.data || [];
+  const selectedClassObj = classes.find((c) => c.id === selectedClass);
 
   function handleMarksChange(studentId, val) {
-    setGrades((prev) => ({ ...prev, [studentId]: { ...prev[studentId], marks_obtained: val ? parseFloat(val) : null } }));
+    setGrades((prev) => ({ ...prev, [studentId]: { ...prev[studentId], marks_obtained: val === "" ? null : parseFloat(val) } }));
   }
 
   async function handleSave() {
@@ -43,34 +55,57 @@ function GradeEntry({ exam }) {
 
   return (
     <div className="mt-4">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-medium">Grades for {exam.name}</h4>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div>
+          <h4 className="text-sm font-medium">{t("Grades for {name}", { name: exam.name })}</h4>
+          {selectedClassObj && (
+            <p className="text-xs text-muted-foreground">{selectedClassObj.name} · {exam.subject_name}</p>
+          )}
+        </div>
         <Button size="sm" onClick={handleSave} disabled={enterGrades.isPending || Object.keys(grades).length === 0}>
-          Save Grades
+          {t("Save Grades")}
         </Button>
       </div>
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
+
+      {classes.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {classes.map((c) => (
+            <Button
+              key={c.id}
+              size="sm"
+              variant={selectedClass === c.id ? "default" : "outline"}
+              onClick={() => setSelectedClass(c.id)}
+            >
+              {c.name}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {!classes.length && !isLoading ? (
+        <p className="text-sm text-muted-foreground">{t("No sections available for you in this exam.")}</p>
+      ) : isLoading ? (
+        <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
       ) : records.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No students in this class. Add students to {exam.class_name || "the class"} first.</p>
+        <p className="text-sm text-muted-foreground">{t("No students in this section.")}</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Student</TableHead>
-              <TableHead>Marks</TableHead>
-              <TableHead>Grade</TableHead>
+              <TableHead>{t("Student")}</TableHead>
+              <TableHead>{t("Marks")}</TableHead>
+              <TableHead>{t("Grade")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {records.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.student_id}>
                 <TableCell>{fullName(r)}</TableCell>
                 <TableCell className="w-32">
                   <Input
                     type="number"
-                    defaultValue={r.marks_obtained || ""}
-                    onChange={(e) => handleMarksChange(r.student_id || r.id, e.target.value)}
+                    value={grades[r.student_id]?.marks_obtained ?? (r.marks_obtained ?? "")}
+                    onChange={(e) => handleMarksChange(r.student_id, e.target.value)}
                     className="h-8"
                   />
                 </TableCell>
@@ -124,7 +159,12 @@ export default function ExamsPage() {
 
   const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
   const assignedSubjectIds = isTeacher ? assignments.map((a) => a.subject_id) : [];
-  const classes = isTeacher ? allClasses.filter((c) => assignedClassIds.includes(c.id)) : allClasses;
+  const subjectClassIds = isTeacher && form.subject_id
+    ? new Set(assignments.filter((a) => a.subject_id === form.subject_id).map((a) => a.class_id))
+    : null;
+  const classes = isTeacher
+    ? allClasses.filter((c) => assignedClassIds.includes(c.id) && (!subjectClassIds || subjectClassIds.has(c.id)))
+    : allClasses;
   const subjects = isTeacher ? allSubjects.filter((s) => assignedSubjectIds.includes(s.id)) : allSubjects;
 
   function toggleClass(id) {
@@ -188,6 +228,15 @@ export default function ExamsPage() {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label>{t("Subject")} <span className="text-rose-500">*</span></Label>
+                <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v, class_ids: [], class_id: "" })}>
+                  <SelectTrigger><SelectValue placeholder={t("Select subject")} /></SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>{t("Classes (select one or more)")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {classes.map((c) => {
@@ -204,24 +253,12 @@ export default function ExamsPage() {
                     );
                   })}
                 </div>
+                {isTeacher && !form.subject_id && (
+                  <p className="text-xs text-muted-foreground">{t("Select the subject first to see the classes you teach.")}</p>
+                )}
                 {form.class_ids.length > 1 && (
                   <p className="text-xs text-muted-foreground">{t("Exam will be created for these classes and notify all their students.")}</p>
                 )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t("Subject")} <span className="text-rose-500">*</span></Label>
-                  <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
-                    <SelectTrigger><SelectValue placeholder={t("Select subject")} /></SelectTrigger>
-                    <SelectContent>
-                      {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("Date")}</Label>
-                  <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
-                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -273,10 +310,13 @@ export default function ExamsPage() {
                       <TableCell className="font-medium">{exam.name}</TableCell>
                       <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
                       <TableCell>
-                        {exam.class_name}
-                        {exam.class_ids && exam.class_ids.length > 1 ? (
-                          <span className="ml-1 text-xs text-muted-foreground">+{exam.class_ids.length - 1} more</span>
-                        ) : null}
+                        {(() => {
+                          const ids = exam.class_ids && exam.class_ids.length ? exam.class_ids : (exam.class_id ? [exam.class_id] : []);
+                          const names = ids
+                            .map((cid) => allClasses.find((c) => c.id === cid)?.name)
+                            .filter(Boolean);
+                          return names.length ? names.join(", ") : (exam.class_name || "—");
+                        })()}
                       </TableCell>
                       <TableCell>{exam.subject_name}</TableCell>
                       <TableCell><EthiopianDate date={exam.date} /></TableCell>

@@ -1,11 +1,24 @@
 const examService = require('./exams.service');
 const access = require('../../shared/access');
+const db = require('../../config/database');
+
+async function teacherTeachesAll(tenantId, teacherId, subjectId, classIds) {
+  const ids = [...new Set((classIds || []).filter(Boolean))];
+  if (!ids.length || !subjectId) return false;
+  const rows = await db('teacher_subjects')
+    .where({ tenant_id: tenantId, teacher_id: teacherId, subject_id: subjectId })
+    .whereIn('class_id', ids)
+    .select('class_id');
+  const set = new Set(rows.map((r) => r.class_id));
+  return ids.every((id) => set.has(id));
+}
 
 async function create(req, res) {
   if (req.user.role === 'teacher') {
-    const { class_id, subject_id } = req.validated.body;
-    if (!(await access.isTeacherAssignedToClassSubject(req.tenant.id, req.user.userId, class_id, subject_id))) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only create exams for classes and subjects you teach' } });
+    const { class_id, class_ids, subject_id } = req.validated.body;
+    const ids = Array.isArray(class_ids) && class_ids.length ? class_ids : [class_id];
+    if (!(await teacherTeachesAll(req.tenant.id, req.user.userId, subject_id, ids))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only create exams for your own classes and subjects' } });
     }
   }
   const exam = await examService.create(req.tenant.id, req.validated.body, req.user.userId);
@@ -83,8 +96,13 @@ async function update(req, res) {
   if (req.user.role === 'teacher') {
     const existing = await examService.findById(req.tenant.id, req.params.id);
     if (!existing) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Exam not found' } });
-    if (!(await access.isTeacherAssignedToClassSubject(req.tenant.id, req.user.userId, existing.class_id, existing.subject_id))) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only update exams for classes and subjects you teach' } });
+    const existingIds = Array.isArray(existing.class_ids) && existing.class_ids.length ? existing.class_ids : [existing.class_id];
+    const subjectId = req.validated.body.subject_id || existing.subject_id;
+    const nextIds = req.validated.body.class_ids?.length
+      ? req.validated.body.class_ids
+      : (req.validated.body.class_id ? [req.validated.body.class_id] : existingIds);
+    if (!(await teacherTeachesAll(req.tenant.id, req.user.userId, subjectId, nextIds))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only update exams for your own classes and subjects' } });
     }
   }
   const exam = await examService.update(req.tenant.id, req.params.id, req.validated.body);

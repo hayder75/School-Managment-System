@@ -12,6 +12,7 @@ router.use(auth);
 router.use(tenant);
 
 router.post('/exams/:examId', requireAccess(['teacher', 'admin', 'owner'], ['grades.manage']), validate(enterGradesSchema), controller.enterGrades);
+router.get('/exams/:examId/classes', requireAccess(['teacher', 'admin', 'owner', 'parent'], ['grades.manage']), controller.getExamClasses);
 router.get('/exams/:examId', requireAccess(['teacher', 'admin', 'owner', 'parent'], ['grades.manage']), controller.getByExam);
 router.put('/exams/:examId/lock', requireAccess(['teacher', 'admin'], ['grades.manage']), validate(lockGradesSchema), controller.lockGrades);
 router.get('/students/:studentId', requireAccess(['teacher', 'admin', 'owner', 'parent', 'student'], ['grades.manage']), controller.getByStudent);

@@ -10,8 +10,17 @@ async function enterGrades(req, res) {
   }
 
   if (req.user.role === 'teacher') {
-    if (!(await access.isTeacherAssignedToClassSubject(req.tenant.id, req.user.userId, exam.class_id, exam.subject_id))) {
+    const allowed = await gradeService.getExamClasses(req.tenant.id, req.params.examId, { userId: req.user.userId, role: req.user.role });
+    if (!allowed.length) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only enter grades for exams in classes you teach' } });
+    }
+    const ids = (req.validated.body.grades || []).map((g) => g.student_id);
+    const allowedSet = new Set(allowed.map((c) => c.id));
+    if (ids.length) {
+      const rows = await db('students').where({ tenant_id: req.tenant.id }).whereIn('user_id', ids).select('user_id', 'class_id');
+      if (rows.length !== new Set(ids).size || rows.some((r) => !allowedSet.has(r.class_id))) {
+        return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only grade students in classes you teach' } });
+      }
     }
   }
 
@@ -39,23 +48,42 @@ async function getByExam(req, res) {
   const exam = await db('exams').where({ tenant_id: req.tenant.id, id: req.params.examId }).first();
   if (!exam) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Exam not found' } });
 
+  const classId = req.query.class_id || undefined;
+
   if (role === 'teacher') {
-    if (!(await access.isTeacherAssignedToClassSubject(req.tenant.id, userId, exam.class_id, exam.subject_id))) {
+    const allowed = await gradeService.getExamClasses(req.tenant.id, req.params.examId, { userId, role });
+    if (!allowed.length) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view grades for exams in classes you teach' } });
+    }
+    if (classId && !allowed.some((c) => c.id === classId)) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view grades for classes you teach' } });
     }
   } else if (role === 'parent') {
     const children = await access.getChildrenUserIdsForParent(req.tenant.id, userId);
     if (children.length === 0) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No children linked to your account' } });
     }
-    const hasChild = await db('students').where({ tenant_id: req.tenant.id, class_id: exam.class_id }).whereIn('user_id', children).first();
+    const examClassIds = Array.isArray(exam.class_ids) && exam.class_ids.length ? exam.class_ids : (exam.class_id ? [exam.class_id] : []);
+    const hasChild = await db('students')
+      .where({ tenant_id: req.tenant.id })
+      .whereIn('class_id', examClassIds)
+      .whereIn('user_id', children)
+      .first();
     if (!hasChild) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view grades for your children\'s exams' } });
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: "You can only view grades for your children's exams" } });
     }
   }
 
-  const grades = await gradeService.getByExam(req.tenant.id, req.params.examId);
+  const grades = await gradeService.getByExam(req.tenant.id, req.params.examId, { classId, userId, role });
   res.json({ success: true, data: grades });
+}
+
+async function getExamClasses(req, res) {
+  const data = await gradeService.getExamClasses(req.tenant.id, req.params.examId, {
+    userId: req.user.userId,
+    role: req.user.role,
+  });
+  res.json({ success: true, data });
 }
 
 async function getByStudent(req, res) {
@@ -71,9 +99,8 @@ async function getByStudent(req, res) {
 
 async function lockGrades(req, res) {
   if (req.user.role === 'teacher') {
-    const exam = await db('exams').where({ tenant_id: req.tenant.id, id: req.params.examId }).first();
-    if (!exam) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Exam not found' } });
-    if (!(await access.isTeacherAssignedToClassSubject(req.tenant.id, req.user.userId, exam.class_id, exam.subject_id))) {
+    const allowed = await gradeService.getExamClasses(req.tenant.id, req.params.examId, { userId: req.user.userId, role: req.user.role });
+    if (!allowed.length) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only lock grades for exams in classes you teach' } });
     }
   }
@@ -83,4 +110,4 @@ async function lockGrades(req, res) {
   res.json({ success: true, data: result });
 }
 
-module.exports = { enterGrades, getByExam, getByStudent, lockGrades };
+module.exports = { enterGrades, getByExam, getExamClasses, getByStudent, lockGrades };
