@@ -1,5 +1,5 @@
 import { fullName } from "../lib/fullName";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
@@ -8,12 +8,13 @@ import { useStudentsByClass } from "../hooks/useStudents";
 import { Button } from "../components/ui/button";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { BarChart, DonutChart, LineChart, RadarChart } from "../components/ui/charts";
 import AdminAttendancePage from "./AdminAttendancePage";
 import { useI18n } from "../i18n/I18nContext";
-import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search } from "lucide-react";
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Present", active: "bg-emerald-500 text-white border-emerald-500", idle: "text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
@@ -130,10 +131,15 @@ function TeacherAttendanceView() {
   const topAttendant = overview.top_attendant || [];
 
   const [statusMap, setStatusMap] = useState({});
+  const [studentSearch, setStudentSearch] = useState("");
 
   useEffect(() => {
     setStatusMap({});
   }, [classId, date]);
+
+  useEffect(() => {
+    setStudentSearch("");
+  }, [classId]);
 
   const displayRecords = attendanceRecords.length > 0
     ? attendanceRecords.map((r) => ({
@@ -148,6 +154,14 @@ function TeacherAttendanceView() {
         number: s.student_number,
         status: statusMap[s.user_id] || "present",
       }));
+
+  const filteredRecords = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    if (!q) return displayRecords;
+    return displayRecords.filter(
+      (r) => r.name.toLowerCase().includes(q) || String(r.number || "").toLowerCase().includes(q)
+    );
+  }, [displayRecords, studentSearch]);
 
   function handleStatusChange(studentId, status) {
     setStatusMap((prev) => ({ ...prev, [studentId]: status }));
@@ -280,28 +294,43 @@ function TeacherAttendanceView() {
               ) : displayRecords.length === 0 ? (
                 <p className="text-muted-foreground">{t("No students found")}</p>
               ) : (
-                <div className="divide-y rounded-md border">
-                  <div className="hidden sm:grid grid-cols-[1fr_120px_auto] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
-                    <span>{t("Name")}</span>
-                    <span>{t("Student #")}</span>
-                    <span className="text-right">{t("Status")}</span>
+                <>
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      placeholder={t("Search student by name or number…")}
+                      className="pl-9"
+                    />
                   </div>
-                  {displayRecords.map((record) => (
-                    <div key={record.id} className="flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_120px_auto] sm:items-center sm:gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{record.name}</p>
-                        <p className="text-xs text-muted-foreground sm:hidden">{record.number}</p>
+                  {filteredRecords.length === 0 ? (
+                    <p className="text-muted-foreground">{t("No students match your search")}</p>
+                  ) : (
+                    <div className="divide-y rounded-md border">
+                      <div className="hidden sm:grid grid-cols-[1fr_120px_auto] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
+                        <span>{t("Name")}</span>
+                        <span>{t("Student #")}</span>
+                        <span className="text-right">{t("Status")}</span>
                       </div>
-                      <p className="hidden sm:block text-sm text-muted-foreground">{record.number}</p>
-                      <div className="sm:justify-self-end">
-                        <StatusButtons
-                          value={statusMap[record.id] || record.status || "present"}
-                          onChange={(v) => handleStatusChange(record.id, v)}
-                        />
-                      </div>
+                      {filteredRecords.map((record) => (
+                        <div key={record.id} className="flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_120px_auto] sm:items-center sm:gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{record.name}</p>
+                            <p className="text-xs text-muted-foreground sm:hidden">{record.number}</p>
+                          </div>
+                          <p className="hidden sm:block text-sm text-muted-foreground">{record.number}</p>
+                          <div className="sm:justify-self-end">
+                            <StatusButtons
+                              value={statusMap[record.id] || record.status || "present"}
+                              onChange={(v) => handleStatusChange(record.id, v)}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
