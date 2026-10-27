@@ -275,17 +275,28 @@ function TeacherAttendanceView() {
 
           {/* Marking table */}
           <Card className="max-md:order-first">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-              <CardTitle>{t("Mark Attendance")}</CardTitle>
-              <div className="flex w-full gap-2 sm:w-auto">
-                <Button variant="outline" onClick={() => navigate(`/attendance/class/${classId}/stats`)} className="gap-2 flex-1 sm:flex-none">
-                  <BarChart3 className="h-4 w-4" /> {t("Class Stats")}
-                </Button>
-                {displayRecords.length > 0 && (
-                  <Button onClick={handleSave} disabled={markAttendance.isPending} className="flex-1 sm:flex-none">
-                    {markAttendance.isPending ? t("Saving...") : t("Save Attendance")}
+            <CardHeader className="flex flex-col gap-2">
+              <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <CardTitle>{t("Mark Attendance")}</CardTitle>
+                <div className="flex w-full gap-2 sm:w-auto">
+                  <Button variant="outline" onClick={() => navigate(`/attendance/class/${classId}/stats`)} className="gap-2 flex-1 sm:flex-none">
+                    <BarChart3 className="h-4 w-4" /> {t("Class Stats")}
                   </Button>
-                )}
+                  {displayRecords.length > 0 && (
+                    <Button onClick={handleSave} disabled={markAttendance.isPending} className="flex-1 sm:flex-none">
+                      {markAttendance.isPending ? t("Saving...") : t("Save Attendance")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  placeholder={t("Search student by name or number…")}
+                  className="pl-9"
+                />
               </div>
             </CardHeader>
             <CardContent>
@@ -295,15 +306,6 @@ function TeacherAttendanceView() {
                 <p className="text-muted-foreground">{t("No students found")}</p>
               ) : (
                 <>
-                  <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={studentSearch}
-                      onChange={(e) => setStudentSearch(e.target.value)}
-                      placeholder={t("Search student by name or number…")}
-                      className="pl-9"
-                    />
-                  </div>
                   {filteredRecords.length === 0 ? (
                     <p className="text-muted-foreground">{t("No students match your search")}</p>
                   ) : (
