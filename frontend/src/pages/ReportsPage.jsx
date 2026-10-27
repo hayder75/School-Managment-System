@@ -1,9 +1,10 @@
 import { fullName } from "../lib/fullName";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
+import { useTeacherAssignments } from "../hooks/useTeachers";
 import { useExams } from "../hooks/useExams";
 import { useUsers } from "../hooks/useUsers";
 import {
@@ -31,6 +32,17 @@ import { classLabel } from "../lib/classLabel";
 import { BarChart, DonutChart } from "../components/ui/charts";
 import { FileSpreadsheet, ChevronDown, Award } from "lucide-react";
 import ReportCenter from "../components/reports/ReportCenter";
+
+function useScopedClasses(limit = 200) {
+  const user = useAuthStore((s) => s.user);
+  const isTeacher = user?.role === "teacher";
+  const { data: classesData } = useClasses({ limit });
+  const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
+  const all = classesData?.data || [];
+  const assigned = new Set((assignmentsData?.data || []).map((a) => a.class_id));
+  const classes = isTeacher ? all.filter((c) => assigned.has(c.id)) : all;
+  return { classes, allClasses: all, isTeacher };
+}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -271,11 +283,10 @@ function AdminReports() {
 // ── Teacher Tab ──
 
 function MyStudentsReport() {
-  const { data: classesData } = useClasses({ limit: 200 });
+  const { classes } = useScopedClasses(200);
   const [classId, setClassId] = useState("");
   const { data, isLoading } = useMyStudents({ class_id: classId || undefined });
   const students = data?.data?.students || [];
-  const classes = classesData?.data || [];
 
   return (
     <div className="space-y-4">
@@ -855,9 +866,11 @@ function StudentReports() {
 function SemesterResultsTab() {
   const user = useAuthStore((s) => s.user);
   const canPublish = ["admin", "owner", "principal", "vice_principal"].includes(user?.role);
-  const { data: classesData } = useClasses({ limit: 300 });
-  const classes = classesData?.data || [];
-  const [classId, setClassId] = useState(classes[0]?.id || "");
+  const { classes } = useScopedClasses(300);
+  const [classId, setClassId] = useState("");
+  useEffect(() => {
+    if (!classId && classes.length) setClassId(classes[0].id);
+  }, [classId, classes]);
   const [termId, setTermId] = useState("");
 
   const { data: termsData } = useQuery({

@@ -222,6 +222,13 @@ async function getStudentAttendanceSummary(req, res) {
 
 async function getSemesterResults(req, res) {
   try {
+    if (req.user.role === 'teacher') {
+      const classId = req.query.class_id;
+      const assigned = classId && await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, classId);
+      if (!assigned) {
+        return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view results for classes you teach' } });
+      }
+    }
     const data = await reportService.getSemesterResults(req.tenant.id, req.query);
     res.json({ success: true, data });
   } catch (err) {
