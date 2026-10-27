@@ -8,7 +8,6 @@ import { useStudentsByClass } from "../hooks/useStudents";
 import { Button } from "../components/ui/button";
 import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { BarChart, DonutChart, LineChart, RadarChart } from "../components/ui/charts";
@@ -38,7 +37,7 @@ export default function AttendancePage() {
 function StatusButtons({ value, onChange }) {
   const { t } = useI18n();
   return (
-    <div className="flex gap-1">
+    <div className="flex w-full flex-wrap gap-1 sm:w-auto">
       {STATUS_OPTIONS.map((opt) => {
         const selected = value === opt.value;
         return (
@@ -46,7 +45,7 @@ function StatusButtons({ value, onChange }) {
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${selected ? opt.active : opt.idle}`}
+            className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold border transition-colors ${selected ? opt.active : opt.idle}`}
           >
             {t(opt.label)}
           </button>
@@ -68,16 +67,16 @@ function StatCard({ title, value, sub, icon: Icon, tone = "muted", highlight = f
   const c = tones[tone] || tones.muted;
   return (
     <Card className={highlight ? `${c.bg} border-transparent` : ""}>
-      <CardContent className="pt-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
-            <p className={`text-2xl font-bold ${c.text}`}>{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      <CardContent className="p-3 pt-4 sm:p-6 sm:pt-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
+            <p className={`text-xl sm:text-2xl font-bold ${c.text}`}>{value}</p>
+            {sub && <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{sub}</p>}
           </div>
           {Icon && (
-            <span className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${c.icon}`}>
-              <Icon className="h-4 w-4" />
+            <span className={`h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center shrink-0 ${c.icon}`}>
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </span>
           )}
         </div>
@@ -199,11 +198,11 @@ function TeacherAttendanceView() {
       {/* Controls */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="space-y-2">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="space-y-2 w-full sm:w-auto">
               <label className="text-sm font-medium">{t("Class")}</label>
               <Select value={classId || ALL_CLASSES} onValueChange={(v) => setClassId(v === ALL_CLASSES ? "" : v)}>
-                <SelectTrigger className="w-64"><SelectValue placeholder={t("All my classes")} /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder={t("All my classes")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_CLASSES}>{t("All my classes")}</SelectItem>
                   {classes.map((c) => (
@@ -213,16 +212,16 @@ function TeacherAttendanceView() {
               </Select>
             </div>
             {classId && (
-              <div className="space-y-2">
+              <div className="space-y-2 w-full sm:w-auto">
                 <label className="text-sm font-medium">{t("Date")}</label>
-                <EthiopianDateInput className="w-56" value={date} onChange={setDate} />
+                <EthiopianDateInput className="w-full sm:w-56" value={date} onChange={setDate} />
               </div>
             )}
             {!classId && (
-              <div className="space-y-2">
+              <div className="space-y-2 w-full sm:w-auto">
                 <label className="text-sm font-medium">{t("Range")}</label>
                 <Select value={String(rangeWeeks)} onValueChange={(v) => setRangeWeeks(Number(v))}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1">{t("1 week")}</SelectItem>
                     <SelectItem value="4">{t("4 weeks")}</SelectItem>
@@ -250,7 +249,7 @@ function TeacherAttendanceView() {
                   <div className="bg-rose-500" style={{ width: `${focusClass.absent_rate || 0}%` }} />
                   <div className="bg-blue-500" style={{ width: `${focusClass.excused_rate || 0}%` }} />
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span className="text-emerald-600">{t("Present")} {focusClass.present}</span>
                   <span className="text-amber-600">{t("Late")} {focusClass.late}</span>
                   <span className="text-rose-600">{t("Absent")} {focusClass.absent}</span>
@@ -264,12 +263,12 @@ function TeacherAttendanceView() {
           <Card className="max-md:order-first">
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
               <CardTitle>{t("Mark Attendance")}</CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => navigate(`/attendance/class/${classId}/stats`)} className="gap-2">
+              <div className="flex w-full gap-2 sm:w-auto">
+                <Button variant="outline" onClick={() => navigate(`/attendance/class/${classId}/stats`)} className="gap-2 flex-1 sm:flex-none">
                   <BarChart3 className="h-4 w-4" /> {t("Class Stats")}
                 </Button>
                 {displayRecords.length > 0 && (
-                  <Button onClick={handleSave} disabled={markAttendance.isPending}>
+                  <Button onClick={handleSave} disabled={markAttendance.isPending} className="flex-1 sm:flex-none">
                     {markAttendance.isPending ? t("Saving...") : t("Save Attendance")}
                   </Button>
                 )}
@@ -281,29 +280,28 @@ function TeacherAttendanceView() {
               ) : displayRecords.length === 0 ? (
                 <p className="text-muted-foreground">{t("No students found")}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("Name")}</TableHead>
-                      <TableHead>{t("Student #")}</TableHead>
-                      <TableHead>{t("Status")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {displayRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">{record.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{record.number}</TableCell>
-                        <TableCell>
-                          <StatusButtons
-                            value={statusMap[record.id] || record.status || "present"}
-                            onChange={(v) => handleStatusChange(record.id, v)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="divide-y rounded-md border">
+                  <div className="hidden sm:grid grid-cols-[1fr_120px_auto] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
+                    <span>{t("Name")}</span>
+                    <span>{t("Student #")}</span>
+                    <span className="text-right">{t("Status")}</span>
+                  </div>
+                  {displayRecords.map((record) => (
+                    <div key={record.id} className="flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_120px_auto] sm:items-center sm:gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{record.name}</p>
+                        <p className="text-xs text-muted-foreground sm:hidden">{record.number}</p>
+                      </div>
+                      <p className="hidden sm:block text-sm text-muted-foreground">{record.number}</p>
+                      <div className="sm:justify-self-end">
+                        <StatusButtons
+                          value={statusMap[record.id] || record.status || "present"}
+                          onChange={(v) => handleStatusChange(record.id, v)}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -313,7 +311,7 @@ function TeacherAttendanceView() {
       ) : (
         <>
           {/* Today's snapshot */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard title={t("Total Students")} value={totals.students || 0} sub={`${totals.classes || 0} ${t("classes")}`} icon={Users} tone="primary" />
             <StatCard title={t("Present Today")} value={todayStats.present || 0} sub={`${todayStats.present_rate || 0}% ${t("present rate")}`} icon={UserCheck} tone="emerald" highlight />
             <StatCard title={t("Absent Today")} value={todayStats.absent || 0} sub={`${todayStats.absent_rate || 0}% ${t("absent rate")}`} icon={UserX} tone="rose" />
@@ -328,7 +326,7 @@ function TeacherAttendanceView() {
               </CardHeader>
               <CardContent>
                 <LineChart data={trendPoints} height={220} color="#2c5a5e" valueSuffix="%" />
-                <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-muted-foreground">
                   <span>{t("Overall")}: <span className="font-semibold text-foreground">{summary.present_rate || 0}%</span></span>
                   <span className="text-emerald-600">{t("Present")} {summary.present || 0}</span>
                   <span className="text-rose-600">{t("Absent")} {summary.absent || 0}</span>
