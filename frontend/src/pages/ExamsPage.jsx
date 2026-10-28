@@ -32,25 +32,46 @@ function GradeEntry({ exam }) {
 
   const { data: gradesData, isLoading } = useExamGrades(exam.id, selectedClass || undefined);
   const enterGrades = useEnterGrades();
-  const [grades, setGrades] = useState({});
 
-  useEffect(() => { setGrades({}); }, [selectedClass]);
+  // Pending marks across ALL sections: { classId: { studentId: marks } }
+  const [edits, setEdits] = useState({});
 
   const records = gradesData?.data || [];
   const selectedClassObj = classes.find((c) => c.id === selectedClass);
+  const pendingCount = Object.values(edits).reduce((n, m) => n + Object.keys(m).length, 0);
 
   function handleMarksChange(studentId, val) {
-    setGrades((prev) => ({ ...prev, [studentId]: { ...prev[studentId], marks_obtained: val === "" ? null : parseFloat(val) } }));
+    setEdits((prev) => ({
+      ...prev,
+      [selectedClass]: {
+        ...(prev[selectedClass] || {}),
+        [studentId]: val === "" ? null : parseFloat(val),
+      },
+    }));
+  }
+
+  function valueFor(record) {
+    const map = edits[selectedClass];
+    if (map && Object.prototype.hasOwnProperty.call(map, record.student_id)) {
+      return map[record.student_id] ?? "";
+    }
+    return record.marks_obtained ?? "";
+  }
+
+  function pendingFor(classId) {
+    return Object.keys(edits[classId] || {}).length;
   }
 
   async function handleSave() {
-    const gradeList = Object.entries(grades).map(([studentId, g]) => ({
-      student_id: studentId,
-      marks_obtained: g.marks_obtained,
-    }));
-    if (gradeList.length === 0) return;
-    await enterGrades.mutateAsync({ examId: exam.id, grades: gradeList });
-    setGrades({});
+    const grades = [];
+    for (const map of Object.values(edits)) {
+      for (const [studentId, marks] of Object.entries(map)) {
+        grades.push({ student_id: studentId, marks_obtained: marks });
+      }
+    }
+    if (grades.length === 0) return;
+    await enterGrades.mutateAsync({ examId: exam.id, grades });
+    setEdits({});
   }
 
   return (
@@ -62,24 +83,39 @@ function GradeEntry({ exam }) {
             <p className="text-xs text-muted-foreground">{selectedClassObj.name} · {exam.subject_name}</p>
           )}
         </div>
-        <Button size="sm" onClick={handleSave} disabled={enterGrades.isPending || Object.keys(grades).length === 0}>
-          {t("Save Grades")}
+        <Button size="sm" onClick={handleSave} disabled={enterGrades.isPending || pendingCount === 0}>
+          {enterGrades.isPending ? t("Saving...") : t("Save All Grades")}
+          {pendingCount > 0 ? ` (${pendingCount})` : ""}
         </Button>
       </div>
 
       {classes.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-3">
-          {classes.map((c) => (
-            <Button
-              key={c.id}
-              size="sm"
-              variant={selectedClass === c.id ? "default" : "outline"}
-              onClick={() => setSelectedClass(c.id)}
-            >
-              {c.name}
-            </Button>
-          ))}
+          {classes.map((c) => {
+            const pend = pendingFor(c.id);
+            return (
+              <Button
+                key={c.id}
+                size="sm"
+                variant={selectedClass === c.id ? "default" : "outline"}
+                onClick={() => setSelectedClass(c.id)}
+              >
+                {c.name}
+                {pend > 0 && (
+                  <span className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-amber-950">
+                    {pend}
+                  </span>
+                )}
+              </Button>
+            );
+          })}
         </div>
+      )}
+
+      {classes.length > 1 && pendingCount > 0 && (
+        <p className="text-xs text-amber-700 mb-2">
+          {t("Unsaved marks in {n} section(s) — \"Save All Grades\" stores them together.", { n: Object.keys(edits).length })}
+        </p>
       )}
 
       {!classes.length && !isLoading ? (
@@ -104,7 +140,7 @@ function GradeEntry({ exam }) {
                 <TableCell className="w-32">
                   <Input
                     type="number"
-                    value={grades[r.student_id]?.marks_obtained ?? (r.marks_obtained ?? "")}
+                    value={valueFor(r)}
                     onChange={(e) => handleMarksChange(r.student_id, e.target.value)}
                     className="h-8"
                   />

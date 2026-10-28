@@ -38,8 +38,12 @@ async function upsertGrades(tenantId, examId, grades, userId) {
     }
   }
 
+  const examClassIds = Array.isArray(exam.class_ids) && exam.class_ids.length
+    ? exam.class_ids.filter(Boolean)
+    : (exam.class_id ? [exam.class_id] : []);
   const classStudents = await db('students')
-    .where({ tenant_id: tenantId, class_id: exam.class_id })
+    .where({ tenant_id: tenantId })
+    .whereIn('class_id', examClassIds)
     .whereIn('user_id', grades.map((g) => g.student_id))
     .select('user_id');
   const validStudents = new Set(classStudents.map((s) => s.user_id));
