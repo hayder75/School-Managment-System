@@ -151,11 +151,22 @@ async function getTeacherClassStudents(tenantId, teacherId, classId) {
   let query = db('users')
     .where({ 'users.tenant_id': tenantId })
     .join('students', 'users.id', 'students.user_id')
-    .select('users.id', 'users.first_name', 'users.last_name', 'users.email', 'students.student_number')
-    .orderBy('users.last_name');
+    .leftJoin('classes', 'students.class_id', 'classes.id')
+    .select(
+      'users.id',
+      'users.first_name',
+      'users.middle_name',
+      'users.last_name',
+      'users.email',
+      'students.student_number',
+      'students.class_id',
+      'classes.name as class_name'
+    )
+    .orderBy('users.first_name');
 
-  if (classId) {
-    query = query.where('students.class_id', classId);
+  const wanted = Array.isArray(classId) ? classId : (classId ? [classId] : []);
+  if (wanted.length) {
+    query = query.whereIn('students.class_id', wanted);
   } else {
     query = query.whereIn('students.class_id', db('teacher_subjects')
       .where({ tenant_id: tenantId, teacher_id: teacherId })
@@ -198,49 +209,91 @@ async function getTeacherClassSummary(tenantId, teacherId) {
   return summary;
 }
 
-async function getTeacherAttendanceReport(tenantId, teacherId, { from_date, to_date } = {}) {
+async function getTeacherAttendanceReport(tenantId, teacherId, { from_date, to_date, class_id } = {}) {
   let query = db('attendance')
     .where({ 'attendance.tenant_id': tenantId, 'attendance.marked_by': teacherId })
     .leftJoin('classes', 'attendance.class_id', 'classes.id')
     .select(
+      'classes.id as class_id',
       'classes.name as class_name',
       'attendance.date',
       db.raw("COUNT(*)::int as total"),
       db.raw("SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END)::int as present"),
-      db.raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END)::int as absent")
+      db.raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END)::int as absent"),
+      db.raw("SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END)::int as late"),
+      db.raw("SUM(CASE WHEN status = 'excused' THEN 1 ELSE 0 END)::int as excused")
     )
-    .groupBy('classes.name', 'attendance.date')
+    .groupBy('classes.id', 'classes.name', 'attendance.date')
     .orderBy('attendance.date', 'desc');
 
   if (from_date) query = query.where('attendance.date', '>=', from_date);
   if (to_date) query = query.where('attendance.date', '<=', to_date);
+  const wanted = Array.isArray(class_id) ? class_id : (class_id ? [class_id] : []);
+  if (wanted.length) query = query.whereIn('attendance.class_id', wanted);
 
   return { records: await query };
 }
 
-async function getTeacherGradeReport(tenantId, teacherId, { exam_id } = {}) {
+async function getTeacherGradeReport(tenantId, teacherId, { exam_id, class_id, type } = {}) {
+  const pairs = await db('teacher_subjects')
+    .where({ tenant_id: tenantId, teacher_id: teacherId })
+    .select('class_id', 'subject_id');
+  if (!pairs.length) return { grades: [] };
+
   let query = db('grades')
     .where({ 'grades.tenant_id': tenantId })
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
     .leftJoin('users', 'grades.student_id', 'users.id')
-    .whereIn('exams.class_id', db('teacher_subjects')
-      .where({ tenant_id: tenantId, teacher_id: teacherId })
-      .select('class_id'))
-    .whereIn('exams.subject_id', db('teacher_subjects')
-      .where({ tenant_id: tenantId, teacher_id: teacherId })
-      .select('subject_id'))
+    .leftJoin('classes', 'exams.class_id', 'classes.id')
+    // Match the exact (class, subject) pairs this teacher is assigned to. The
+    // old version used two independent IN lists, which leaked marks across
+    // classes where the teacher taught a different subject.
+    .where(function () {
+      for (const p of pairs) {
+        this.orWhere(function () {
+          this.where('exams.subject_id', p.subject_id)
+            .andWhere(function () {
+              this.where('exams.class_id', p.class_id)
+                .orWhereRaw('exams.class_ids @> ?::jsonb', [JSON.stringify([p.class_id])]);
+            });
+        });
+      }
+    })
     .select(
+      'exams.id as exam_id',
       'exams.name as exam_name',
+      'exams.type as exam_type',
+      'exams.total_marks',
+      'exams.pass_marks',
+      'exams.date as exam_date',
+      'classes.name as class_name',
       'subjects.name as subject_name',
+      'users.id as student_id',
       'users.first_name',
+      'users.middle_name',
       'users.last_name',
       'grades.marks_obtained',
       'grades.grade_letter'
     )
-    .orderBy('exams.name', 'users.last_name');
+    .orderBy('exams.name', 'users.first_name');
 
   if (exam_id) query = query.where('grades.exam_id', exam_id);
+  const wanted = Array.isArray(class_id) ? class_id : (class_id ? [class_id] : []);
+  if (wanted.length) {
+    query = query.where(function () {
+      this.whereIn('exams.class_id', wanted)
+        .orWhere(function () {
+          for (const cid of wanted) this.orWhereRaw('exams.class_ids @> ?::jsonb', [JSON.stringify([cid])]);
+        });
+    });
+  }
+  if (type) {
+    const t = String(type).toLowerCase();
+    if (['mid', 'midterm'].includes(t)) query = query.whereIn('exams.type', ['midterm', 'mid']);
+    else if (['final', 'finals'].includes(t)) query = query.whereIn('exams.type', ['final', 'exam', 'semester']);
+    else query = query.where('exams.type', type);
+  }
 
   return { grades: await query };
 }
@@ -725,6 +778,318 @@ async function getOverviewReport(tenantId, { from, to } = {}) {
   };
 }
 
+// ── Rich class result sheet ──
+
+const gradeSvc = require('../grades/grades.service');
+
+function toArray(v) {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (v === undefined || v === null || v === '') return [];
+  return [v];
+}
+
+function percent(marks, total) {
+  const m = Number(marks);
+  const t = Number(total);
+  if (!Number.isFinite(m) || !Number.isFinite(t) || t <= 0) return null;
+  return Math.round((m / t) * 1000) / 10;
+}
+
+/**
+ * One rich result sheet for any set of classes.
+ *
+ * Filters: class_id (one or many), subject_id, type (one or many), term_id,
+ * from_date, to_date, exam_id.
+ *
+ * Returns: exams, students, subjects[] (per-student totals + rank + grade),
+ * exam analysis, and per-student overall.
+ */
+async function getClassResults(tenantId, filters = {}, viewer = {}) {
+  const grading = require('../../shared/grading');
+  const { scale } = await grading.getGradingConfig(tenantId);
+  const scheme = await grading.getScheme(tenantId);
+  const passPct = Number(scheme.pass_pct ?? 50);
+
+  let classIds = toArray(filters.class_id ?? filters.class_ids);
+  let subjectIds = toArray(filters.subject_id ?? filters.subject_ids);
+  const types = toArray(filters.types ?? filters.type);
+  const termId = filters.term_id;
+  const fromDate = filters.from_date;
+  const toDate = filters.to_date;
+  const examId = filters.exam_id;
+
+  // Teachers may only see their own classes and their own (class, subject) pairs.
+  let pairs = null;
+  if (viewer.role === 'teacher') {
+    pairs = await db('teacher_subjects')
+      .where({ tenant_id: tenantId, teacher_id: viewer.userId })
+      .select('class_id', 'subject_id');
+    const allowedClasses = [...new Set(pairs.map((p) => p.class_id))];
+    if (!classIds.length) classIds = allowedClasses;
+    else classIds = classIds.filter((c) => allowedClasses.includes(c));
+
+    if (!subjectIds.length) subjectIds = [...new Set(pairs.map((p) => p.subject_id))];
+    else {
+      const allowedSubjects = new Set(pairs.map((p) => p.subject_id));
+      subjectIds = subjectIds.filter((s) => allowedSubjects.has(s));
+    }
+  }
+
+  if (!classIds.length) {
+    // Non-teachers with no class pick get the whole school.
+    const rows = await db('classes').where({ tenant_id: tenantId }).select('id');
+    classIds = rows.map((r) => r.id);
+  }
+  if (!classIds.length) {
+    return { exams: [], students: [], subjects: [], exam_analysis: [], overall: [], scheme, pass_pct: passPct, scale };
+  }
+
+  let examQuery = db('exams')
+    .where({ 'exams.tenant_id': tenantId })
+    .whereNull('exams.archived_at')
+    .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
+    .select(
+      'exams.id',
+      'exams.name',
+      'exams.type',
+      'exams.date',
+      'exams.total_marks',
+      'exams.pass_marks',
+      'exams.term_id',
+      'exams.class_id',
+      'exams.class_ids',
+      'exams.subject_id',
+      'subjects.name as subject_name'
+    )
+    .orderBy('exams.date', 'asc');
+
+  if (examId) examQuery = examQuery.where('exams.id', examId);
+  if (termId) examQuery = examQuery.where('exams.term_id', termId);
+  if (fromDate) examQuery = examQuery.where('exams.date', '>=', fromDate);
+  if (toDate) examQuery = examQuery.where('exams.date', '<=', toDate);
+  if (types.length) examQuery = examQuery.whereIn('exams.type', types);
+  if (subjectIds.length) examQuery = examQuery.whereIn('exams.subject_id', subjectIds);
+
+  examQuery = examQuery.where(function () {
+    this.whereIn('exams.class_id', classIds);
+    for (const cid of classIds) {
+      this.orWhereRaw('exams.class_ids @> ?::jsonb', [JSON.stringify([cid])]);
+    }
+  });
+
+  let exams = await examQuery;
+
+  if (pairs) {
+    const pairSet = new Set(pairs.map((p) => `${p.class_id}:${p.subject_id}`));
+    exams = exams.filter((e) => gradeSvc.examClassIds(e).some((cid) => pairSet.has(`${cid}:${e.subject_id}`)));
+  }
+
+  const students = await db('students as st')
+    .join('users as u', 'st.user_id', 'u.id')
+    .leftJoin('classes as c', 'st.class_id', 'c.id')
+    .where('st.tenant_id', tenantId)
+    .whereIn('st.class_id', classIds)
+    .where('st.status', 'active')
+    .select(
+      'u.id as student_id',
+      'u.first_name',
+      'u.middle_name',
+      'u.last_name',
+      'st.student_number',
+      'st.class_id',
+      'c.name as class_name'
+    )
+    .orderBy('u.first_name');
+
+  const examIds = exams.map((e) => e.id);
+  const gradeRows = examIds.length
+    ? await db('grades')
+      .where({ tenant_id: tenantId })
+      .whereIn('exam_id', examIds)
+      .select('exam_id', 'student_id', 'marks_obtained', 'grade_letter')
+    : [];
+
+  const marksByStudent = new Map();
+  for (const g of gradeRows) {
+    if (!marksByStudent.has(g.student_id)) marksByStudent.set(g.student_id, {});
+    marksByStudent.get(g.student_id)[g.exam_id] = g;
+  }
+
+  // Build per-subject result tables.
+  const subjectMap = new Map();
+  for (const e of exams) {
+    if (!subjectMap.has(e.subject_id)) {
+      subjectMap.set(e.subject_id, { subject_id: e.subject_id, subject_name: e.subject_name, exams: [] });
+    }
+    subjectMap.get(e.subject_id).exams.push(e);
+  }
+
+  const subjects = [];
+  for (const subj of subjectMap.values()) {
+    const subjectExamIds = new Set(subj.exams.map((e) => e.id));
+    let subjectTotalMarks = 0;
+    for (const e of subj.exams) subjectTotalMarks += Number(e.total_marks || 0);
+
+    const rows = [];
+    for (const st of students) {
+      // Only students who are in a class this exam targets.
+      const relevant = subj.exams.filter((e) => gradeSvc.examClassIds(e).includes(st.class_id));
+      if (!relevant.length) continue;
+
+      const marks = marksByStudent.get(st.student_id) || {};
+      const perExam = relevant.map((e) => {
+        const g = marks[e.id];
+        return {
+          exam_id: e.id,
+          marks: g?.marks_obtained != null ? Number(g.marks_obtained) : null,
+          grade_letter: g?.grade_letter || null,
+          percent: percent(g?.marks_obtained, e.total_marks),
+        };
+      });
+
+      const entered = perExam.filter((m) => m.marks != null);
+      const rawMarks = entered.reduce((s, m) => s + m.marks, 0);
+      const rawTotal = entered.reduce((s, m) => {
+        const ex = relevant.find((e) => e.id === m.exam_id);
+        return s + Number(ex?.total_marks || 0);
+      }, 0);
+      let finalPercent = null;
+      let breakdown = [];
+      if (scheme.mode === 'weighted') {
+        const combined = grading.computeWeightedPercent(scheme, relevant.map((e) => ({
+          type: e.type,
+          total: Number(e.total_marks || 0),
+          marks: marks[e.id]?.marks_obtained,
+        })));
+        finalPercent = combined.percent;
+        breakdown = combined.breakdown;
+      } else if (rawTotal > 0) {
+        finalPercent = Math.round((rawMarks / rawTotal) * 1000) / 10;
+      }
+
+      rows.push({
+        student_id: st.student_id,
+        first_name: st.first_name,
+        middle_name: st.middle_name,
+        last_name: st.last_name,
+        student_number: st.student_number,
+        class_id: st.class_id,
+        class_name: st.class_name,
+        marks: perExam,
+        entered: entered.length,
+        expected: relevant.length,
+        raw_marks: Math.round(rawMarks * 100) / 100,
+        raw_total: Math.round(rawTotal * 100) / 100,
+        percent: finalPercent,
+        grade_letter: finalPercent == null ? null : grading.letterFor(scale, finalPercent),
+        passed: finalPercent == null ? null : finalPercent >= passPct,
+        breakdown,
+      });
+    }
+
+    rows.sort((a, b) => (b.percent ?? -1) - (a.percent ?? -1));
+    let rank = 0;
+    let lastPercent = null;
+    rows.forEach((r, i) => {
+      if (r.percent == null) { r.rank = null; return; }
+      if (r.percent !== lastPercent) { rank = i + 1; lastPercent = r.percent; }
+      r.rank = rank;
+    });
+
+    const averaged = rows.filter((r) => r.percent != null);
+    subjects.push({
+      subject_id: subj.subject_id,
+      subject_name: subj.subject_name,
+      exams: subj.exams,
+      total_marks: subjectTotalMarks,
+      students: rows,
+      summary: {
+        students: rows.length,
+        entered: averaged.length,
+        average: averaged.length
+          ? Math.round((averaged.reduce((s, r) => s + r.percent, 0) / averaged.length) * 10) / 10
+          : null,
+        pass_rate: averaged.length
+          ? Math.round((averaged.filter((r) => r.passed).length / averaged.length) * 100)
+          : null,
+      },
+    });
+  }
+
+  // Per-exam statistics (item/analysis level data needs question-level storage,
+  // which the system does not have yet — this is exam-level analysis).
+  const examAnalysis = exams.map((e) => {
+    const values = gradeRows
+      .filter((g) => g.exam_id === e.id && g.marks_obtained != null)
+      .map((g) => Number(g.marks_obtained));
+    const total = Number(e.total_marks || 0);
+    const pass = Number(e.pass_marks || 0);
+    const sat = values.length;
+    return {
+      exam_id: e.id,
+      name: e.name,
+      type: e.type,
+      date: e.date,
+      subject_name: e.subject_name,
+      total_marks: total,
+      pass_marks: pass,
+      sat,
+      average: sat ? Math.round((values.reduce((s, v) => s + v, 0) / sat) * 10) / 10 : null,
+      average_percent: sat && total > 0
+        ? Math.round((values.reduce((s, v) => s + v, 0) / sat / total) * 1000) / 10
+        : null,
+      highest: sat ? Math.max(...values) : null,
+      lowest: sat ? Math.min(...values) : null,
+      passed: sat ? values.filter((v) => v >= pass).length : 0,
+      failed: sat ? values.filter((v) => v < pass).length : 0,
+      pass_rate: sat ? Math.round((values.filter((v) => v >= pass).length / sat) * 100) : null,
+    };
+  });
+
+  // Overall per student across subjects (equal weight per subject).
+  const overall = students.map((st) => {
+    const values = subjects
+      .map((s) => s.students.find((r) => r.student_id === st.student_id))
+      .filter((r) => r && r.percent != null)
+      .map((r) => r.percent);
+    const avg = values.length
+      ? Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10
+      : null;
+    return {
+      student_id: st.student_id,
+      first_name: st.first_name,
+      middle_name: st.middle_name,
+      last_name: st.last_name,
+      student_number: st.student_number,
+      class_name: st.class_name,
+      subjects_count: values.length,
+      percent: avg,
+      grade_letter: avg == null ? null : grading.letterFor(scale, avg),
+      passed: avg == null ? null : avg >= passPct,
+    };
+  });
+  overall.sort((a, b) => (b.percent ?? -1) - (a.percent ?? -1));
+
+  return {
+    exams,
+    students: students.map((s) => ({
+      student_id: s.student_id,
+      first_name: s.first_name,
+      middle_name: s.middle_name,
+      last_name: s.last_name,
+      student_number: s.student_number,
+      class_id: s.class_id,
+      class_name: s.class_name,
+    })),
+    subjects,
+    exam_analysis: examAnalysis,
+    overall,
+    scheme,
+    pass_pct: passPct,
+    scale,
+  };
+}
+
 module.exports = {
   getStudentEnrollmentReport,
   getGradeDistributionReport,
@@ -735,6 +1100,7 @@ module.exports = {
   getTeacherClassSummary,
   getTeacherAttendanceReport,
   getTeacherGradeReport,
+  getClassResults,
   getFeeCollectionReport,
   getOutstandingBalanceReport,
   getRevenueVsExpensesReport,

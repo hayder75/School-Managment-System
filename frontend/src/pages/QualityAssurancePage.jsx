@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { EthiopianDate } from "../components/ui/EthiopianDate";
+import ResultApprovals from "../components/quality/ResultApprovals";
 import { FileCheck2, Library, ClipboardList, Star } from "lucide-react";
 
 const TYPES = ["test", "exam", "notes", "lesson_plan", "worksheet"];
@@ -60,7 +61,7 @@ export default function QualityAssurancePage() {
       </div>
 
       <div className="flex gap-2 border-b pb-2 flex-wrap">
-        {[["review", t.qa.reviewCenter], ["bank", t.qa.materialsBank], ["report", t.qa.reportTab]].map(([key, label]) => (
+        {[["results", t.qa.resultApprovals || "Result approvals"], ["review", t.qa.reviewCenter], ["bank", t.qa.materialsBank], ["report", t.qa.reportTab]].map(([key, label]) => (
           <Button key={key} variant={tab === key ? "default" : "ghost"} onClick={() => setTab(key)}>{label}</Button>
         ))}
       </div>
@@ -145,6 +146,8 @@ export default function QualityAssurancePage() {
       )}
 
       {tab === "report" && <QualityReport summary={summary?.data} />}
+
+      {tab === "results" && <ResultApprovals enabled={tab === "results"} />}
 
       <ReviewDialog id={reviewingId} onClose={() => setReviewingId(null)} />
     </div>

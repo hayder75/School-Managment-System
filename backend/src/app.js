@@ -13,6 +13,10 @@ const teacherRoutes = require('./modules/teachers/teachers.routes');
 const attendanceRoutes = require('./modules/attendance/attendance.routes');
 const examRoutes = require('./modules/exams/exams.routes');
 const gradeRoutes = require('./modules/grades/grades.routes');
+const resultRoutes = require('./modules/results/results.routes');
+const editRequestRoutes = require('./modules/edit-requests/edit-requests.routes');
+const assessmentTypeRoutes = require('./modules/assessment-types/assessment-types.routes');
+const gradingSchemeRoutes = require('./modules/grading-scheme/grading-scheme.routes');
 const timetableRoutes = require('./modules/timetable/timetable.routes');
 const chatRoutes = require('./modules/chat/chat.routes');
 const notificationRoutes = require('./modules/notifications/notifications.routes');
@@ -79,6 +83,10 @@ app.use('/api/help', require('./modules/help/help.routes'));
 app.use('/api/sms', require('./modules/sms/sms.routes'));
 app.use('/api/face-attendance', require('./modules/face-attendance/face-attendance.routes'));
 app.use('/api/kg-schedule', require('./modules/kg-schedule/kg-schedule.routes'));
+app.use('/api/results', resultRoutes);
+app.use('/api/edit-requests', editRequestRoutes);
+app.use('/api/assessment-types', assessmentTypeRoutes);
+app.use('/api/grading-scheme', gradingSchemeRoutes);
 
 app.get('/', (req, res) => {
   res.redirect(config.frontendUrl);

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
 import { useTeacherAssignments } from "../hooks/useTeachers";
-import { useExams } from "../hooks/useExams";
+import { useExams, useAssessmentTypes } from "../hooks/useExams";
 import { useUsers } from "../hooks/useUsers";
 import {
   useEnrollmentReport, useGradeDistribution, useClassPerformance,
@@ -29,9 +29,12 @@ import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { classLabel } from "../lib/classLabel";
+import { markSeverity, classes as sevColor } from "../lib/gradeColors";
 import { BarChart, DonutChart } from "../components/ui/charts";
 import { FileSpreadsheet, ChevronDown, Award } from "lucide-react";
 import ReportCenter from "../components/reports/ReportCenter";
+import ClassResultsReport from "../components/reports/ClassResultsReport";
+import Chips from "../components/ui/chips";
 
 function useScopedClasses(limit = 200) {
   const user = useAuthStore((s) => s.user);
@@ -284,20 +287,21 @@ function AdminReports() {
 
 function MyStudentsReport() {
   const { classes } = useScopedClasses(200);
-  const [classId, setClassId] = useState("");
-  const { data, isLoading } = useMyStudents({ class_id: classId || undefined });
+  const [classIds, setClassIds] = useState([]);
+  const { data, isLoading } = useMyStudents({ class_id: classIds.length ? classIds.join(",") : undefined });
   const students = data?.data?.students || [];
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">My Students</h3>
-      <div className="w-72">
-        <Select value={classId} onValueChange={setClassId}>
-          <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-          <SelectContent>
-            {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">Classes (pick any, or leave empty for all your classes)</p>
+        <Chips
+          options={classes.map((c) => ({ value: c.id, label: c.name }))}
+          value={classIds}
+          onChange={setClassIds}
+          emptyLabel="No classes assigned to you"
+        />
       </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : students.length === 0 ? (
         <p className="text-muted-foreground">No students found for this class</p>
@@ -326,11 +330,22 @@ function MyStudentsReport() {
 }
 
 function MyAttendanceReport() {
-  const { data, isLoading } = useMyAttendance();
+  const { classes } = useScopedClasses(200);
+  const [classIds, setClassIds] = useState([]);
+  const { data, isLoading } = useMyAttendance({ class_id: classIds.length ? classIds.join(",") : undefined });
   const records = data?.data?.records || [];
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">My Attendance Records</h3>
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">Classes (pick any, or leave empty for all your classes)</p>
+        <Chips
+          options={classes.map((c) => ({ value: c.id, label: c.name }))}
+          value={classIds}
+          onChange={setClassIds}
+          emptyLabel="No classes assigned to you"
+        />
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : records.length === 0 ? (
         <p className="text-muted-foreground">No attendance records yet</p>
       ) : (
@@ -360,23 +375,52 @@ function MyAttendanceReport() {
 }
 
 function MyGradesReport() {
+  const { classes } = useScopedClasses(200);
   const { data: examsData } = useExams({ limit: 200 });
+  const { data: typeData } = useAssessmentTypes();
+  const [classIds, setClassIds] = useState([]);
   const [examId, setExamId] = useState("");
-  const { data, isLoading } = useMyGrades({ exam_id: examId || undefined });
+  const [type, setType] = useState("all");
+  const { data, isLoading } = useMyGrades({
+    exam_id: examId || undefined,
+    class_id: classIds.length ? classIds.join(",") : undefined,
+    type: type === "all" ? undefined : type,
+  });
   const grades = data?.data?.grades || [];
   const exams = examsData?.data || [];
+  const types = typeData?.data || [];
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Grades I Entered</h3>
-      <div className="w-72">
-        <Select value={examId} onValueChange={setExamId}>
-          <SelectTrigger><SelectValue placeholder="All exams" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Exams</SelectItem>
-            {exams.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">Classes (pick any, or leave empty for all your classes)</p>
+        <Chips
+          options={classes.map((c) => ({ value: c.id, label: c.name }))}
+          value={classIds}
+          onChange={setClassIds}
+          emptyLabel="No classes assigned to you"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <div className="w-56">
+          <Select value={examId || "all"} onValueChange={(v) => setExamId(v === "all" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="All exams" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Exams</SelectItem>
+              {exams.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-44">
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger><SelectValue placeholder="All types" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              {types.map((ty) => <SelectItem key={ty.code} value={ty.code}>{ty.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : grades.length === 0 ? (
         <p className="text-muted-foreground">No grades entered yet</p>
@@ -393,8 +437,15 @@ function MyGradesReport() {
                     <TableCell className="font-medium">{fullName(g)}</TableCell>
                     <TableCell>{g.exam_name}</TableCell>
                     <TableCell>{g.subject_name}</TableCell>
-                    <TableCell>{g.marks_obtained}</TableCell>
-                    <TableCell><Badge variant="outline">{g.grade_letter || "—"}</Badge></TableCell>
+                    <TableCell className={sevColor(markSeverity(g.marks_obtained, g.total_marks, g.pass_marks)).text}>
+                      {g.marks_obtained ?? "—"}
+                      {g.total_marks != null && <span className="text-xs text-muted-foreground"> /{g.total_marks}</span>}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={sevColor(markSeverity(g.marks_obtained, g.total_marks, g.pass_marks)).badge}>
+                        {g.grade_letter || "—"}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1345,6 +1396,11 @@ function ReportTable({ title, loading, rows, empty, cols, dateCol }) {
   );
 }
 
+function ClassResultsTab() {
+  const { classes, isTeacher } = useScopedClasses(200);
+  return <ClassResultsReport scopedClasses={classes} isTeacher={isTeacher} />;
+}
+
 export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const { t } = useI18n();
@@ -1362,6 +1418,8 @@ export default function ReportsPage() {
     if (["owner", "admin", "general_manager", "principal", "vice_principal", "teacher"].includes(role))
       list.push({ value: "semester", label: t.rep.semester });
     if (["teacher"].includes(role)) list.push({ value: "teacher", label: t.rep.myReports });
+    if (["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"].includes(role))
+      list.push({ value: "results", label: t("Class Results") });
     if (["finance", "accountant", "general_manager", "owner", "admin"].includes(role)) list.push({ value: "finance", label: t.rep.finance });
     if (["cashier"].includes(role)) list.push({ value: "cashier", label: t.rep.collection });
     if (["hr", "owner", "admin", "general_manager"].includes(role)) list.push({ value: "hr", label: t.rep.hr });
@@ -1394,6 +1452,7 @@ export default function ReportsPage() {
         <TabsContent value="semester"><SemesterResultsTab /></TabsContent>
         <TabsContent value="admin"><AdminReports /></TabsContent>
         <TabsContent value="teacher"><TeacherReports /></TabsContent>
+        <TabsContent value="results"><ClassResultsTab /></TabsContent>
         <TabsContent value="finance"><FinanceReports /></TabsContent>
         <TabsContent value="cashier"><CashierReports /></TabsContent>
         <TabsContent value="hr"><HRReports /></TabsContent>

@@ -14,6 +14,10 @@ router.post('/', requireAccess(['admin', 'owner', 'teacher'], ['exams.manage']),
 router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['exams.manage']), controller.list);
 router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent'], ['exams.manage']), controller.getById);
 router.put('/:id', requireAccess(['admin', 'owner', 'teacher'], ['exams.manage']), validate(updateExamSchema), controller.update);
-router.delete('/:id', requireAccess(['admin', 'owner'], ['exams.manage']), controller.remove);
+
+// Destructive actions are owner-only.
+router.post('/:id/archive', requireAccess(['owner'], []), controller.archive);
+router.post('/:id/restore', requireAccess(['owner'], []), controller.restore);
+router.delete('/:id', requireAccess(['owner'], []), controller.remove);
 
 module.exports = router;

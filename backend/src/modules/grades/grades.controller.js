@@ -1,5 +1,7 @@
 const gradeService = require('./grades.service');
+const results = require('../results/results.service');
 const access = require('../../shared/access');
+const audit = require('../../shared/audit');
 const db = require('../../config/database');
 
 async function enterGrades(req, res) {
@@ -26,15 +28,47 @@ async function enterGrades(req, res) {
 
   try {
     const result = await gradeService.upsertGrades(
-      req.tenant.id, req.params.examId, req.validated.body.grades, req.user.userId
+      req.tenant.id,
+      req.params.examId,
+      req.validated.body.grades,
+      req.user.userId,
+      { role: req.user.role }
     );
-    res.json({ success: true, data: { updated: result.length } });
+
+    // Keep the per-section status/counts in sync for QA and the teacher banner.
+    const touchedClasses = new Set();
+    const rows = await db('students')
+      .where({ tenant_id: req.tenant.id })
+      .whereIn('user_id', req.validated.body.grades.map((g) => g.student_id))
+      .select('class_id');
+    for (const r of rows) touchedClasses.add(r.class_id);
+    for (const cid of touchedClasses) {
+      await results.recordSave(req.tenant.id, req.params.examId, cid, req.user.userId);
+    }
+
+    await audit.record(req, 'update', 'grade', req.params.examId, null, {
+      saved: result.saved.length,
+      skipped: result.skipped.length,
+      exam_id: req.params.examId,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        updated: result.saved.length,
+        skipped: result.skipped.length,
+        skipped_details: result.skipped,
+      },
+    });
   } catch (err) {
     if (err.code === 'EXAM_NOT_FOUND') {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Exam not found' } });
     }
     if (err.code === 'EXAM_LOCKED') {
       return res.status(409).json({ success: false, error: { code: 'EXAM_LOCKED', message: 'Grades are locked for this exam' } });
+    }
+    if (err.code === 'EXAM_ARCHIVED') {
+      return res.status(409).json({ success: false, error: { code: 'EXAM_ARCHIVED', message: 'This exam is archived. Restore it before entering marks.' } });
     }
     if (err.code === 'MARKS_EXCEED_TOTAL') {
       return res.status(400).json({ success: false, error: { code: 'MARKS_EXCEED_TOTAL', message: `Marks cannot exceed the exam total (${err.total})` } });
@@ -63,7 +97,7 @@ async function getByExam(req, res) {
     if (children.length === 0) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No children linked to your account' } });
     }
-    const examClassIds = Array.isArray(exam.class_ids) && exam.class_ids.length ? exam.class_ids : (exam.class_id ? [exam.class_id] : []);
+    const examClassIds = gradeService.examClassIds(exam);
     const hasChild = await db('students')
       .where({ tenant_id: req.tenant.id })
       .whereIn('class_id', examClassIds)
@@ -74,8 +108,12 @@ async function getByExam(req, res) {
     }
   }
 
-  const grades = await gradeService.getByExam(req.tenant.id, req.params.examId, { classId, userId, role });
-  res.json({ success: true, data: grades });
+  const result = await gradeService.getByExam(req.tenant.id, req.params.examId, { classId, userId, role });
+  res.json({
+    success: true,
+    data: result.rows,
+    meta: { status: result.status, submission: result.submission || null, can_edit: result.can_edit },
+  });
 }
 
 async function getExamClasses(req, res) {
@@ -107,7 +145,31 @@ async function lockGrades(req, res) {
   const result = await gradeService.lockGrades(
     req.tenant.id, req.params.examId, req.validated.body.lock, req.user.userId
   );
+  await audit.record(req, result.locked ? 'lock' : 'unlock', 'exam', req.params.examId, null, result);
   res.json({ success: true, data: result });
 }
 
-module.exports = { enterGrades, getByExam, getExamClasses, getByStudent, lockGrades };
+async function saveDraft(req, res) {
+  const { examId, classId } = req.params;
+  const row = await gradeService.saveDraft(
+    req.tenant.id, examId, classId, req.user.userId, req.validated.body.payload
+  );
+  res.json({ success: true, data: { updated_at: row.updated_at } });
+}
+
+async function getDraft(req, res) {
+  const { examId, classId } = req.params;
+  const row = await gradeService.getDraft(req.tenant.id, examId, classId, req.user.userId);
+  res.json({
+    success: true,
+    data: row ? { payload: row.payload, updated_at: row.updated_at } : null,
+  });
+}
+
+async function clearDraft(req, res) {
+  const { examId, classId } = req.params;
+  await gradeService.clearDraft(req.tenant.id, examId, classId, req.user.userId);
+  res.json({ success: true, data: null });
+}
+
+module.exports = { enterGrades, getByExam, getExamClasses, getByStudent, lockGrades, saveDraft, getDraft, clearDraft };

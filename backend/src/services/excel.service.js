@@ -514,6 +514,185 @@ function addSheet(wb, sheet) {
   return ws;
 }
 
+// ── Rich class result sheet ──
+
+function colourForPercent(pct, passPct = 50) {
+  if (pct == null) return null;
+  const p = Number(pct);
+  if (p < passPct) return 'FFFDECEC';       // red
+  if (p < passPct + 10) return 'FFFFF7E0';  // amber
+  if (p >= 80) return 'FFE8F6EE';           // green
+  return null;
+}
+
+function fullNameRow(r) {
+  return [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ');
+}
+
+async function classResultsSheets(tenantId, filters = {}, viewer = {}) {
+  const reportService = require('../modules/reports/reports.service');
+  const data = await reportService.getClassResults(tenantId, filters, viewer);
+  const passPct = Number(data.pass_pct || 50);
+  const classNames = [...new Set((data.students || []).map((s) => s.class_name).filter(Boolean))];
+
+  const sheets = [];
+  const usedNames = new Set(['Cover', 'Exam matrix', 'Exam analysis', 'Overall']);
+
+  // Cover
+  sheets.push({
+    name: 'Cover',
+    columns: [{ width: 30 }, { width: 50 }],
+    rows: [
+      ['Mount Olive School — Result Sheet'],
+      ['Classes', classNames.join(', ') || '—'],
+      ['Generated', new Date().toLocaleString()],
+      ['Mark scheme', data.scheme?.mode === 'weighted' ? 'Weighted components' : 'Raw totals'],
+      ['Pass mark', `${passPct}%`],
+      [],
+      ['Sheets', 'Student summary · Exam matrix · Exam analysis'],
+    ],
+  });
+
+  // One summary sheet per subject
+  for (const subj of data.subjects || []) {
+    const columns = [
+      { header: 'Student', key: 'name', width: 28 },
+      { header: 'Student ID', key: 'student_number', width: 14 },
+      ...(subj.exams || []).map((e) => ({ header: `${e.name} (/${e.total_marks ?? '—'})`, key: `e_${e.id}`, width: 16 })),
+      { header: 'Percent', key: 'percent', width: 10 },
+      { header: 'Grade', key: 'grade', width: 8 },
+      { header: 'Rank', key: 'rank', width: 8 },
+      { header: 'Result', key: 'result', width: 10 },
+    ];
+    const rows = (subj.students || []).map((r) => {
+      const row = {
+        name: fullNameRow(r),
+        student_number: r.student_number || '',
+        percent: r.percent,
+        grade: r.grade_letter || '',
+        rank: r.rank ?? '',
+        result: r.passed == null ? '' : r.passed ? 'PASS' : 'FAIL',
+      };
+      for (const m of r.marks) row[`e_${m.exam_id}`] = m.marks ?? '';
+      return row;
+    });
+    sheets.push({
+      name: safeSheetName(`${subj.subject_name || 'Subject'}`, usedNames),
+      columns,
+      rows,
+      colorByPercent: true,
+      passPct,
+    });
+  }
+
+  // Combined matrix (all subjects)
+  const examList = data.exams || [];
+  const matrixColumns = [
+    { header: 'Student', key: 'name', width: 28 },
+    { header: 'Student ID', key: 'student_number', width: 14 },
+    { header: 'Class', key: 'class_name', width: 16 },
+    ...examList.map((e) => ({ header: `${e.subject_name ? `${e.subject_name} · ` : ''}${e.name} (/${e.total_marks ?? '—'})`, key: `x_${e.id}`, width: 18 })),
+  ];
+  const matrixRows = [];
+  for (const subj of data.subjects || []) {
+    for (const r of subj.students || []) {
+      const row = {
+        name: fullNameRow(r),
+        student_number: r.student_number || '',
+        class_name: r.class_name || '',
+      };
+      for (const m of r.marks) row[`x_${m.exam_id}`] = m.marks ?? '';
+      matrixRows.push(row);
+    }
+  }
+  sheets.push({ name: 'Exam matrix', columns: matrixColumns, rows: matrixRows });
+
+  // Exam analysis
+  sheets.push({
+    name: 'Exam analysis',
+    columns: [
+      { header: 'Exam', key: 'name', width: 28 },
+      { header: 'Type', key: 'type', width: 12 },
+      { header: 'Subject', key: 'subject_name', width: 18 },
+      { header: 'Date', key: 'date', width: 12 },
+      { header: 'Total', key: 'total_marks', width: 8 },
+      { header: 'Pass', key: 'pass_marks', width: 8 },
+      { header: 'Sat', key: 'sat', width: 8 },
+      { header: 'Average', key: 'average', width: 10 },
+      { header: 'Average %', key: 'average_percent', width: 12 },
+      { header: 'Highest', key: 'highest', width: 10 },
+      { header: 'Lowest', key: 'lowest', width: 10 },
+      { header: 'Pass rate %', key: 'pass_rate', width: 12 },
+    ],
+    rows: (data.exam_analysis || []).map((e) => ({
+      name: e.name,
+      type: e.type,
+      subject_name: e.subject_name || '',
+      date: fmtDate(e.date),
+      total_marks: e.total_marks ?? '',
+      pass_marks: e.pass_marks ?? '',
+      sat: e.sat ?? '',
+      average: e.average ?? '',
+      average_percent: e.average_percent ?? '',
+      highest: e.highest ?? '',
+      lowest: e.lowest ?? '',
+      pass_rate: e.pass_rate ?? '',
+    })),
+  });
+
+  // Overall per student
+  sheets.push({
+    name: 'Overall',
+    columns: [
+      { header: 'Student', key: 'name', width: 28 },
+      { header: 'Student ID', key: 'student_number', width: 14 },
+      { header: 'Class', key: 'class_name', width: 16 },
+      { header: 'Subjects', key: 'subjects_count', width: 10 },
+      { header: 'Percent', key: 'percent', width: 10 },
+      { header: 'Grade', key: 'grade_letter', width: 8 },
+      { header: 'Result', key: 'result', width: 10 },
+    ],
+    rows: (data.overall || []).map((r) => ({
+      name: fullNameRow(r),
+      student_number: r.student_number || '',
+      class_name: r.class_name || '',
+      subjects_count: r.subjects_count,
+      percent: r.percent,
+      grade_letter: r.grade_letter || '',
+      result: r.passed == null ? '' : r.passed ? 'PASS' : 'FAIL',
+    })),
+    colorByPercent: true,
+    passPct,
+  });
+
+  return sheets;
+}
+
+async function streamClassResultsWorkbook(tenantId, filters, viewer, res) {
+  const sheets = await classResultsSheets(tenantId, filters, viewer);
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Mount Olive SMS';
+  wb.created = new Date();
+  for (const s of sheets) {
+    const ws = addSheet(wb, s);
+    if (s.colorByPercent) {
+      const col = s.columns.findIndex((c) => c.key === 'percent') + 1;
+      if (col > 0) {
+        for (let rowIdx = 2; rowIdx <= ws.rowCount; rowIdx += 1) {
+          const cell = ws.getCell(rowIdx, col);
+          const fill = colourForPercent(cell.value, s.passPct);
+          if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+        }
+      }
+    }
+  }
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="class-results.xlsx"');
+  await wb.xlsx.write(res);
+  res.end();
+  return true;
+}
+
 function addSummary(wb, payload) {
   const ws = wb.addWorksheet('Summary');
   ws.columns = [{ width: 34 }, { width: 18 }, { width: 10 }, { width: 12 }];
@@ -563,4 +742,4 @@ async function listTables(reportId, tenantId, userId, filters) {
   return detailSheets(reportId, tenantId, userId, filters || {});
 }
 
-module.exports = { streamWorkbook, listTables, streamNamedWorkbook };
+module.exports = { streamWorkbook, listTables, streamNamedWorkbook, streamClassResultsWorkbook, classResultsSheets };

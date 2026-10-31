@@ -130,3 +130,11 @@ export function useStudentAttendanceSummary(studentId, params = {}) {
     enabled: !!studentId,
   });
 }
+
+export function useClassResults(params = {}, options = {}) {
+  return useQuery({
+    queryKey: ["report-class-results", params],
+    queryFn: () => api.get("/reports/class-results", { params }),
+    ...options,
+  });
+}

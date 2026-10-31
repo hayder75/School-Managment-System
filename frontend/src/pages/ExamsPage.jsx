@@ -1,226 +1,130 @@
-import { fullName } from "../lib/fullName";
-import { useState, useEffect } from "react";
-import api from "../lib/api";
+import { useMemo, useState } from "react";
 import { useAuthStore } from "../store/auth";
-import { useExams, useCreateExam, useDeleteExam } from "../hooks/useExams";
+import {
+  useExams, useCreateExam, useUpdateExam, useAssessmentTypes, useGradingScheme, useExamSections,
+} from "../hooks/useExams";
+import { useResultList, useEditRequests } from "../hooks/useResults";
 import { useClasses } from "../hooks/useClasses";
 import { useSubjects } from "../hooks/useSubjects";
 import { useTeacherAssignments } from "../hooks/useTeachers";
-import { useExamGrades, useExamClasses, useEnterGrades } from "../hooks/useGrades";
-import { EthiopianDate } from "../components/ui/EthiopianDate";
-import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { useI18n } from "../i18n/I18nContext";
+import { EthiopianDate } from "../components/ui/EthiopianDate";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
-import { Plus, Trash2, Edit3 } from "lucide-react";
+import GradeEntry from "../components/exams/GradeEntry";
+import ExamDialog from "../components/exams/ExamDialog";
+import AssessmentTypesDialog from "../components/exams/AssessmentTypesDialog";
+import EditRequestsDialog from "../components/exams/EditRequestsDialog";
+import DeleteExamDialog from "../components/exams/DeleteExamDialog";
+import { classes as sev, statusSeverity } from "../lib/gradeColors";
+import { Plus, Trash2, Edit3, Settings2, ClipboardCheck, Search, Archive } from "lucide-react";
 
-function GradeEntry({ exam }) {
-  const { t } = useI18n();
-  const { data: classesData } = useExamClasses(exam.id);
-  const classes = classesData?.data || [];
-  const [selectedClass, setSelectedClass] = useState("");
+const STATUS_LABEL = {
+  draft: "Draft",
+  submitted: "Submitted",
+  approved: "Approved",
+  returned: "Returned",
+  editing: "Editing",
+};
 
-  useEffect(() => {
-    if (!selectedClass && classes.length) setSelectedClass(classes[0].id);
-  }, [classes, selectedClass]);
-
-  const { data: gradesData, isLoading } = useExamGrades(exam.id, selectedClass || undefined);
-  const enterGrades = useEnterGrades();
-
-  // Pending marks across ALL sections: { classId: { studentId: marks } }
-  const [edits, setEdits] = useState({});
-
-  const records = gradesData?.data || [];
-  const selectedClassObj = classes.find((c) => c.id === selectedClass);
-  const pendingCount = Object.values(edits).reduce((n, m) => n + Object.keys(m).length, 0);
-
-  function handleMarksChange(studentId, val) {
-    setEdits((prev) => ({
-      ...prev,
-      [selectedClass]: {
-        ...(prev[selectedClass] || {}),
-        [studentId]: val === "" ? null : parseFloat(val),
-      },
-    }));
-  }
-
-  function valueFor(record) {
-    const map = edits[selectedClass];
-    if (map && Object.prototype.hasOwnProperty.call(map, record.student_id)) {
-      return map[record.student_id] ?? "";
-    }
-    return record.marks_obtained ?? "";
-  }
-
-  function pendingFor(classId) {
-    return Object.keys(edits[classId] || {}).length;
-  }
-
-  async function handleSave() {
-    const grades = [];
-    for (const map of Object.values(edits)) {
-      for (const [studentId, marks] of Object.entries(map)) {
-        grades.push({ student_id: studentId, marks_obtained: marks });
-      }
-    }
-    if (grades.length === 0) return;
-    await enterGrades.mutateAsync({ examId: exam.id, grades });
-    setEdits({});
-  }
-
-  return (
-    <div className="mt-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div>
-          <h4 className="text-sm font-medium">{t("Grades for {name}", { name: exam.name })}</h4>
-          {selectedClassObj && (
-            <p className="text-xs text-muted-foreground">{selectedClassObj.name} · {exam.subject_name}</p>
-          )}
-        </div>
-        <Button size="sm" onClick={handleSave} disabled={enterGrades.isPending || pendingCount === 0}>
-          {enterGrades.isPending ? t("Saving...") : t("Save All Grades")}
-          {pendingCount > 0 ? ` (${pendingCount})` : ""}
-        </Button>
-      </div>
-
-      {classes.length > 1 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {classes.map((c) => {
-            const pend = pendingFor(c.id);
-            return (
-              <Button
-                key={c.id}
-                size="sm"
-                variant={selectedClass === c.id ? "default" : "outline"}
-                onClick={() => setSelectedClass(c.id)}
-              >
-                {c.name}
-                {pend > 0 && (
-                  <span className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-amber-950">
-                    {pend}
-                  </span>
-                )}
-              </Button>
-            );
-          })}
-        </div>
-      )}
-
-      {classes.length > 1 && pendingCount > 0 && (
-        <p className="text-xs text-amber-700 mb-2">
-          {t("Unsaved marks in {n} section(s) — \"Save All Grades\" stores them together.", { n: Object.keys(edits).length })}
-        </p>
-      )}
-
-      {!classes.length && !isLoading ? (
-        <p className="text-sm text-muted-foreground">{t("No sections available for you in this exam.")}</p>
-      ) : isLoading ? (
-        <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
-      ) : records.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("No students in this section.")}</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("Student")}</TableHead>
-              <TableHead>{t("Marks")}</TableHead>
-              <TableHead>{t("Grade")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {records.map((r) => (
-              <TableRow key={r.student_id}>
-                <TableCell>{fullName(r)}</TableCell>
-                <TableCell className="w-32">
-                  <Input
-                    type="number"
-                    value={valueFor(r)}
-                    onChange={(e) => handleMarksChange(r.student_id, e.target.value)}
-                    className="h-8"
-                  />
-                </TableCell>
-                <TableCell>{r.marks_obtained !== null ? r.grade_letter || "—" : "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
-  );
+function aggregateStatus(rows) {
+  if (!rows?.length) return "draft";
+  const statuses = rows.map((r) => r.status);
+  if (statuses.every((s) => s === "approved")) return "approved";
+  if (statuses.some((s) => s === "submitted")) return "submitted";
+  if (statuses.some((s) => s === "returned")) return "returned";
+  if (statuses.some((s) => s === "editing")) return "editing";
+  return "draft";
 }
 
 export default function ExamsPage() {
   const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
-  const isTeacher = user?.role === "teacher";
+  const role = user?.role;
+  const isTeacher = role === "teacher";
+  const isOwner = role === "owner";
+  const isAdmin = ["owner", "admin"].includes(role);
+  const canReview = ["owner", "admin", "quality_director", "principal", "vice_principal", "general_manager"].includes(role);
+
   const [page, setPage] = useState(1);
-  const [selectedExam, setSelectedExam] = useState(null);
-  const { data, isLoading } = useExams({ page, limit: 20 });
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [selectedExamId, setSelectedExamId] = useState(null);
+  const [editExam, setEditExam] = useState(null);
+  const [deleteExam, setDeleteExam] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [typesOpen, setTypesOpen] = useState(false);
+  const [requestsOpen, setRequestsOpen] = useState(false);
+
+  const { data, isLoading } = useExams({
+    page,
+    limit: 20,
+    type: typeFilter || undefined,
+    class_id: classFilter || undefined,
+    include_archived: showArchived ? "true" : undefined,
+  });
   const { data: classesData } = useClasses({ limit: 200 });
   const { data: subjectsData } = useSubjects({ limit: 200 });
   const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
+  const { data: typesData } = useAssessmentTypes({ include_inactive: false });
+  const { data: schemeData } = useGradingScheme();
+  const { data: resultsData } = useResultList({ status: "all" }, { enabled: !["student", "parent"].includes(role) });
+  const { data: pendingRequests } = useEditRequests({ status: "pending" }, { enabled: canReview });
+
   const createExam = useCreateExam();
-  const deleteExam = useDeleteExam();
-
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "100", pass_marks: "50", date: "", mark_test_day: false });
-  const [usedTotal, setUsedTotal] = useState(null);
-
-  // Show how much of the 100 is already used for the selected class + subject.
-  useEffect(() => {
-    let active = true;
-    const cid = form.class_ids[0];
-    if (!cid || !form.subject_id) { setUsedTotal(null); return; }
-    api.get("/exams", { params: { class_id: cid, subject_id: form.subject_id, limit: 200 } })
-      .then((res) => {
-        if (!active) return;
-        const used = (res.data || []).reduce((s2, e) => s2 + (parseFloat(e.total_marks) || 0), 0);
-        setUsedTotal(used);
-      })
-      .catch(() => active && setUsedTotal(null));
-    return () => { active = false; };
-  }, [form.class_ids, form.subject_id]);
+  const updateExam = useUpdateExam();
 
   const exams = data?.data || [];
   const meta = data?.meta || {};
   const allClasses = classesData?.data || [];
   const allSubjects = subjectsData?.data || [];
   const assignments = assignmentsData?.data || [];
+  const types = typesData?.data || [];
+  const scheme = schemeData?.data?.scheme || null;
+  const mode = scheme?.mode || "raw";
+  const typeMap = useMemo(() => Object.fromEntries(types.map((ty) => [ty.code, ty])), [types]);
 
-  const assignedClassIds = isTeacher ? assignments.map((a) => a.class_id) : [];
-  const assignedSubjectIds = isTeacher ? assignments.map((a) => a.subject_id) : [];
-  const subjectClassIds = isTeacher && form.subject_id
-    ? new Set(assignments.filter((a) => a.subject_id === form.subject_id).map((a) => a.class_id))
-    : null;
-  const classes = isTeacher
-    ? allClasses.filter((c) => assignedClassIds.includes(c.id) && (!subjectClassIds || subjectClassIds.has(c.id)))
-    : allClasses;
-  const subjects = isTeacher ? allSubjects.filter((s) => assignedSubjectIds.includes(s.id)) : allSubjects;
+  const resultsByExam = useMemo(() => {
+    const map = {};
+    for (const r of resultsData?.data || []) {
+      (map[r.exam_id] = map[r.exam_id] || []).push(r);
+    }
+    return map;
+  }, [resultsData]);
 
-  function toggleClass(id) {
-    setForm((f) => {
-      const has = f.class_ids.includes(id);
-      const class_ids = has ? f.class_ids.filter((x) => x !== id) : [...f.class_ids, id];
-      return { ...f, class_ids, class_id: class_ids[0] || "" };
-    });
+  const pendingCount = (pendingRequests?.data || []).length;
+  const selectedExam = exams.find((e) => e.id === selectedExamId) || null;
+  const { data: selectedSections } = useExamSections(selectedExamId, { enabled: !!selectedExamId });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return exams;
+    return exams.filter((e) =>
+      String(e.name || "").toLowerCase().includes(q)
+      || String(e.subject_name || "").toLowerCase().includes(q)
+      || String(e.type || "").toLowerCase().includes(q)
+      || String(e.class_name || "").toLowerCase().includes(q)
+    );
+  }, [exams, search]);
+
+  function classNames(exam) {
+    const ids = Array.isArray(exam.class_ids) && exam.class_ids.length ? exam.class_ids : (exam.class_id ? [exam.class_id] : []);
+    const names = ids.map((cid) => allClasses.find((c) => c.id === cid)?.name).filter(Boolean);
+    return names.length ? names.join(", ") : (exam.class_name || "—");
   }
 
-  async function handleCreate(e) {
-    e.preventDefault();
-    await createExam.mutateAsync({
-      ...form,
-      class_ids: form.class_ids,
-      total_marks: form.total_marks ? parseFloat(form.total_marks) : undefined,
-      pass_marks: form.pass_marks ? parseFloat(form.pass_marks) : undefined,
-    });
-    setOpen(false);
-    setForm({ name: "", type: "exam", class_id: "", class_ids: [], subject_id: "", total_marks: "100", pass_marks: "50", date: "", mark_test_day: false });
+  async function handleCreate(payload) {
+    await createExam.mutateAsync(payload);
+  }
+
+  async function handleUpdate(payload) {
+    await updateExam.mutateAsync({ id: editExam.id, ...payload });
   }
 
   return (
@@ -228,161 +132,157 @@ export default function ExamsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Exams & Grades")}</h1>
-          <p className="text-muted-foreground">{t("Create exams and enter grades")}</p>
+          <p className="text-muted-foreground">{t("Create exams, enter marks and send them for approval")}</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> {t("New Exam")}</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>{t("Create Exam")}</DialogTitle></DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t("Name")}</Label>
-                <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t("Type")}</Label>
-                  <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="quiz">{t("Quiz")}</SelectItem>
-                      <SelectItem value="midterm">{t("Midterm")}</SelectItem>
-                      <SelectItem value="final">{t("Final")}</SelectItem>
-                      <SelectItem value="assignment">{t("Assignment")}</SelectItem>
-                      <SelectItem value="classwork">{t("Classwork")}</SelectItem>
-                      <SelectItem value="homework">{t("Homework")}</SelectItem>
-                      <SelectItem value="project">{t("Project")}</SelectItem>
-                      <SelectItem value="exam">{t("Exam")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("Date")}</Label>
-                  <EthiopianDateInput value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>{t("Subject")} <span className="text-rose-500">*</span></Label>
-                <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v, class_ids: [], class_id: "" })}>
-                  <SelectTrigger><SelectValue placeholder={t("Select subject")} /></SelectTrigger>
-                  <SelectContent>
-                    {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{t("Classes (select one or more)")}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {classes.map((c) => {
-                    const active = form.class_ids.includes(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => toggleClass(c.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${active ? "bg-neutral-900 text-white border-neutral-900" : "text-neutral-700 border-neutral-300 hover:bg-neutral-100"}`}
-                      >
-                        {c.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                {isTeacher && !form.subject_id && (
-                  <p className="text-xs text-muted-foreground">{t("Select the subject first to see the classes you teach.")}</p>
-                )}
-                {form.class_ids.length > 1 && (
-                  <p className="text-xs text-muted-foreground">{t("Exam will be created for these classes and notify all their students.")}</p>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t("Total Marks")}</Label>
-                  <Input type="number" value={form.total_marks} onChange={(e) => setForm({ ...form, total_marks: e.target.value })} />
-                  {usedTotal != null && (
-                    <p className={`text-[11px] ${Math.max(100 - usedTotal, 0) <= 0 ? "text-rose-600" : "text-muted-foreground"}`}>
-                      {t("Used {used} of 100 for this class + subject — remaining {left}", { used: usedTotal, left: Math.max(100 - usedTotal, 0) })}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("Pass Marks")}</Label>
-                  <Input type="number" value={form.pass_marks} onChange={(e) => setForm({ ...form, pass_marks: e.target.value })} />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.mark_test_day} onChange={(e) => setForm({ ...form, mark_test_day: e.target.checked })} />
-                {t("Mark this day as a test class in the timetable")}
-              </label>
-              <Button type="submit" className="w-full" disabled={form.class_ids.length === 0 || !form.subject_id}>{t("Create Exam")}</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex flex-wrap gap-2">
+          {canReview && (
+            <Button variant="outline" onClick={() => setRequestsOpen(true)} className="relative">
+              <ClipboardCheck className="h-4 w-4 mr-2" /> {t("Edit requests")}
+              {pendingCount > 0 && (
+                <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-amber-950">
+                  {pendingCount}
+                </span>
+              )}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" onClick={() => setTypesOpen(true)}>
+              <Settings2 className="h-4 w-4 mr-2" /> {t("Assessment types")}
+            </Button>
+          )}
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> {t("New Exam")}
+          </Button>
+        </div>
       </div>
 
+      {mode === "weighted" && scheme?.components?.length > 0 && (
+        <div className={`rounded-md border p-3 text-xs ${sev("info").bg} ${sev("info").border} ${sev("info").text}`}>
+          {t("Term mark scheme")}: {scheme.components.map((c) => {
+            const ty = typeMap[c.type_code];
+            return `${ty?.name || c.type_code} ${c.weight_pct}%`;
+          }).join(" · ")}
+        </div>
+      )}
+
       <Card>
-        <CardHeader><CardTitle>{t("Exams")}</CardTitle></CardHeader>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle>{showArchived ? t("Archived exams") : t("Exams")}</CardTitle>
+          <div className="flex flex-wrap gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("Search exams...")}
+                className="pl-9 w-full sm:w-56"
+              />
+            </div>
+            <Select value={typeFilter || "all"} onValueChange={(v) => setTypeFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-40"><SelectValue placeholder={t("All types")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("All types")}</SelectItem>
+                {types.map((ty) => <SelectItem key={ty.code} value={ty.code}>{ty.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={classFilter || "all"} onValueChange={(v) => setClassFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-40"><SelectValue placeholder={t("All classes")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("All classes")}</SelectItem>
+                {allClasses.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {isOwner && (
+              <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived((v) => !v)}>
+                <Archive className="h-4 w-4 mr-1" /> {t("Archived")}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">{t("Loading...")}</p>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("Name")}</TableHead>
-                    <TableHead>{t("Type")}</TableHead>
-                    <TableHead>{t("Class")}</TableHead>
-                    <TableHead>{t("Subject")}</TableHead>
-                    <TableHead>{t("Date")}</TableHead>
-                    <TableHead>{t("Marks")}</TableHead>
-                    <TableHead className="w-24"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {exams.map((exam) => (
-                    <TableRow key={exam.id}>
-                      <TableCell className="font-medium">{exam.name}</TableCell>
-                      <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
-                      <TableCell>
-                        {(() => {
-                          const ids = exam.class_ids && exam.class_ids.length ? exam.class_ids : (exam.class_id ? [exam.class_id] : []);
-                          const names = ids
-                            .map((cid) => allClasses.find((c) => c.id === cid)?.name)
-                            .filter(Boolean);
-                          return names.length ? names.join(", ") : (exam.class_name || "—");
-                        })()}
-                      </TableCell>
-                      <TableCell>{exam.subject_name}</TableCell>
-                      <TableCell><EthiopianDate date={exam.date} /></TableCell>
-                      <TableCell>{exam.total_marks || "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setSelectedExam(selectedExam?.id === exam.id ? null : exam)}>
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                          {!isTeacher && (
-                            <Button variant="ghost" size="icon" onClick={() => deleteExam.mutate(exam.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto -mx-px">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("Name")}</TableHead>
+                      <TableHead>{t("Type")}</TableHead>
+                      <TableHead>{t("Class")}</TableHead>
+                      <TableHead>{t("Subject")}</TableHead>
+                      <TableHead>{t("Date")}</TableHead>
+                      <TableHead>{t("Marks")}</TableHead>
+                      <TableHead>{t("Approval")}</TableHead>
+                      <TableHead className="w-28"></TableHead>
                     </TableRow>
-                  ))}
-                  {exams.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No exams yet</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((exam) => {
+                      const aggregate = aggregateStatus(resultsByExam[exam.id]);
+                      const ty = typeMap[exam.type];
+                      return (
+                        <TableRow key={exam.id} className={exam.archived_at ? "opacity-60" : undefined}>
+                          <TableCell className="font-medium">
+                            {exam.name}
+                            {exam.archived_at && <Badge variant="outline" className="ml-2 text-[10px]">{t("Archived")}</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{ty?.name || exam.type}</Badge>
+                          </TableCell>
+                          <TableCell>{classNames(exam)}</TableCell>
+                          <TableCell>{exam.subject_name}</TableCell>
+                          <TableCell><EthiopianDate date={exam.date} /></TableCell>
+                          <TableCell>
+                            <span className="text-sm">{exam.total_marks ?? "—"}</span>
+                            {exam.pass_marks != null && (
+                              <span className="block text-[11px] text-muted-foreground">{t("pass")} {exam.pass_marks}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={sev(statusSeverity(aggregate)).badge}>
+                              {t(STATUS_LABEL[aggregate] || aggregate)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t("Enter grades")}
+                                onClick={() => setSelectedExamId(selectedExam?.id === exam.id ? null : exam.id)}
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              {(isAdmin || isTeacher) && !exam.archived_at && (
+                                <Button variant="ghost" size="icon" title={t("Edit exam")} onClick={() => setEditExam(exam)}>
+                                  <Settings2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {isOwner && (
+                                <Button variant="ghost" size="icon" title={t("Archive or delete")} onClick={() => setDeleteExam(exam)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {filtered.length === 0 && (
+                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("No exams found")}</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
               {meta.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</p>
+                  <p className="text-sm text-muted-foreground">{t("Page")} {meta.page} {t("of")} {meta.totalPages}</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("Previous")}</Button>
+                    <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>{t("Next")}</Button>
                   </div>
                 </div>
               )}
@@ -393,11 +293,59 @@ export default function ExamsPage() {
 
       {selectedExam && (
         <Card>
-          <CardContent className="pt-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              {selectedExam.name}
+              {selectedSections?.data?.length > 1 && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {selectedSections.data.length} {t("sections")}
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <GradeEntry exam={selectedExam} />
           </CardContent>
         </Card>
       )}
+
+      <ExamDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        types={types}
+        allClasses={allClasses}
+        subjects={allSubjects}
+        assignments={assignments}
+        isTeacher={isTeacher}
+        mode={mode}
+        scheme={scheme}
+        onSubmit={handleCreate}
+        saving={createExam.isPending}
+      />
+
+      <ExamDialog
+        open={!!editExam}
+        onOpenChange={(o) => !o && setEditExam(null)}
+        exam={editExam}
+        types={types}
+        allClasses={allClasses}
+        subjects={allSubjects}
+        assignments={assignments}
+        isTeacher={isTeacher}
+        mode={mode}
+        scheme={scheme}
+        onSubmit={handleUpdate}
+        saving={updateExam.isPending}
+      />
+
+      <AssessmentTypesDialog open={typesOpen} onOpenChange={setTypesOpen} />
+      <EditRequestsDialog open={requestsOpen} onOpenChange={setRequestsOpen} />
+      <DeleteExamDialog
+        open={!!deleteExam}
+        onOpenChange={(o) => !o && setDeleteExam(null)}
+        exam={deleteExam}
+        onDone={() => setDeleteExam(null)}
+      />
     </div>
   );
 }

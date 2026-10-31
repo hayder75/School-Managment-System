@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Save, Languages, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCalendarStore } from "../store/calendar";
+import { TermSchemeSettings, ApprovalRulesSettings } from "../components/settings/TermSchemeSettings";
 
 export default function SettingsPage() {
   const { data, isLoading } = useSettings();
@@ -194,6 +195,8 @@ export default function SettingsPage() {
 
         <TabsContent value="grading" className="space-y-4">
           <GradingSettings settings={settings} onSave={(kv) => updateSettings.mutateAsync(kv)} saving={updateSettings.isPending} />
+          <TermSchemeSettings />
+          <ApprovalRulesSettings />
         </TabsContent>
         <TabsContent value="language" className="space-y-4">
           <Card>

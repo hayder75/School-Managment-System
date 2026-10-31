@@ -334,30 +334,56 @@ async function shifts(tenantId, f) {
 
 async function teacherReport(tenantId, f, userId) {
   const { s, e } = resolveRange(f);
+  const classFilter = String(f.class_id || '')
+    .split(',').map((v) => v.trim()).filter(Boolean);
+  const typeFilter = String(f.type || f.types || '')
+    .split(',').map((v) => v.trim()).filter(Boolean);
+
   const [classes, subjects, teacherClassIds] = await Promise.all([
     db('teacher_subjects').where({ teacher_id: userId }).countDistinct('class_id as c').first(),
     db('teacher_subjects').where({ teacher_id: userId }).countDistinct('subject_id as c').first(),
     db('teacher_subjects').where({ teacher_id: userId }).distinct('class_id').pluck('class_id'),
   ]);
+  const scopedClassIds = classFilter.length
+    ? teacherClassIds.filter((c) => classFilter.includes(c))
+    : teacherClassIds;
+
   const attQuery = db('attendance')
     .join('students', 'attendance.student_id', 'students.id')
     .where({ 'attendance.tenant_id': tenantId })
     .whereBetween('attendance.date', [s, e])
     .select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p"))
     .select(db.raw('count(*) as t'));
-  if (teacherClassIds.length) attQuery.whereIn('students.class_id', teacherClassIds);
+  if (scopedClassIds.length) attQuery.whereIn('students.class_id', scopedClassIds);
   else attQuery.whereRaw('false');
+
+  const gradesQuery = db('grades as g')
+    .join('exams as ex', 'g.exam_id', 'ex.id')
+    .join('teacher_subjects as ts', function () { this.on('ts.class_id', '=', 'ex.class_id').andOn('ts.subject_id', '=', 'ex.subject_id'); })
+    .where('ts.teacher_id', userId)
+    .whereBetween('ex.date', [s, e])
+    .whereNotNull('g.marks_obtained')
+    .where('ex.total_marks', '>', 0);
+  if (scopedClassIds.length) gradesQuery.whereIn('ex.class_id', scopedClassIds);
+  if (typeFilter.length) gradesQuery.whereIn('ex.type', typeFilter);
+
   const [bands, att] = await Promise.all([
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').join('teacher_subjects as ts', function () { this.on('ts.class_id', '=', 'ex.class_id').andOn('ts.subject_id', '=', 'ex.subject_id'); }).where('ts.teacher_id', userId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0).select(db.raw("CASE WHEN g.marks_obtained/ex.total_marks>=0.9 THEN 'A' WHEN g.marks_obtained/ex.total_marks>=0.8 THEN 'B' WHEN g.marks_obtained/ex.total_marks>=0.7 THEN 'C' WHEN g.marks_obtained/ex.total_marks>=0.6 THEN 'D' ELSE 'F' END as band")).count('* as c').groupBy('band'),
+    gradesQuery
+      .select(db.raw("CASE WHEN g.marks_obtained/ex.total_marks>=0.9 THEN 'A' WHEN g.marks_obtained/ex.total_marks>=0.8 THEN 'B' WHEN g.marks_obtained/ex.total_marks>=0.7 THEN 'C' WHEN g.marks_obtained/ex.total_marks>=0.6 THEN 'D' ELSE 'F' END as band"))
+      .count('* as c').groupBy('band'),
     attQuery.first(),
   ]);
+
+  const scopeLabel = classFilter.length
+    ? `${scopedClassIds.length} of my classes`
+    : 'my classes';
   return {
     kpis: {
       classes: { label: 'Classes I teach', value: num(classes?.c) },
       subjects: { label: 'Subjects', value: num(subjects?.c) },
-      attendance: { label: 'Attendance (my classes)', value: pct(num(att?.p), num(att?.t)), unit: '%' },
+      attendance: { label: `Attendance (${scopeLabel})`, value: pct(num(att?.p), num(att?.t)), unit: '%' },
     },
-    sections: [{ type: 'donut', title: 'Grade distribution (my classes)', caption: 'results', data: bands.map((r) => ({ label: r.band, value: num(r.c) })) }],
+    sections: [{ type: 'donut', title: `Grade distribution (${scopeLabel})`, caption: 'results', data: bands.map((r) => ({ label: r.band, value: num(r.c) })) }],
     insights: [],
   };
 }

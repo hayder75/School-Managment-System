@@ -17,4 +17,12 @@ const lockGradesSchema = z.object({
   }),
 });
 
-module.exports = { enterGradesSchema, lockGradesSchema };
+const draftSchema = z.object({
+  body: z.object({
+    payload: z.object({
+      marks: z.record(z.string(), z.union([z.number(), z.string(), z.null()])),
+    }).passthrough(),
+  }),
+});
+
+module.exports = { enterGradesSchema, lockGradesSchema, draftSchema };

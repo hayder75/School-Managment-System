@@ -15,6 +15,7 @@ router.get('/overview', requireAccess(OVERVIEW_ROLES, ['reports.view']), control
 const ALL_STAFF = ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'hr', 'finance', 'accountant', 'cashier', 'shift_coordinator', 'security_head', 'general_services', 'teacher', 'student', 'parent', 'support'];
 router.get('/catalog', requireAccess(ALL_STAFF, ['reports.view']), controller.getCatalog);
 router.get('/report/:id', requireAccess(ALL_STAFF, ['reports.view']), controller.getReport);
+router.get('/export/class-results', requireAccess(ALL_STAFF, ['reports.view']), controller.exportClassResults);
 router.get('/export/:id', requireAccess(ALL_STAFF, ['reports.view']), controller.exportExcel);
 router.get('/detail/:id', requireAccess(ALL_STAFF, ['reports.view']), controller.getReportDetail);
 router.get('/export-data/:kind', requireAccess(['admin', 'owner', 'general_manager', 'principal', 'vice_principal'], ['reports.view']), controller.exportData);
@@ -111,6 +112,8 @@ router.get('/my-students', requireAccess(['teacher'], ['reports.view']), control
 router.get('/my-class-summary', requireAccess(['teacher'], ['reports.view']), controller.getTeacherClassSummary);
 router.get('/my-attendance', requireAccess(['teacher'], ['reports.view']), controller.getTeacherAttendanceReport);
 router.get('/my-grades', requireAccess(['teacher'], ['reports.view']), controller.getTeacherGradeReport);
+router.get('/class-results', requireAccess(ALL_STAFF, ['reports.view']), controller.getClassResults);
+router.get('/class-results/export', requireAccess(ALL_STAFF, ['reports.view']), controller.exportClassResults);
 
 // Finance reports
 router.get('/fee-collection', requireAccess(['admin', 'owner', 'finance'], ['reports.view']), controller.getFeeCollection);

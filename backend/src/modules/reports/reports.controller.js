@@ -156,15 +156,92 @@ async function getTeacherClassSummary(req, res) {
 }
 
 async function getTeacherAttendanceReport(req, res) {
-  const { from_date, to_date } = req.query;
-  const report = await reportService.getTeacherAttendanceReport(req.tenant.id, req.user.userId, { from_date, to_date });
+  const { from_date, to_date, class_id } = req.query;
+  const wanted = toArray(class_id);
+  if (wanted.length) {
+    const classes = await access.teacherClassIds(req.tenant.id, req.user.userId);
+    if (wanted.some((c) => !classes.includes(c))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view attendance for classes you teach' } });
+    }
+  }
+  const report = await reportService.getTeacherAttendanceReport(req.tenant.id, req.user.userId, { from_date, to_date, class_id: wanted });
   res.json({ success: true, data: report });
 }
 
 async function getTeacherGradeReport(req, res) {
-  const { exam_id } = req.query;
-  const report = await reportService.getTeacherGradeReport(req.tenant.id, req.user.userId, { exam_id });
+  const { exam_id, class_id, type } = req.query;
+  const wanted = toArray(class_id);
+  if (wanted.length) {
+    const classes = await access.teacherClassIds(req.tenant.id, req.user.userId);
+    if (wanted.some((c) => !classes.includes(c))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view grades for classes you teach' } });
+    }
+  }
+  const report = await reportService.getTeacherGradeReport(req.tenant.id, req.user.userId, { exam_id, class_id: wanted, type });
   res.json({ success: true, data: report });
+}
+
+function toArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (value === undefined || value === null || value === '') return [];
+  return String(value).split(',').map((v) => v.trim()).filter(Boolean);
+}
+
+
+async function exportClassResults(req, res) {
+  const { subject_id, types, type, term_id, from_date, to_date, exam_id } = req.query;
+  let classIds = toArray(req.query.class_id ?? req.query.class_ids);
+
+  if (req.user.role === 'teacher') {
+    const allowed = await access.teacherClassIds(req.tenant.id, req.user.userId);
+    if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only export results for classes you teach' } });
+    }
+    if (!classIds.length) classIds = allowed;
+  }
+
+  await excelService.streamClassResultsWorkbook(
+    req.tenant.id,
+    {
+      class_id: classIds,
+      subject_id: toArray(subject_id),
+      types: toArray(types ?? type),
+      term_id,
+      from_date,
+      to_date,
+      exam_id,
+    },
+    { role: req.user.role, userId: req.user.userId },
+    res
+  );
+}
+
+async function getClassResults(req, res) {
+  const { subject_id, types, type, term_id, from_date, to_date, exam_id } = req.query;
+  let classIds = toArray(req.query.class_id ?? req.query.class_ids);
+
+  if (req.user.role === 'teacher') {
+    const allowed = await access.teacherClassIds(req.tenant.id, req.user.userId);
+    if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view results for classes you teach' } });
+    }
+    if (!classIds.length) classIds = allowed;
+  }
+
+  const data = await reportService.getClassResults(
+    req.tenant.id,
+    {
+      class_id: classIds,
+      subject_id: toArray(subject_id),
+      types: toArray(types ?? type),
+      term_id,
+      from_date,
+      to_date,
+      exam_id,
+    },
+    { role: req.user.role, userId: req.user.userId }
+  );
+  res.json({ success: true, data });
 }
 
 async function getFeeCollection(req, res) {
@@ -244,6 +321,7 @@ module.exports = {
   getStudentReport, getClassReport, getEnrollmentReport,
   getGradeDistribution, getClassPerformance, getAttendanceOverview, getTeacherWorkload,
   getTeacherClassStudents, getTeacherClassSummary, getTeacherAttendanceReport, getTeacherGradeReport,
+  getClassResults, exportClassResults,
   getFeeCollection, getOutstandingBalances, getRevenueVsExpenses,
   getStaffDirectory, getPayrollSummary, getHeadcount,
   getStudentGradeSummary, getStudentAttendanceSummary,

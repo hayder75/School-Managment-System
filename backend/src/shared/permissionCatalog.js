@@ -34,6 +34,8 @@ const PERMISSIONS = [
   { key: 'academics.manage', label: 'Manage Academic Setup', description: 'Manage academic years, terms and rollovers' },
   { key: 'quality.submit', label: 'Submit Academic Content', description: 'Upload draft tests, lesson plans and notes for review' },
   { key: 'quality.review', label: 'Review & Approve Content', description: 'Score content against rubric and approve/reject' },
+  { key: 'results.submit', label: 'Submit Results for Approval', description: 'Send entered marks to quality assurance for approval' },
+  { key: 'results.review', label: 'Review & Approve Results', description: 'Approve or send back exam results submitted by teachers' },
   { key: 'shifts.manage', label: 'Manage Shift & Duty Roster', description: 'Schedule substitutions, guard shifts, duty rotas' },
   { key: 'guard-roster.view', label: 'View Guard Shift Roster', description: 'View daily security guard shifts' },
   { key: 'leave.view', label: 'View Staff Leaves', description: 'View approved leaves for planning' },
@@ -53,7 +55,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   teacher: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage',
     'grades.manage', 'timetable.view', 'announcements.view', 'chat.access',
-    'quality.submit', 'leave.view',
+    'quality.submit', 'results.submit', 'leave.view',
   ],
   student: ['dashboard.view', 'timetable.view', 'announcements.view'],
   parent: ['dashboard.view', 'timetable.view', 'announcements.view', 'chat.access'],
@@ -79,17 +81,17 @@ const DEFAULT_ROLE_PERMISSIONS = {
   principal: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
     'timetable.view', 'reports.view', 'announcements.view', 'announcements.manage', 'chat.access',
-    'quality.review', 'discipline.manage', 'leave.view', 'staff-attendance.manage',
+    'quality.review', 'results.review', 'discipline.manage', 'leave.view', 'staff-attendance.manage',
   ],
   vice_principal: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
     'timetable.view', 'reports.view', 'announcements.view', 'chat.access',
-    'quality.review', 'discipline.manage', 'leave.view', 'staff-attendance.manage',
+    'quality.review', 'results.review', 'discipline.manage', 'leave.view', 'staff-attendance.manage',
   ],
   quality_director: [
     'dashboard.view', 'students.view', 'attendance.manage', 'exams.manage', 'grades.manage',
     'timetable.view', 'timetable.manage', 'reports.view', 'announcements.view', 'chat.access',
-    'quality.review', 'leave.view', 'staff-attendance.manage',
+    'quality.review', 'results.review', 'leave.view', 'staff-attendance.manage',
   ],
   general_services: [
     'dashboard.view', 'operations.manage', 'expenses.manage', 'announcements.view', 'chat.access',

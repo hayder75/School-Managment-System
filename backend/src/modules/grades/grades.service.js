@@ -1,18 +1,33 @@
 const db = require('../../config/database');
 const broadcast = require('../../socket/broadcast');
 const logger = require('../../config/logger');
+const grading = require('../../shared/grading');
+const editRequests = require('../edit-requests/edit-requests.service');
 
-function computeGradeLetter(marks, total) {
+function computeGradeLetter(marks, total, scale) {
   if (marks == null || total == null || Number(total) <= 0) return null;
-  const ratio = Number(marks) / Number(total);
-  if (ratio >= 0.9) return 'A';
-  if (ratio >= 0.8) return 'B';
-  if (ratio >= 0.7) return 'C';
-  if (ratio >= 0.6) return 'D';
-  return 'F';
+  const percent = (Number(marks) / Number(total)) * 100;
+  const activeScale = Array.isArray(scale) && scale.length ? scale : grading.DEFAULT_SCALE;
+  return grading.letterFor(activeScale, percent);
 }
 
-async function upsertGrades(tenantId, examId, grades, userId) {
+function examClassIds(exam) {
+  const ids = Array.isArray(exam.class_ids) ? exam.class_ids.filter(Boolean) : [];
+  if (ids.length) return ids;
+  return exam.class_id ? [exam.class_id] : [];
+}
+
+async function submissionMap(tenantId, examId) {
+  const rows = await db('result_submissions').where({ tenant_id: tenantId, exam_id: examId });
+  return Object.fromEntries(rows.map((r) => [r.class_id, r]));
+}
+
+function isLockedStatus(status) {
+  return ['submitted', 'approved'].includes(status);
+}
+
+async function upsertGrades(tenantId, examId, grades, userId, options = {}) {
+  const { role = 'teacher' } = options;
   const exam = await db('exams').where({ tenant_id: tenantId, id: examId }).first();
   if (!exam) {
     const err = new Error('EXAM_NOT_FOUND');
@@ -20,7 +35,13 @@ async function upsertGrades(tenantId, examId, grades, userId) {
     throw err;
   }
 
-  if (exam.locked_by) {
+  if (exam.archived_at) {
+    const err = new Error('EXAM_ARCHIVED');
+    err.code = 'EXAM_ARCHIVED';
+    throw err;
+  }
+
+  if (exam.locked_by && !['owner', 'admin'].includes(role)) {
     const err = new Error('EXAM_LOCKED');
     err.code = 'EXAM_LOCKED';
     throw err;
@@ -38,53 +59,105 @@ async function upsertGrades(tenantId, examId, grades, userId) {
     }
   }
 
-  const examClassIds = Array.isArray(exam.class_ids) && exam.class_ids.length
-    ? exam.class_ids.filter(Boolean)
-    : (exam.class_id ? [exam.class_id] : []);
+  const examClasses = examClassIds(exam);
   const classStudents = await db('students')
     .where({ tenant_id: tenantId })
-    .whereIn('class_id', examClassIds)
+    .whereIn('class_id', examClasses)
     .whereIn('user_id', grades.map((g) => g.student_id))
-    .select('user_id');
-  const validStudents = new Set(classStudents.map((s) => s.user_id));
+    .select('user_id', 'class_id');
+  const studentClass = new Map(classStudents.map((s) => [s.user_id, s.class_id]));
 
-  const rows = await db.transaction(async (trx) => {
-    const results = [];
+  const submissions = await submissionMap(tenantId, examId);
+  const { scale } = await grading.getGradingConfig(tenantId);
+  const teacher = ['teacher', 'shift_coordinator'].includes(role);
+  const isAdminOverride = ['owner', 'admin'].includes(role);
+
+  const saved = [];
+  const skipped = [];
+
+  await db.transaction(async (trx) => {
     for (const g of grades) {
-      if (!validStudents.has(g.student_id)) continue;
+      const classId = studentClass.get(g.student_id);
+      if (!classId) {
+        skipped.push({ student_id: g.student_id, reason: 'not_in_class' });
+        continue;
+      }
+
+      const submission = submissions[classId];
+      const status = submission?.status || 'draft';
+
+      if (teacher && isLockedStatus(status)) {
+        const grant = await editRequests.activeGrant(tenantId, examId, classId, g.student_id, userId);
+        if (!grant) {
+          skipped.push({ student_id: g.student_id, reason: 'locked', status });
+          continue;
+        }
+      }
 
       const existing = await trx('grades')
         .where({ tenant_id: tenantId, exam_id: examId, student_id: g.student_id })
         .first();
 
-      if (existing && existing.locked_by) {
+      if (existing && existing.locked_by && !isAdminOverride) {
+        skipped.push({ student_id: g.student_id, reason: 'locked', status });
         continue;
       }
 
+      const newMarks = g.marks_obtained ?? null;
       const data = {
         tenant_id: tenantId,
         exam_id: examId,
         student_id: g.student_id,
-        marks_obtained: g.marks_obtained ?? null,
-        grade_letter: computeGradeLetter(g.marks_obtained, totalMarks) || g.grade_letter || null,
+        marks_obtained: newMarks,
+        grade_letter: computeGradeLetter(newMarks, totalMarks, scale) || g.grade_letter || null,
         remarks: g.remarks || null,
+        updated_by: userId,
         updated_at: db.fn.now(),
       };
 
+      let row;
       if (existing) {
-        const [row] = await trx('grades').where({ id: existing.id }).update(data).returning('*');
-        results.push(row);
+        [row] = await trx('grades').where({ id: existing.id }).update(data).returning('*');
       } else {
-        const [row] = await trx('grades').insert(data).returning('*');
-        results.push(row);
+        [row] = await trx('grades').insert(data).returning('*');
       }
+
+      const oldMarks = existing?.marks_obtained == null ? null : Number(existing.marks_obtained);
+      const nextMarks = newMarks == null ? null : Number(newMarks);
+      if (oldMarks !== nextMarks) {
+        await trx('grade_history').insert({
+          tenant_id: tenantId,
+          grade_id: row.id,
+          exam_id: examId,
+          student_id: g.student_id,
+          old_marks: oldMarks,
+          new_marks: nextMarks,
+          changed_by: userId,
+          note: existing ? 'mark updated' : 'mark entered',
+        });
+      }
+
+      saved.push(row);
     }
-    return results;
+
+    // Keep section counters fresh so QA sees real progress.
+    const counts = await trx('grades')
+      .join('students', 'students.user_id', 'grades.student_id')
+      .where({ 'grades.tenant_id': tenantId, 'grades.exam_id': examId })
+      .whereNotNull('grades.marks_obtained')
+      .select('students.class_id')
+      .count('* as c')
+      .groupBy('students.class_id');
+    for (const row of counts) {
+      await trx('result_submissions')
+        .where({ tenant_id: tenantId, exam_id: examId, class_id: row.class_id })
+        .update({ graded_count: Number(row.c), updated_at: db.fn.now() });
+    }
   });
 
-  await notifyGradesPosted(tenantId, exam, rows);
+  if (saved.length) await notifyGradesPosted(tenantId, exam, saved);
 
-  return rows;
+  return { saved, skipped };
 }
 
 async function notifyGradesPosted(tenantId, exam, rows) {
@@ -119,12 +192,6 @@ async function notifyGradesPosted(tenantId, exam, rows) {
   }
 }
 
-function examClassIds(exam) {
-  const ids = Array.isArray(exam.class_ids) ? exam.class_ids.filter(Boolean) : [];
-  if (ids.length) return ids;
-  return exam.class_id ? [exam.class_id] : [];
-}
-
 async function allowedExamClassIds(tenantId, exam, userId, role) {
   const all = examClassIds(exam);
   if (!all.length) return [];
@@ -155,13 +222,45 @@ async function getExamClasses(tenantId, examId, { userId, role } = {}) {
 
 async function getByExam(tenantId, examId, { classId, userId, role } = {}) {
   const exam = await db('exams').where({ tenant_id: tenantId, id: examId }).first();
-  if (!exam) return [];
+  if (!exam) return { rows: [], status: 'draft' };
 
   const allowed = await allowedExamClassIds(tenantId, exam, userId, role);
-  if (!allowed.length) return [];
+  if (!allowed.length) return { rows: [], status: 'draft' };
   const target = classId && allowed.includes(classId) ? classId : allowed[0];
 
-  return db('students')
+  const submission = await db('result_submissions')
+    .where({ tenant_id: tenantId, exam_id: examId, class_id: target })
+    .first();
+  const status = submission?.status || 'draft';
+
+  // A parent may pass class_id only to disambiguate; they still only see their
+  // own children, never the rest of the class.
+  let childIds = null;
+  if (role === 'parent') {
+    const access = require('../../shared/access');
+    childIds = await access.getChildrenUserIdsForParent(tenantId, userId);
+    if (!childIds.length) return { rows: [], status };
+  }
+
+  let grants = [];
+  if (role === 'teacher' && isLockedStatus(status)) {
+    grants = await db('grade_edit_requests')
+      .where({
+        tenant_id: tenantId,
+        exam_id: examId,
+        class_id: target,
+        requested_by: userId,
+        status: 'approved',
+      })
+      .where(function () {
+        this.whereNull('expires_at').orWhere('expires_at', '>', db.fn.now());
+      })
+      .select('student_id');
+  }
+  const grantAll = grants.some((g) => g.student_id === null);
+  const grantSet = new Set(grants.map((g) => g.student_id).filter(Boolean));
+
+  let query = db('students')
     .where({ 'students.tenant_id': tenantId, 'students.class_id': target })
     .leftJoin('users', 'students.user_id', 'users.id')
     .leftJoin('grades', function () {
@@ -171,6 +270,7 @@ async function getByExam(tenantId, examId, { classId, userId, role } = {}) {
     .select(
       'users.id as student_id',
       'users.first_name',
+      'users.middle_name',
       'users.last_name',
       'users.email',
       'students.student_number',
@@ -179,9 +279,27 @@ async function getByExam(tenantId, examId, { classId, userId, role } = {}) {
       'grades.marks_obtained',
       'grades.grade_letter',
       'grades.remarks',
-      'grades.locked_by'
+      'grades.locked_by',
+      'grades.updated_at'
     )
     .orderBy('users.first_name');
+
+  if (childIds) query = query.whereIn('users.id', childIds);
+
+  const rows = await query;
+
+  const editableFor = (studentId) => {
+    if (!isLockedStatus(status)) return true;
+    if (role !== 'teacher') return ['owner', 'admin'].includes(role);
+    return grantAll || grantSet.has(studentId);
+  };
+
+  return {
+    rows: rows.map((r) => ({ ...r, editable: editableFor(r.student_id) })),
+    status,
+    submission,
+    can_edit: rows.some((r) => editableFor(r.student_id)),
+  };
 }
 
 async function getByStudent(tenantId, studentId, subjectIds) {
@@ -194,9 +312,11 @@ async function getByStudent(tenantId, studentId, subjectIds) {
       'exams.name as exam_name',
       'exams.type as exam_type',
       'exams.total_marks',
+      'exams.pass_marks',
       'exams.date as exam_date',
       'subjects.name as subject_name'
     )
+    .whereNull('exams.archived_at')
     .orderBy('exams.date', 'desc');
 
   if (Array.isArray(subjectIds)) {
@@ -211,19 +331,53 @@ async function lockGrades(tenantId, examId, lock, userId) {
     if (lock) {
       const data = { locked_by: userId, locked_at: db.fn.now() };
       await trx('grades').where({ tenant_id: tenantId, exam_id: examId }).update(data);
-      const existingLock = await trx('exams').where({ tenant_id: tenantId, id: examId }).first();
-      if (existingLock) {
-        await trx('exams').where({ id: existingLock.id }).update({ locked_by: userId, locked_at: db.fn.now() });
-      }
+      await trx('exams').where({ tenant_id: tenantId, id: examId }).update({ locked_by: userId, locked_at: db.fn.now() });
+      await trx('result_submissions')
+        .where({ tenant_id: tenantId, exam_id: examId })
+        .whereIn('status', ['draft', 'submitted', 'returned'])
+        .update({ status: 'approved', reviewed_by: userId, reviewed_at: db.fn.now() });
     } else {
       await trx('grades').where({ tenant_id: tenantId, exam_id: examId }).update({ locked_by: null, locked_at: null });
-      const existingLock = await trx('exams').where({ tenant_id: tenantId, id: examId }).first();
-      if (existingLock) {
-        await trx('exams').where({ id: existingLock.id }).update({ locked_by: null, locked_at: null });
-      }
+      await trx('exams').where({ tenant_id: tenantId, id: examId }).update({ locked_by: null, locked_at: null });
+      await trx('result_submissions')
+        .where({ tenant_id: tenantId, exam_id: examId })
+        .whereIn('status', ['approved', 'submitted'])
+        .update({ status: 'returned', reviewed_by: userId, reviewed_at: db.fn.now() });
     }
   });
   return { locked: lock };
 }
 
-module.exports = { upsertGrades, getByExam, getExamClasses, getByStudent, lockGrades, computeGradeLetter };
+async function saveDraft(tenantId, examId, classId, teacherId, payload) {
+  const [row] = await db('grade_drafts')
+    .insert({
+      tenant_id: tenantId,
+      exam_id: examId,
+      class_id: classId,
+      teacher_id: teacherId,
+      payload: JSON.stringify(payload || {}),
+      updated_at: db.fn.now(),
+    })
+    .onConflict(['tenant_id', 'exam_id', 'class_id', 'teacher_id'])
+    .merge({ payload: JSON.stringify(payload || {}), updated_at: db.fn.now() })
+    .returning('*');
+  return row;
+}
+
+async function getDraft(tenantId, examId, classId, teacherId) {
+  return db('grade_drafts')
+    .where({ tenant_id: tenantId, exam_id: examId, class_id: classId, teacher_id: teacherId })
+    .first();
+}
+
+async function clearDraft(tenantId, examId, classId, teacherId) {
+  return db('grade_drafts')
+    .where({ tenant_id: tenantId, exam_id: examId, class_id: classId, teacher_id: teacherId })
+    .del();
+}
+
+module.exports = {
+  upsertGrades, getByExam, getExamClasses, getByStudent, lockGrades,
+  computeGradeLetter, examClassIds, isLockedStatus,
+  saveDraft, getDraft, clearDraft,
+};

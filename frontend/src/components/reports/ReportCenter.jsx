@@ -9,6 +9,11 @@ import { Label } from "../ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Download, FileText, FileSpreadsheet, Share2, Link2, Trash2, Printer } from "lucide-react";
+import { useAuthStore } from "../../store/auth";
+import { useClasses } from "../../hooks/useClasses";
+import { useTeacherAssignments } from "../../hooks/useTeachers";
+import { useAssessmentTypes } from "../../hooks/useExams";
+import Chips from "../ui/chips";
 import { useI18n } from "../../i18n/I18nContext";
 
 function isoDaysAgo(n) {
@@ -48,11 +53,30 @@ export default function ReportCenter() {
   const [shareOpen, setShareOpen] = useState(false);
   const [linksOpen, setLinksOpen] = useState(false);
 
+  const user = useAuthStore((s) => s.user);
+  const isTeacher = user?.role === "teacher";
+  const { data: classesData } = useClasses({ limit: 200 });
+  const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
+  const { data: typeData } = useAssessmentTypes();
+  const [classIds, setClassIds] = useState([]);
+  const [examType, setExamType] = useState("all");
+
+  const assigned = new Set((assignmentsData?.data || []).map((a) => a.class_id));
+  const teacherClasses = (classesData?.data || []).filter((c) => assigned.has(c.id));
+  const types = typeData?.data || [];
+
   useEffect(() => {
     if (!selected && catalog.length) setSelected(catalog[0].id);
   }, [catalog, selected]);
 
-  const report = useReport(selected, from || to ? { from, to } : {});
+  const filters = useMemo(() => ({
+    from,
+    to,
+    ...(isTeacher && classIds.length ? { class_id: classIds.join(",") } : {}),
+    ...(isTeacher && examType !== "all" ? { type: examType } : {}),
+  }), [from, to, isTeacher, classIds, examType]);
+
+  const report = useReport(selected, filters);
   const payload = report.data?.data;
 
   const grouped = useMemo(() => {
@@ -107,18 +131,43 @@ export default function ReportCenter() {
           <Label className="text-xs">{t("To")}</Label>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
         </div>
+        {isTeacher && (
+          <div className="space-y-1">
+            <Label className="text-xs">{t("Assessment type")}</Label>
+            <select
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              value={examType}
+              onChange={(e) => setExamType(e.target.value)}
+            >
+              <option value="all">{t("All types")}</option>
+              {types.map((ty) => <option key={ty.code} value={ty.code}>{ty.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="flex-1" />
         <Button variant="ghost" onClick={() => setLinksOpen(true)}><Link2 className="h-4 w-4 mr-1" />{t("Shared links")}</Button>
         <Button variant="outline" onClick={exportCsv} disabled={!payload}><FileText className="h-4 w-4 mr-1" />{t("CSV")}</Button>
-        <Button variant="outline" onClick={() => window.open(`/api/reports/export/${selected}?from=${from}&to=${to}`, "_blank")} disabled={!payload}>
+        <Button variant="outline" onClick={() => window.open(`/api/reports/export/${selected}?${new URLSearchParams(filters).toString()}`, "_blank")} disabled={!payload}>
           <FileSpreadsheet className="h-4 w-4 mr-1" />{t("Excel")}
         </Button>
         <Button variant="outline" onClick={() => window.print()} disabled={!payload}><Printer className="h-4 w-4 mr-1" />{t("Print")}</Button>
-        <Button variant="outline" onClick={() => window.open(`/api/pdf/report/${selected}?from=${from}&to=${to}`, "_blank")}>
+        <Button variant="outline" onClick={() => window.open(`/api/pdf/report/${selected}?${new URLSearchParams(filters).toString()}`, "_blank")}>
           <Download className="h-4 w-4 mr-1" />{t("PDF")}
         </Button>
         <Button onClick={() => setShareOpen(true)} disabled={!payload}><Share2 className="h-4 w-4 mr-1" />{t("Share")}</Button>
       </div>
+
+      {isTeacher && (
+        <div className="no-print space-y-1">
+          <Label className="text-xs">{t("Classes (empty = all my classes)")}</Label>
+          <Chips
+            options={teacherClasses.map((c) => ({ value: c.id, label: c.name }))}
+            value={classIds}
+            onChange={setClassIds}
+            emptyLabel={t("No classes assigned to you")}
+          />
+        </div>
+      )}
 
       {report.isLoading ? (
         <p className="text-muted-foreground py-10 text-center">{t("Loading...")}</p>
@@ -137,7 +186,7 @@ export default function ReportCenter() {
         onOpenChange={setShareOpen}
         reportId={selected}
         title={payload?.title || selected}
-        filters={{ from, to }}
+        filters={filters}
       />
 
       <SharedLinksDialog open={linksOpen} onOpenChange={setLinksOpen} />
