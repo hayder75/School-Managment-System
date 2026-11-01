@@ -175,6 +175,12 @@ export default function ExamsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("Search exams...")}
+                name="exam-search"
+                autoComplete="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
                 className="pl-9 w-full sm:w-56"
               />
             </div>

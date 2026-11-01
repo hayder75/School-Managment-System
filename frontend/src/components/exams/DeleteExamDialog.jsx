@@ -13,11 +13,13 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
   const restore = useRestoreExam();
   const remove = useDeleteExam();
   const [password, setPassword] = useState("");
+  const [pwReady, setPwReady] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
       setPassword("");
+      setPwReady(false);
       setError("");
     }
   }, [open]);
@@ -102,11 +104,21 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
                 <Input
                   className="mt-2 h-8"
                   type="password"
-                  autoComplete="current-password"
+                  name="exam-delete-password"
+                  autoComplete="new-password"
+                  spellCheck={false}
+                  readOnly={!pwReady}
+                  onFocus={() => setPwReady(true)}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
                   placeholder={t("Your password")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  {t("Your browser may offer a saved login — ignore it and type your password.")}
+                </p>
                 <Button
                   variant="destructive"
                   size="sm"
