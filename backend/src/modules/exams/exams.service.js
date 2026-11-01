@@ -423,7 +423,10 @@ async function remove(tenantId, id, { force = false } = {}) {
 
   if (force) {
     await db.transaction(async (trx) => {
-      await trx('result_review_comments').where({ tenant_id: tenantId, submission_id: trx('result_submissions').where({ tenant_id: tenantId, exam_id: id }).select('id') }).del();
+      await trx('result_review_comments')
+        .where({ tenant_id: tenantId })
+        .whereIn('submission_id', trx('result_submissions').where({ tenant_id: tenantId, exam_id: id }).select('id'))
+        .del();
       await trx('result_submissions').where({ tenant_id: tenantId, exam_id: id }).del();
       await trx('grade_edit_requests').where({ tenant_id: tenantId, exam_id: id }).del();
       await trx('grade_history').where({ tenant_id: tenantId, exam_id: id }).del();

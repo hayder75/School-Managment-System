@@ -32,7 +32,7 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
       onDone?.();
       onOpenChange(false);
     } catch (err) {
-      setError(err?.response?.data?.error?.message || "Could not archive");
+      setError(err?.response?.data?.error?.message || err?.message || "Could not archive");
     }
   }
 
@@ -43,7 +43,7 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
       onDone?.();
       onOpenChange(false);
     } catch (err) {
-      setError(err?.response?.data?.error?.message || "Could not restore");
+      setError(err?.response?.data?.error?.message || err?.message || "Could not restore");
     }
   }
 
@@ -54,7 +54,7 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
       onDone?.();
       onOpenChange(false);
     } catch (err) {
-      setError(err?.response?.data?.error?.message || "Could not delete");
+      setError(err?.response?.data?.error?.message || err?.message || "Could not delete");
     }
   }
 
