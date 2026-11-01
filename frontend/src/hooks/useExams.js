@@ -35,7 +35,10 @@ export function useUpdateExam() {
 export function useDeleteExam() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, force }) => api.delete(`/exams/${id}`, { params: force ? { force: true } : {} }),
+    mutationFn: ({ id, force, password }) => api.delete(`/exams/${id}`, {
+      params: force ? { force: true } : {},
+      data: { password },
+    }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["exams"] }),
   });
 }

@@ -12,12 +12,12 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
   const archive = useArchiveExam();
   const restore = useRestoreExam();
   const remove = useDeleteExam();
-  const [confirmText, setConfirmText] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
-      setConfirmText("");
+      setPassword("");
       setError("");
     }
   }, [open]);
@@ -50,7 +50,7 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
   async function handleDelete() {
     setError("");
     try {
-      await remove.mutateAsync({ id: exam.id, force: true });
+      await remove.mutateAsync({ id: exam.id, force: true, password });
       onDone?.();
       onOpenChange(false);
     } catch (err) {
@@ -96,18 +96,23 @@ export default function DeleteExamDialog({ open, onOpenChange, exam, onDone }) {
                 <p className="mt-1 text-xs">
                   {t("This deletes the exam, its grades, approval history and edit requests. The audit log keeps a record of who deleted it. This cannot be undone.")}
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("Enter your account password to confirm. This is checked again on the server.")}
+                </p>
                 <Input
                   className="mt-2 h-8"
-                  placeholder={t("Type the exam name to confirm")}
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder={t("Your password")}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
                 <Button
                   variant="destructive"
                   size="sm"
                   className="mt-2"
                   onClick={handleDelete}
-                  disabled={remove.isPending || confirmText.trim() !== exam.name}
+                  disabled={remove.isPending || password.length === 0}
                 >
                   <Trash2 className="h-4 w-4 mr-1" /> {remove.isPending ? t("Deleting...") : t("Delete permanently")}
                 </Button>

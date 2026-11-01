@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const examService = require('./exams.service');
 const access = require('../../shared/access');
 const audit = require('../../shared/audit');
@@ -182,17 +183,78 @@ async function restore(req, res) {
   res.json({ success: true, data: exam });
 }
 
+// Re-authentication for destructive actions: 5 wrong passwords per 10 min.
+// The counter lives in audit_logs so it works across pm2 cluster workers.
+const MAX_ATTEMPTS = 5;
+
+async function tooManyAttempts(req) {
+  const row = await db('audit_logs')
+    .where({
+      tenant_id: req.tenant.id,
+      user_id: req.user.userId,
+      action: 'delete_denied',
+      entity_type: 'exam',
+    })
+    .where('created_at', '>=', db.raw("now() - interval '10 minutes'"))
+    .count('* as c')
+    .first();
+  return Number(row?.c || 0) >= MAX_ATTEMPTS;
+}
+
+async function verifyPassword(req) {
+  const password = String(req.body?.password || '');
+  if (!password) {
+    const err = new Error('PASSWORD_REQUIRED');
+    err.code = 'PASSWORD_REQUIRED';
+    throw err;
+  }
+  const user = await db('users')
+    .where({ tenant_id: req.tenant.id, id: req.user.userId })
+    .first();
+  if (!user?.password_hash) {
+    const err = new Error('PASSWORD_NOT_SET');
+    err.code = 'PASSWORD_NOT_SET';
+    throw err;
+  }
+  const ok = await bcrypt.compare(password, user.password_hash);
+  if (!ok) {
+    const err = new Error('INVALID_PASSWORD');
+    err.code = 'INVALID_PASSWORD';
+    throw err;
+  }
+  return true;
+}
+
 async function remove(req, res) {
   if (req.user.role !== 'owner') {
     return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only the owner can delete an exam' } });
   }
+  if (await tooManyAttempts(req)) {
+    return res.status(429).json({ success: false, error: { code: 'TOO_MANY_ATTEMPTS', message: 'Too many wrong passwords. Try again in a few minutes.' } });
+  }
   const before = await examService.findById(req.tenant.id, req.params.id);
   if (!before) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Exam not found' } });
+
+  try {
+    await verifyPassword(req);
+  } catch (err) {
+    if (err.code === 'PASSWORD_REQUIRED') {
+      return res.status(400).json({ success: false, error: { code: err.code, message: 'Enter your password to confirm the delete' } });
+    }
+    if (err.code === 'PASSWORD_NOT_SET') {
+      return res.status(400).json({ success: false, error: { code: err.code, message: 'Your account has no password set. Set one in your profile first.' } });
+    }
+    if (err.code === 'INVALID_PASSWORD') {
+      await audit.record(req, 'delete_denied', 'exam', req.params.id, null, { reason: 'invalid_password' });
+      return res.status(403).json({ success: false, error: { code: err.code, message: 'Incorrect password' } });
+    }
+    throw err;
+  }
 
   const force = req.query.force === 'true';
   try {
     const result = await examService.remove(req.tenant.id, req.params.id, { force });
-    await audit.record(req, force ? 'delete' : 'delete', 'exam', req.params.id, before, { force, result });
+    await audit.record(req, 'delete', 'exam', req.params.id, before, { force, result, password_verified: true });
     res.json({ success: true, data: result === undefined ? null : result });
   } catch (err) {
     if (err.code === 'EXAM_HAS_GRADES') {
