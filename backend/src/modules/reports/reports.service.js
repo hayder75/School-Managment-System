@@ -1018,6 +1018,80 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
 
   // Per-exam statistics (item/analysis level data needs question-level storage,
   // which the system does not have yet — this is exam-level analysis).
+  // ── Per test, per class ──
+  // This is the exact list a teacher needs: "Test 1 in Grade 2 A, out of 10 —
+  // what did each student get?" One block per (exam × class).
+  const examBreakdown = [];
+  for (const e of exams) {
+    const total = Number(e.total_marks || 0);
+    const pass = Number(e.pass_marks || 0);
+    const examClasses = gradeSvc.examClassIds(e).filter((cid) => classIds.includes(cid));
+    for (const cid of examClasses) {
+      const classStudents = students.filter((s) => s.class_id === cid);
+      const rows = classStudents.map((st) => {
+        const g = marksByStudent.get(st.student_id)?.[e.id];
+        const marks = g?.marks_obtained != null ? Number(g.marks_obtained) : null;
+        const pct = percent(marks, total);
+        return {
+          student_id: st.student_id,
+          first_name: st.first_name,
+          middle_name: st.middle_name,
+          last_name: st.last_name,
+          student_number: st.student_number,
+          marks,
+          percent: pct,
+          grade_letter: pct == null ? null : grading.letterFor(scale, pct),
+          passed: marks == null ? null : marks >= pass,
+          exceeded: marks != null && total > 0 && marks > total,
+        };
+      });
+      rows.sort((a, b) => {
+        if (a.marks == null && b.marks == null) return 0;
+        if (a.marks == null) return 1;
+        if (b.marks == null) return -1;
+        return b.marks - a.marks;
+      });
+      let rank = 0;
+      let last = null;
+      rows.forEach((r, i) => {
+        if (r.marks == null) { r.rank = null; return; }
+        if (r.marks !== last) { rank = i + 1; last = r.marks; }
+        r.rank = rank;
+      });
+
+      const values = rows.filter((r) => r.marks != null).map((r) => r.marks);
+      const sat = values.length;
+      examBreakdown.push({
+        exam_id: e.id,
+        exam_name: e.name,
+        exam_type: e.type,
+        date: e.date,
+        subject_id: e.subject_id,
+        subject_name: e.subject_name,
+        class_id: cid,
+        class_name: classStudents[0]?.class_name || null,
+        total_marks: total,
+        pass_marks: pass,
+        students: rows,
+        stats: {
+          total_students: rows.length,
+          sat,
+          missing: rows.length - sat,
+          average: sat ? Math.round((values.reduce((s, v) => s + v, 0) / sat) * 10) / 10 : null,
+          average_percent: sat && total > 0
+            ? Math.round((values.reduce((s, v) => s + v, 0) / sat / total) * 1000) / 10
+            : null,
+          highest: sat ? Math.max(...values) : null,
+          lowest: sat ? Math.min(...values) : null,
+          passed: sat ? values.filter((v) => v >= pass).length : 0,
+          failed: sat ? values.filter((v) => v < pass).length : 0,
+          pass_rate: sat ? Math.round((values.filter((v) => v >= pass).length / sat) * 100) : null,
+        },
+      });
+    }
+  }
+
+  // Per-exam roll-up (kept for the summary table).
   const examAnalysis = exams.map((e) => {
     const values = gradeRows
       .filter((g) => g.exam_id === e.id && g.marks_obtained != null)
@@ -1083,6 +1157,7 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
     })),
     subjects,
     exam_analysis: examAnalysis,
+    exam_breakdown: examBreakdown,
     overall,
     scheme,
     pass_pct: passPct,

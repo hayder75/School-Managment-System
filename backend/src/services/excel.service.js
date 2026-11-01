@@ -536,7 +536,7 @@ async function classResultsSheets(tenantId, filters = {}, viewer = {}) {
   const classNames = [...new Set((data.students || []).map((s) => s.class_name).filter(Boolean))];
 
   const sheets = [];
-  const usedNames = new Set(['Cover', 'Exam matrix', 'Exam analysis', 'Overall']);
+  const usedNames = new Set(['Cover', 'Exam matrix', 'Exam analysis', 'Marks by test', 'Overall']);
 
   // Cover
   sheets.push({
@@ -613,6 +613,7 @@ async function classResultsSheets(tenantId, filters = {}, viewer = {}) {
     columns: [
       { header: 'Exam', key: 'name', width: 28 },
       { header: 'Type', key: 'type', width: 12 },
+      { header: 'Class', key: 'class_name', width: 16 },
       { header: 'Subject', key: 'subject_name', width: 18 },
       { header: 'Date', key: 'date', width: 12 },
       { header: 'Total', key: 'total_marks', width: 8 },
@@ -627,6 +628,7 @@ async function classResultsSheets(tenantId, filters = {}, viewer = {}) {
     rows: (data.exam_analysis || []).map((e) => ({
       name: e.name,
       type: e.type,
+      class_name: e.class_name || '',
       subject_name: e.subject_name || '',
       date: fmtDate(e.date),
       total_marks: e.total_marks ?? '',
@@ -638,6 +640,49 @@ async function classResultsSheets(tenantId, filters = {}, viewer = {}) {
       lowest: e.lowest ?? '',
       pass_rate: e.pass_rate ?? '',
     })),
+  });
+
+  // Per test, per class — every student's mark for every assessment
+  const testRows = [];
+  for (const block of data.exam_breakdown || []) {
+    for (const st of block.students || []) {
+      testRows.push({
+        class_name: block.class_name || '',
+        exam_name: block.exam_name,
+        exam_type: block.exam_type,
+        subject_name: block.subject_name || '',
+        date: fmtDate(block.date),
+        student_name: fullNameRow(st),
+        student_number: st.student_number || '',
+        marks: st.marks ?? '',
+        total_marks: block.total_marks ?? '',
+        percent: st.percent ?? '',
+        grade_letter: st.grade_letter || '',
+        rank: st.rank ?? '',
+        result: st.marks == null ? '' : st.passed ? 'PASS' : 'FAIL',
+      });
+    }
+  }
+  sheets.push({
+    name: 'Marks by test',
+    columns: [
+      { header: 'Class', key: 'class_name', width: 16 },
+      { header: 'Test', key: 'exam_name', width: 28 },
+      { header: 'Type', key: 'exam_type', width: 12 },
+      { header: 'Subject', key: 'subject_name', width: 18 },
+      { header: 'Date', key: 'date', width: 12 },
+      { header: 'Student', key: 'student_name', width: 28 },
+      { header: 'Student ID', key: 'student_number', width: 14 },
+      { header: 'Mark', key: 'marks', width: 8 },
+      { header: 'Out of', key: 'total_marks', width: 8 },
+      { header: '%', key: 'percent', width: 8 },
+      { header: 'Grade', key: 'grade_letter', width: 8 },
+      { header: 'Rank', key: 'rank', width: 8 },
+      { header: 'Result', key: 'result', width: 10 },
+    ],
+    rows: testRows,
+    colorByPercent: true,
+    passPct,
   });
 
   // Overall per student

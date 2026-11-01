@@ -34,6 +34,7 @@ export default function ClassResultsReport({ scopedClasses = [], isTeacher = fal
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [run, setRun] = useState(false);
   const [subjectTab, setSubjectTab] = useState("all");
+  const [view, setView] = useState("byTest");
 
   const params = useMemo(() => ({
     ...(classIds.length ? { class_id: classIds.join(",") } : {}),
@@ -155,6 +156,12 @@ export default function ClassResultsReport({ scopedClasses = [], isTeacher = fal
             <Card><CardContent className="pt-4"><p className={`text-2xl font-bold ${sev(percentSeverity(kpis.pass_rate, { warn: 60, good: 85 })).text}`}>{kpis.pass_rate ?? "—"}{kpis.pass_rate != null ? "%" : ""}</p><p className="text-xs text-muted-foreground">{t("Pass rate")}</p></CardContent></Card>
           </div>
 
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={view === "byTest" ? "default" : "outline"} onClick={() => setView("byTest")}>{t("By test")}</Button>
+            <Button size="sm" variant={view === "byStudent" ? "default" : "outline"} onClick={() => setView("byStudent")}>{t("By student")}</Button>
+          </div>
+
+          {view === "byStudent" && (<>
           {subjects.length > 1 && (
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant={subjectTab === "all" ? "default" : "outline"} onClick={() => setSubjectTab("all")}>{t("All subjects")}</Button>
@@ -236,6 +243,75 @@ export default function ClassResultsReport({ scopedClasses = [], isTeacher = fal
               </CardContent>
             </Card>
           ))}
+          </>)}
+
+          {view === "byTest" && (
+            (report.exam_breakdown || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">{t("No assessments found for those filters.")}</p>
+            ) : (report.exam_breakdown || []).map((b) => (
+              <Card key={`${b.exam_id}:${b.class_id}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle className="text-base">
+                      {b.exam_name}
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        {b.class_name} · {b.subject_name} · /{b.total_marks ?? "—"} · {t("pass")} {b.pass_marks ?? "—"}
+                      </span>
+                    </CardTitle>
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <span>{b.stats.sat}/{b.stats.total_students} {t("entered")}</span>
+                      <span>{t("average")} {b.stats.average ?? "—"}</span>
+                      <span>{t("highest")} {b.stats.highest ?? "—"}</span>
+                      <span>{t("lowest")} {b.stats.lowest ?? "—"}</span>
+                      <span className={sev(percentSeverity(b.stats.pass_rate, { warn: 60, good: 85 })).text}>
+                        {t("pass")} {b.stats.pass_rate ?? 0}%
+                      </span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="max-h-[420px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-background">
+                        <tr className="border-b text-left">
+                          <th className="p-2 font-medium">{t("Rank")}</th>
+                          <th className="p-2 font-medium">{t("Student")}</th>
+                          <th className="p-2 font-medium">{t("ID")}</th>
+                          <th className="p-2 font-medium">{t("Mark")}</th>
+                          <th className="p-2 font-medium">{t("%")}</th>
+                          <th className="p-2 font-medium">{t("Grade")}</th>
+                          <th className="p-2 font-medium">{t("Result")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {b.students.map((st) => {
+                          const danger = st.marks != null && (st.exceeded || st.passed === false);
+                          const good = st.marks != null && st.passed === true;
+                          return (
+                            <tr key={st.student_id} className={`border-b ${danger ? sev("danger").bg : ""}`}>
+                              <td className="p-2">{st.rank ?? "—"}</td>
+                              <td className="p-2 font-medium">{fullName(st)}</td>
+                              <td className="p-2 text-xs text-muted-foreground">{st.student_number || "—"}</td>
+                              <td className={`p-2 font-semibold ${danger ? sev("danger").text : good ? sev("good").text : ""}`}>
+                                {st.marks ?? "—"} <span className="text-xs font-normal text-muted-foreground">/{b.total_marks ?? "—"}</span>
+                              </td>
+                              <td className="p-2">{st.percent != null ? `${st.percent}%` : "—"}</td>
+                              <td className="p-2">{st.grade_letter || "—"}</td>
+                              <td className="p-2">
+                                {st.passed == null ? "—" : (
+                                  <Badge className={sev(st.passed ? "good" : "danger").badge}>{st.passed ? t("Pass") : t("Fail")}</Badge>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
 
           {report.exam_analysis?.length > 0 && (
             <Card>
