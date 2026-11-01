@@ -34,6 +34,8 @@ import { BarChart, DonutChart } from "../components/ui/charts";
 import { FileSpreadsheet, ChevronDown, Award } from "lucide-react";
 import ReportCenter from "../components/reports/ReportCenter";
 import ClassResultsReport from "../components/reports/ClassResultsReport";
+import HomeroomAttendanceReport from "../components/reports/HomeroomAttendanceReport";
+import { useMyHomeroomClasses } from "../hooks/useAttendance";
 import Chips from "../components/ui/chips";
 
 function useScopedClasses(limit = 200) {
@@ -1401,11 +1403,26 @@ function ClassResultsTab() {
   return <ClassResultsReport scopedClasses={classes} isTeacher={isTeacher} />;
 }
 
+function HomeroomAttendanceTab() {
+  const user = useAuthStore((s) => s.user);
+  const isTeacher = user?.role === "teacher";
+  const { data } = useClasses({ limit: 200 });
+  return (
+    <HomeroomAttendanceReport
+      isTeacher={isTeacher}
+      classes={data?.data || []}
+    />
+  );
+}
+
 export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const { t } = useI18n();
   const navigate = useNavigate();
   const role = user?.role || "admin";
+  const { data: homeroomData } = useMyHomeroomClasses(role === "teacher");
+  const homeroomClasses = homeroomData?.data?.classes || [];
+  const hasHomeroom = homeroomClasses.length > 0;
   void role;
 
   const tabs = useMemo(() => {
@@ -1418,6 +1435,10 @@ export default function ReportsPage() {
     if (["owner", "admin", "general_manager", "principal", "vice_principal", "teacher"].includes(role))
       list.push({ value: "semester", label: t.rep.semester });
     if (["teacher"].includes(role)) list.push({ value: "teacher", label: t.rep.myReports });
+    if (["teacher"].includes(role) && hasHomeroom)
+      list.push({ value: "homeroom", label: t("Homeroom Attendance") });
+    if (["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"].includes(role))
+      list.push({ value: "homeroom", label: t("Homeroom Attendance") });
     if (["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"].includes(role))
       list.push({ value: "results", label: t("Class Results") });
     if (["finance", "accountant", "general_manager", "owner", "admin"].includes(role)) list.push({ value: "finance", label: t.rep.finance });
@@ -1428,7 +1449,7 @@ export default function ReportsPage() {
     if (role === "general_services") list.push({ value: "facilities", label: t.rep.facilities });
     if (["student"].includes(role)) list.push({ value: "student", label: t.rep.myReports });
     return list;
-  }, [role, t]);
+  }, [role, t, hasHomeroom]);
 
   return (
     <div className="space-y-6">
@@ -1453,6 +1474,7 @@ export default function ReportsPage() {
         <TabsContent value="admin"><AdminReports /></TabsContent>
         <TabsContent value="teacher"><TeacherReports /></TabsContent>
         <TabsContent value="results"><ClassResultsTab /></TabsContent>
+        <TabsContent value="homeroom"><HomeroomAttendanceTab /></TabsContent>
         <TabsContent value="finance"><FinanceReports /></TabsContent>
         <TabsContent value="cashier"><CashierReports /></TabsContent>
         <TabsContent value="hr"><HRReports /></TabsContent>

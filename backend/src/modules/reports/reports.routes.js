@@ -114,6 +114,8 @@ router.get('/my-attendance', requireAccess(['teacher'], ['reports.view']), contr
 router.get('/my-grades', requireAccess(['teacher'], ['reports.view']), controller.getTeacherGradeReport);
 router.get('/class-results', requireAccess(ALL_STAFF, ['reports.view']), controller.getClassResults);
 router.get('/class-results/export', requireAccess(ALL_STAFF, ['reports.view']), controller.exportClassResults);
+router.get('/homeroom-attendance', requireAccess(ALL_STAFF, ['reports.view']), controller.getHomeroomAttendance);
+router.get('/homeroom-attendance/export', requireAccess(ALL_STAFF, ['reports.view']), controller.exportHomeroomAttendance);
 
 // Finance reports
 router.get('/fee-collection', requireAccess(['admin', 'owner', 'finance'], ['reports.view']), controller.getFeeCollection);

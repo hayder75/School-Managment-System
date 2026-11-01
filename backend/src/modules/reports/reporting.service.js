@@ -66,7 +66,7 @@ async function overview(tenantId, f) {
     db('student_monthly_bills').where({ tenant_id: tenantId, status: 'unpaid' }).select(db.raw('COALESCE(SUM(amount + penalty - amount_paid),0) as v')).first(),
     attendanceRate(tenantId, s, e), attendanceRate(tenantId, ps, pe), collected(tenantId, s, e), collected(tenantId, ps, pe), avgScore(tenantId, s, e), avgScore(tenantId, ps, pe),
     db('classes').where({ 'classes.tenant_id': tenantId }).leftJoin('students', 'classes.id', 'students.class_id').where(function () { this.whereNull('students.id').orWhere('students.status', 'active'); }).groupBy('classes.grade_level').select('classes.grade_level as grade').count('students.id as c').orderBy('classes.grade_level'),
-    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.grade_level').select('classes.grade_level as grade').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as present")).select(db.raw('count(*) as total')).orderBy('classes.grade_level'),
+    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.user_id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.grade_level').select('classes.grade_level as grade').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as present")).select(db.raw('count(*) as total')).orderBy('classes.grade_level'),
     db('payments').where({ tenant_id: tenantId }).whereBetween('paid_date', [s, e]).groupByRaw("to_char(paid_date,'YYYY-MM')").select(db.raw("to_char(paid_date,'YYYY-MM') as m")).sum('amount_paid as v').orderBy('m'),
     db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0).select(db.raw("CASE WHEN g.marks_obtained/ex.total_marks>=0.9 THEN 'A' WHEN g.marks_obtained/ex.total_marks>=0.8 THEN 'B' WHEN g.marks_obtained/ex.total_marks>=0.7 THEN 'C' WHEN g.marks_obtained/ex.total_marks>=0.6 THEN 'D' ELSE 'F' END as band")).count('* as c').groupBy('band'),
     db('users').where({ tenant_id: tenantId }).whereNotIn('role', ['student', 'parent']).whereNot('status', 'inactive').groupBy('role').select('role').count('* as c').orderBy('c', 'desc'),
@@ -143,8 +143,8 @@ async function attendance(tenantId, f) {
   const { s, e, ps, pe } = resolveRange(f);
   const [cur, prev, byGrade, byClass, trend, chronic] = await Promise.all([
     attendanceRate(tenantId, s, e), attendanceRate(tenantId, ps, pe),
-    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.grade_level').select('classes.grade_level as grade').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('classes.grade_level'),
-    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.name').select('classes.name').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('classes.name'),
+    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.user_id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.grade_level').select('classes.grade_level as grade').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('classes.grade_level'),
+    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.user_id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.name').select('classes.name').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('classes.name'),
     db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [s, e]).groupByRaw("to_char(date,'YYYY-MM-DD')").select(db.raw("to_char(date,'YYYY-MM-DD') as d")).select(db.raw("count(*) filter (where lower(status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('d'),
     db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [s, e]).groupBy('student_id').select('student_id').select(db.raw('count(*) as t')).select(db.raw("count(*) filter (where lower(status)='absent') as a")).havingRaw('count(*) >= 3'),
   ]);
@@ -349,7 +349,7 @@ async function teacherReport(tenantId, f, userId) {
     : teacherClassIds;
 
   const attQuery = db('attendance')
-    .join('students', 'attendance.student_id', 'students.id')
+    .join('students', 'attendance.student_id', 'students.user_id')
     .where({ 'attendance.tenant_id': tenantId })
     .whereBetween('attendance.date', [s, e])
     .select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p"))

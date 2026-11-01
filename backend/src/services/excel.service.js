@@ -713,6 +713,179 @@ async function classResultsSheets(tenantId, filters = {}, viewer = {}) {
   return sheets;
 }
 
+const STATUS_LETTER = { present: 'P', absent: 'A', late: 'L', excused: 'E' };
+const STATUS_FILL = {
+  P: 'FFE8F6EE',
+  A: 'FFFDECEC',
+  L: 'FFFFF7E0',
+  E: 'FFE8F0FB',
+};
+
+async function homeroomAttendanceSheets(tenantId, filters = {}, viewer = {}) {
+  const reportService = require('../modules/reports/reports.service');
+  const data = await reportService.getHomeroomAttendanceReport(tenantId, filters, viewer);
+  const usedNames = new Set(['Overview']);
+  const sheets = [];
+
+  const overviewRows = (data.classes || []).map((c) => ({
+    class_name: c.class_name,
+    students: c.summary.students,
+    days: c.summary.days_recorded,
+    records: c.summary.records,
+    present_rate: c.summary.present_rate,
+    absent_rate: c.summary.absent_rate,
+    late_rate: c.summary.late_rate,
+    excused_rate: c.summary.excused_rate,
+    at_risk: c.summary.at_risk,
+  }));
+
+  sheets.push({
+    name: 'Overview',
+    columns: [
+      { header: 'Class', key: 'class_name', width: 18 },
+      { header: 'Students', key: 'students', width: 10 },
+      { header: 'Days', key: 'days', width: 8 },
+      { header: 'Records', key: 'records', width: 10 },
+      { header: 'Present %', key: 'present_rate', width: 11 },
+      { header: 'Absent %', key: 'absent_rate', width: 11 },
+      { header: 'Late %', key: 'late_rate', width: 10 },
+      { header: 'Excused %', key: 'excused_rate', width: 11 },
+      { header: 'At risk', key: 'at_risk', width: 10 },
+    ],
+    rows: [
+      { class_name: 'Period', students: `${data.from_date} → ${data.to_date}` },
+      ...overviewRows,
+    ],
+    percentKeys: [
+      { key: 'present_rate', good: 95, warn: 85 },
+      { key: 'absent_rate', good: 5, warn: 10, reverse: true },
+    ],
+  });
+
+  for (const cls of data.classes || []) {
+    const summaryName = safeSheetName(`${cls.class_name} summary`, usedNames);
+    sheets.push({
+      name: summaryName,
+      columns: [
+        { header: 'Student', key: 'name', width: 30 },
+        { header: 'Student ID', key: 'student_number', width: 14 },
+        { header: 'Days recorded', key: 'recorded', width: 14 },
+        { header: 'Present', key: 'present', width: 10 },
+        { header: 'Absent', key: 'absent', width: 10 },
+        { header: 'Late', key: 'late', width: 8 },
+        { header: 'Excused', key: 'excused', width: 10 },
+        { header: 'Present %', key: 'present_rate', width: 11 },
+        { header: 'Absent %', key: 'absent_rate', width: 11 },
+        { header: 'Late %', key: 'late_rate', width: 10 },
+        { header: 'At risk', key: 'at_risk', width: 9 },
+      ],
+      rows: (cls.students || []).map((st) => ({
+        name: [st.first_name, st.middle_name, st.last_name].filter(Boolean).join(' '),
+        student_number: st.student_number || '',
+        recorded: st.recorded,
+        present: st.present,
+        absent: st.absent,
+        late: st.late,
+        excused: st.excused,
+        present_rate: st.present_rate,
+        absent_rate: st.absent_rate,
+        late_rate: st.late_rate,
+        at_risk: st.at_risk ? 'YES' : '',
+      })),
+      percentKeys: [
+        { key: 'present_rate', good: 95, warn: 85 },
+        { key: 'absent_rate', good: 5, warn: 10, reverse: true },
+      ],
+    });
+
+    const registerName = safeSheetName(`${cls.class_name} register`, usedNames);
+    const registerColumns = [
+      { header: 'Student', key: 'name', width: 30 },
+      { header: 'Student ID', key: 'student_number', width: 14 },
+      ...(cls.days || []).map((d) => ({ header: d.slice(5), key: `d_${d}`, width: 6 })),
+      { header: 'Present %', key: 'present_rate', width: 11 },
+      { header: 'Absent %', key: 'absent_rate', width: 11 },
+    ];
+    const registerRows = (cls.students || []).map((st) => {
+      const row = {
+        name: [st.first_name, st.middle_name, st.last_name].filter(Boolean).join(' '),
+        student_number: st.student_number || '',
+        present_rate: st.present_rate,
+        absent_rate: st.absent_rate,
+      };
+      for (const d of cls.days || []) {
+        const status = st.days?.[d];
+        row[`d_${d}`] = status ? (STATUS_LETTER[status] || status.charAt(0).toUpperCase()) : '';
+      }
+      return row;
+    });
+    sheets.push({
+      name: registerName,
+      columns: registerColumns,
+      rows: registerRows,
+      percentKeys: [
+        { key: 'present_rate', good: 95, warn: 85 },
+        { key: 'absent_rate', good: 5, warn: 10, reverse: true },
+      ],
+      statusColumns: (cls.days || []).map((d) => `d_${d}`),
+    });
+  }
+
+  return sheets;
+}
+
+function colourForRate(value, { good = 95, warn = 85, reverse = false } = {}) {
+  if (value == null || value === '') return null;
+  const v = Number(value);
+  if (!Number.isFinite(v)) return null;
+  if (reverse) {
+    if (v <= good) return 'FFE8F6EE';
+    if (v <= warn) return 'FFFFF7E0';
+    return 'FFFDECEC';
+  }
+  if (v >= good) return 'FFE8F6EE';
+  if (v >= warn) return 'FFFFF7E0';
+  return 'FFFDECEC';
+}
+
+async function streamHomeroomAttendanceWorkbook(tenantId, filters, viewer, res) {
+  const sheets = await homeroomAttendanceSheets(tenantId, filters, viewer);
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Mount Olive SMS';
+  wb.created = new Date();
+  for (const sheet of sheets) {
+    const ws = addSheet(wb, sheet);
+    if (sheet.percentKeys) {
+      for (const pk of sheet.percentKeys) {
+        const col = sheet.columns.findIndex((c) => c.key === pk.key) + 1;
+        if (!col) continue;
+        for (let rowIdx = 2; rowIdx <= ws.rowCount; rowIdx += 1) {
+          const cell = ws.getCell(rowIdx, col);
+          const fill = colourForRate(cell.value, pk);
+          if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+        }
+      }
+    }
+    if (sheet.statusColumns) {
+      const cols = sheet.statusColumns
+        .map((key) => sheet.columns.findIndex((c) => c.key === key) + 1)
+        .filter(Boolean);
+      for (const col of cols) {
+        for (let rowIdx = 2; rowIdx <= ws.rowCount; rowIdx += 1) {
+          const cell = ws.getCell(rowIdx, col);
+          const fill = STATUS_FILL[String(cell.value || '')];
+          if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+        }
+      }
+    }
+  }
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="homeroom-attendance.xlsx"');
+  await wb.xlsx.write(res);
+  res.end();
+  return true;
+}
+
 async function streamClassResultsWorkbook(tenantId, filters, viewer, res) {
   const sheets = await classResultsSheets(tenantId, filters, viewer);
   const wb = new ExcelJS.Workbook();
@@ -787,4 +960,4 @@ async function listTables(reportId, tenantId, userId, filters) {
   return detailSheets(reportId, tenantId, userId, filters || {});
 }
 
-module.exports = { streamWorkbook, listTables, streamNamedWorkbook, streamClassResultsWorkbook, classResultsSheets };
+module.exports = { streamWorkbook, listTables, streamNamedWorkbook, streamClassResultsWorkbook, classResultsSheets, streamHomeroomAttendanceWorkbook, homeroomAttendanceSheets };

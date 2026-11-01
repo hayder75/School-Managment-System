@@ -216,6 +216,49 @@ async function exportClassResults(req, res) {
   );
 }
 
+async function getHomeroomAttendance(req, res) {
+  const { from_date, to_date } = req.query;
+  let classIds = toArray(req.query.class_id ?? req.query.class_ids);
+
+  if (req.user.role === 'teacher') {
+    const allowed = await access.homeroomClassIds(req.tenant.id, req.user.userId);
+    if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view attendance for your homeroom class' } });
+    }
+    if (!allowed.length) {
+      return res.json({ success: true, data: { classes: [], is_homeroom: false, from_date, to_date } });
+    }
+    if (!classIds.length) classIds = allowed;
+  }
+
+  const data = await reportService.getHomeroomAttendanceReport(
+    req.tenant.id,
+    { class_id: classIds, from_date, to_date },
+    { role: req.user.role, userId: req.user.userId }
+  );
+  res.json({ success: true, data });
+}
+
+async function exportHomeroomAttendance(req, res) {
+  const { from_date, to_date } = req.query;
+  let classIds = toArray(req.query.class_id ?? req.query.class_ids);
+
+  if (req.user.role === 'teacher') {
+    const allowed = await access.homeroomClassIds(req.tenant.id, req.user.userId);
+    if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only export attendance for your homeroom class' } });
+    }
+    if (!classIds.length) classIds = allowed;
+  }
+
+  await excelService.streamHomeroomAttendanceWorkbook(
+    req.tenant.id,
+    { class_id: classIds, from_date, to_date },
+    { role: req.user.role, userId: req.user.userId },
+    res
+  );
+}
+
 async function getClassResults(req, res) {
   const { subject_id, types, type, term_id, from_date, to_date, exam_id } = req.query;
   let classIds = toArray(req.query.class_id ?? req.query.class_ids);
@@ -321,7 +364,7 @@ module.exports = {
   getStudentReport, getClassReport, getEnrollmentReport,
   getGradeDistribution, getClassPerformance, getAttendanceOverview, getTeacherWorkload,
   getTeacherClassStudents, getTeacherClassSummary, getTeacherAttendanceReport, getTeacherGradeReport,
-  getClassResults, exportClassResults,
+  getClassResults, exportClassResults, getHomeroomAttendance, exportHomeroomAttendance,
   getFeeCollection, getOutstandingBalances, getRevenueVsExpenses,
   getStaffDirectory, getPayrollSummary, getHeadcount,
   getStudentGradeSummary, getStudentAttendanceSummary,

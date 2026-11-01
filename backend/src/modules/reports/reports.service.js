@@ -728,7 +728,7 @@ async function getOverviewReport(tenantId, { from, to } = {}) {
       .where(function () { this.whereNull('students.id').orWhere('students.status', 'active'); })
       .groupBy('classes.grade_level').select('classes.grade_level as grade').count('students.id as c').orderBy('classes.grade_level'),
     db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e])
-      .join('students', 'attendance.student_id', 'students.id').join('classes', 'students.class_id', 'classes.id')
+      .join('students', 'attendance.student_id', 'students.user_id').join('classes', 'students.class_id', 'classes.id')
       .groupBy('classes.grade_level').select('classes.grade_level as grade')
       .select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as present"))
       .select(db.raw('count(*) as total')).orderBy('classes.grade_level'),
@@ -1165,6 +1165,185 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
   };
 }
 
+// ── Homeroom attendance ──
+// A homeroom teacher's own class register: every student, every day, with
+// present/absent/late/excused percentages. Teachers are restricted to the
+// classes where they are the class teacher.
+
+const round1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
+
+async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) {
+  const access = require('../../shared/access');
+  const toDate = filters.to_date || new Date().toISOString().slice(0, 10);
+  const fromDate = filters.from_date || new Date(Date.now() - 29 * 864e5).toISOString().slice(0, 10);
+
+  let classIds = toArray(filters.class_id ?? filters.class_ids);
+
+  if (viewer.role === 'teacher') {
+    const homeroom = await access.homeroomClassIds(tenantId, viewer.userId);
+    if (!homeroom.length) {
+      return { from_date: fromDate, to_date: toDate, classes: [], is_homeroom: false };
+    }
+    classIds = classIds.length ? classIds.filter((c) => homeroom.includes(c)) : homeroom;
+    if (!classIds.length) {
+      return { from_date: fromDate, to_date: toDate, classes: [], is_homeroom: true };
+    }
+  } else {
+    if (!classIds.length) {
+      const rows = await db('classes').where({ tenant_id: tenantId }).select('id');
+      classIds = rows.map((r) => r.id);
+    }
+  }
+
+  if (!classIds.length) {
+    return { from_date: fromDate, to_date: toDate, classes: [], is_homeroom: false };
+  }
+
+  const classes = await db('classes')
+    .where({ tenant_id: tenantId })
+    .whereIn('id', classIds)
+    .select('id', 'name', 'grade_level', 'section')
+    .orderBy('grade_level')
+    .orderBy('name');
+
+  const students = await db('students as st')
+    .join('users as u', 'st.user_id', 'u.id')
+    .where('st.tenant_id', tenantId)
+    .whereIn('st.class_id', classIds)
+    .where(function () { this.whereNull('st.status').orWhere('st.status', 'active'); })
+    .select(
+      'u.id as student_id',
+      'u.first_name',
+      'u.middle_name',
+      'u.last_name',
+      'st.student_number',
+      'st.class_id'
+    )
+    .orderBy('u.first_name');
+
+  const records = await db('attendance')
+    .where({ tenant_id: tenantId })
+    .whereIn('class_id', classIds)
+    .whereBetween('date', [fromDate, toDate])
+    .select(
+      'class_id',
+      'student_id',
+      db.raw("to_char(date,'YYYY-MM-DD') as day"),
+      db.raw('lower(status) as status')
+    );
+
+  const byClass = new Map();
+  for (const r of records) {
+    if (!byClass.has(r.class_id)) byClass.set(r.class_id, []);
+    byClass.get(r.class_id).push(r);
+  }
+
+  const result = classes.map((cls) => {
+    const classStudents = students.filter((s) => s.class_id === cls.id);
+    const classRecords = byClass.get(cls.id) || [];
+    const days = [...new Set(classRecords.map((r) => r.day))].sort();
+
+    const marks = new Map();
+    for (const r of classRecords) {
+      if (!marks.has(r.student_id)) marks.set(r.student_id, {});
+      marks.get(r.student_id)[r.day] = r.status;
+    }
+
+    const studentRows = classStudents.map((st) => {
+      const map = marks.get(st.student_id) || {};
+      let present = 0;
+      let absent = 0;
+      let late = 0;
+      let excused = 0;
+      for (const day of days) {
+        const status = map[day];
+        if (status === 'present') present += 1;
+        else if (status === 'absent') absent += 1;
+        else if (status === 'late') late += 1;
+        else if (status === 'excused') excused += 1;
+      }
+      const recorded = present + absent + late + excused;
+      const rate = recorded ? ((present + late) / recorded) * 100 : null;
+      const absentRate = recorded ? (absent / recorded) * 100 : null;
+      return {
+        student_id: st.student_id,
+        first_name: st.first_name,
+        middle_name: st.middle_name,
+        last_name: st.last_name,
+        student_number: st.student_number,
+        present,
+        absent,
+        late,
+        excused,
+        recorded,
+        present_rate: round1(rate),
+        absent_rate: round1(absentRate),
+        late_rate: round1(recorded ? (late / recorded) * 100 : null),
+        excused_rate: round1(recorded ? (excused / recorded) * 100 : null),
+        at_risk: recorded >= 3 && ((absentRate != null && absentRate > 10) || absent >= 3),
+        days: Object.fromEntries(days.map((d) => [d, map[d] || null])),
+      };
+    });
+
+    studentRows.sort((a, b) => (b.absent_rate ?? -1) - (a.absent_rate ?? -1) || a.first_name.localeCompare(b.first_name));
+
+    const daily = days.map((day) => {
+      const dayRecords = classRecords.filter((r) => r.day === day);
+      const count = (s) => dayRecords.filter((r) => r.status === s).length;
+      const total = dayRecords.length;
+      return {
+        date: day,
+        present: count('present'),
+        absent: count('absent'),
+        late: count('late'),
+        excused: count('excused'),
+        total,
+        present_rate: round1(total ? ((count('present') + count('late')) / total) * 100 : null),
+      };
+    });
+
+    const totals = studentRows.reduce((acc, r) => ({
+      present: acc.present + r.present,
+      absent: acc.absent + r.absent,
+      late: acc.late + r.late,
+      excused: acc.excused + r.excused,
+      recorded: acc.recorded + r.recorded,
+    }), { present: 0, absent: 0, late: 0, excused: 0, recorded: 0 });
+
+    return {
+      class_id: cls.id,
+      class_name: cls.name,
+      grade_level: cls.grade_level,
+      section: cls.section,
+      days,
+      students: studentRows,
+      daily,
+      summary: {
+        students: studentRows.length,
+        days_recorded: days.length,
+        records: totals.recorded,
+        present: totals.present,
+        absent: totals.absent,
+        late: totals.late,
+        excused: totals.excused,
+        present_rate: totals.recorded ? round1(((totals.present + totals.late) / totals.recorded) * 100) : null,
+        absent_rate: totals.recorded ? round1((totals.absent / totals.recorded) * 100) : null,
+        late_rate: totals.recorded ? round1((totals.late / totals.recorded) * 100) : null,
+        excused_rate: totals.recorded ? round1((totals.excused / totals.recorded) * 100) : null,
+        at_risk: studentRows.filter((r) => r.at_risk).length,
+      },
+    };
+  });
+
+  return {
+    from_date: fromDate,
+    to_date: toDate,
+    is_homeroom: viewer.role === 'teacher',
+    classes: result,
+  };
+}
+
+
 module.exports = {
   getStudentEnrollmentReport,
   getGradeDistributionReport,
@@ -1176,6 +1355,7 @@ module.exports = {
   getTeacherAttendanceReport,
   getTeacherGradeReport,
   getClassResults,
+  getHomeroomAttendanceReport,
   getFeeCollectionReport,
   getOutstandingBalanceReport,
   getRevenueVsExpensesReport,

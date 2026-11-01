@@ -138,3 +138,11 @@ export function useClassResults(params = {}, options = {}) {
     ...options,
   });
 }
+
+export function useHomeroomAttendance(params = {}, options = {}) {
+  return useQuery({
+    queryKey: ["report-homeroom-attendance", params],
+    queryFn: () => api.get("/reports/homeroom-attendance", { params }),
+    ...options,
+  });
+}
