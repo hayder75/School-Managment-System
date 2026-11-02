@@ -17,7 +17,7 @@ const STAFF_ROLES = [
 ];
 
 const DEFAULT_SETTINGS = {
-  match_threshold: 0.5,
+  match_threshold: 0.6,
   match_margin: 0.05,
   liveness_required: true,
   am_start: '08:00',
@@ -388,7 +388,7 @@ async function today(tenantId) {
     .limit(200);
   const scans = await db('face_attendance_logs')
     .where({ tenant_id: tenantId })
-    .whereRaw('created_at >= CURRENT_DATE')
+    .whereRaw('created_at >= (?::timestamp AT TIME ZONE ?)', [now.date, settings.timezone])
     .orderBy('created_at', 'desc')
     .limit(20);
   return { date: now.date, time: now.time, session: toMin(now.time) < toMin('12:00') ? 'am' : 'pm', attendance, scans, settings };
