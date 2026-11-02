@@ -4,6 +4,11 @@ const logger = require('../../config/logger');
 const grading = require('../../shared/grading');
 const editRequests = require('../edit-requests/edit-requests.service');
 
+// Roles that can correct marks directly, without the teacher edit-request
+// flow. Their change is final: a submitted section becomes approved.
+const AUTHORITATIVE_ROLES = ['owner', 'admin', 'quality_director', 'principal', 'vice_principal', 'general_manager'];
+const isAuthoritative = (role) => AUTHORITATIVE_ROLES.includes(role);
+
 function computeGradeLetter(marks, total, scale) {
   if (marks == null || total == null || Number(total) <= 0) return null;
   const percent = (Number(marks) / Number(total)) * 100;
@@ -41,7 +46,7 @@ async function upsertGrades(tenantId, examId, grades, userId, options = {}) {
     throw err;
   }
 
-  if (exam.locked_by && !['owner', 'admin'].includes(role)) {
+  if (exam.locked_by && !isAuthoritative(role)) {
     const err = new Error('EXAM_LOCKED');
     err.code = 'EXAM_LOCKED';
     throw err;
@@ -70,7 +75,7 @@ async function upsertGrades(tenantId, examId, grades, userId, options = {}) {
   const submissions = await submissionMap(tenantId, examId);
   const { scale } = await grading.getGradingConfig(tenantId);
   const teacher = ['teacher', 'shift_coordinator'].includes(role);
-  const isAdminOverride = ['owner', 'admin'].includes(role);
+  const authoritative = isAuthoritative(role);
 
   const saved = [];
   const skipped = [];
@@ -98,7 +103,7 @@ async function upsertGrades(tenantId, examId, grades, userId, options = {}) {
         .where({ tenant_id: tenantId, exam_id: examId, student_id: g.student_id })
         .first();
 
-      if (existing && existing.locked_by && !isAdminOverride) {
+      if (existing && existing.locked_by && !authoritative) {
         skipped.push({ student_id: g.student_id, reason: 'locked', status });
         continue;
       }
@@ -154,6 +159,30 @@ async function upsertGrades(tenantId, examId, grades, userId, options = {}) {
         .update({ graded_count: Number(row.c), updated_at: db.fn.now() });
     }
   });
+
+  // An owner/admin/QA edit is final. If the section was waiting for approval,
+  // mark it approved under their name instead of sending it back to the queue.
+  if (authoritative) {
+    const touched = new Set(
+      saved
+        .map((row) => studentClass.get(row.student_id))
+        .filter(Boolean)
+    );
+    for (const classId of touched) {
+      const sub = submissions[classId];
+      if (sub && ['submitted', 'returned', 'editing'].includes(sub.status)) {
+        await db('result_submissions')
+          .where({ tenant_id: tenantId, id: sub.id })
+          .update({
+            status: 'approved',
+            reviewed_by: userId,
+            reviewed_at: db.fn.now(),
+            review_comment: 'Updated directly by ' + role,
+            updated_at: db.fn.now(),
+          });
+      }
+    }
+  }
 
   if (saved.length) await notifyGradesPosted(tenantId, exam, saved);
 
@@ -289,8 +318,9 @@ async function getByExam(tenantId, examId, { classId, userId, role } = {}) {
   const rows = await query;
 
   const editableFor = (studentId) => {
+    if (isAuthoritative(role)) return true;
     if (!isLockedStatus(status)) return true;
-    if (role !== 'teacher') return ['owner', 'admin'].includes(role);
+    if (role !== 'teacher') return false;
     return grantAll || grantSet.has(studentId);
   };
 
@@ -377,6 +407,7 @@ async function clearDraft(tenantId, examId, classId, teacherId) {
 }
 
 module.exports = {
+  AUTHORITATIVE_ROLES, isAuthoritative,
   upsertGrades, getByExam, getExamClasses, getByStudent, lockGrades,
   computeGradeLetter, examClassIds, isLockedStatus,
   saveDraft, getDraft, clearDraft,

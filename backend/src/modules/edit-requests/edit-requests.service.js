@@ -14,6 +14,16 @@ function isQaRole(role) {
 }
 
 async function expireStale(tenantId) {
+  // Older requests needed both signatures; a single approval is now enough,
+  // so promote anything that already has one.
+  await db('grade_edit_requests')
+    .where({ tenant_id: tenantId, status: 'partially_approved' })
+    .update({
+      status: 'approved',
+      expires_at: db.raw("COALESCE(expires_at, now() + interval '48 hours')"),
+      updated_at: db.fn.now(),
+    });
+
   await db('grade_edit_requests')
     .where({ tenant_id: tenantId, status: 'approved' })
     .whereNotNull('expires_at')
@@ -177,27 +187,19 @@ async function decide(tenantId, id, userId, role, { decision, note }) {
     throw err;
   }
 
-  const nextOwner = patch.owner_approved_by || request.owner_approved_by;
-  const nextQa = patch.qa_approved_by || request.qa_approved_by;
-  const both = !!(nextOwner && nextQa);
-
-  patch.status = both ? 'approved' : 'partially_approved';
-  if (both) {
-    patch.expires_at = new Date(Date.now() + GRANT_HOURS * 3600 * 1000);
-  }
+  // Either the owner/admin or quality assurance can authorise the correction.
+  // One approval is enough — both sides already have authority over marks.
+  patch.status = 'approved';
+  patch.expires_at = new Date(Date.now() + GRANT_HOURS * 3600 * 1000);
 
   const [row] = await db('grade_edit_requests').where({ id }).update(patch).returning('*');
 
-  if (both) {
-    // Reopen the section so the teacher can change the mark.
-    await db('result_submissions')
-      .where({ tenant_id: tenantId, exam_id: row.exam_id, class_id: row.class_id })
-      .whereIn('status', ['submitted', 'approved'])
-      .update({ status: 'editing', updated_at: db.fn.now() });
-    await notifyTeacher(tenantId, row, 'approved', note);
-  } else {
-    await notifyOtherApprover(tenantId, row, role);
-  }
+  // Reopen the section so the teacher can change the mark.
+  await db('result_submissions')
+    .where({ tenant_id: tenantId, exam_id: row.exam_id, class_id: row.class_id })
+    .whereIn('status', ['submitted', 'approved'])
+    .update({ status: 'editing', updated_at: db.fn.now() });
+  await notifyTeacher(tenantId, row, 'approved', note);
   return row;
 }
 

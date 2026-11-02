@@ -37,6 +37,9 @@ export default function EditRequestsDialog({ open, onOpenChange, examId }) {
         <DialogHeader>
           <DialogTitle>{t("Mark edit requests")}</DialogTitle>
         </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          {t("Either the owner/admin or quality assurance can approve a request. One approval is enough.")}
+        </p>
         <div className="flex flex-wrap gap-2">
           {["pending", "approved", "rejected", "all"].map((s) => (
             <Button key={s} size="sm" variant={status === s ? "default" : "outline"} onClick={() => setStatus(s)}>
@@ -52,8 +55,6 @@ export default function EditRequestsDialog({ open, onOpenChange, examId }) {
         ) : (
           <div className="space-y-2">
             {rows.map((r) => {
-              const needsOwner = !r.owner_approved_at && !["approved", "rejected", "expired", "used"].includes(r.status);
-              const needsQa = !r.qa_approved_at && !["approved", "rejected", "expired", "used"].includes(r.status);
               return (
                 <div key={r.id} className={`rounded-md border p-3 ${sev(statusSeverity(r.status)).border}`}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -90,10 +91,10 @@ export default function EditRequestsDialog({ open, onOpenChange, examId }) {
                         value={notes[r.id] || ""}
                         onChange={(e) => setNotes({ ...notes, [r.id]: e.target.value })}
                       />
-                      {((isOwner && needsOwner) || (isQa && needsQa)) && (
+                      {(isOwner || isQa) && (
                         <Button size="sm" onClick={() => act(r, "approve")} disabled={decide.isPending}>
                           <Check className="h-4 w-4 mr-1" />
-                          {isOwner && needsOwner ? t("Approve as owner") : t("Approve as QA")}
+                          {isOwner ? t("Approve as owner") : t("Approve as QA")}
                         </Button>
                       )}
                       {(isOwner || isQa) && (

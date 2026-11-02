@@ -221,7 +221,7 @@ async function changePassword(userId, currentPassword, newPassword) {
   if (!valid) throw new Error('INVALID_CREDENTIALS');
 
   const hash = await bcrypt.hash(newPassword, 10);
-  await db('users').where({ id: userId }).update({ password_hash: hash });
+  await db('users').where({ id: userId }).update({ password_hash: hash, updated_at: db.fn.now() });
   return { userId };
 }
 
@@ -238,7 +238,7 @@ async function resetPassword(token, password) {
   const record = await db('password_reset_tokens').where({ token, used: false }).first();
   if (!record || new Date(record.expires_at) < new Date()) throw new Error('INVALID_TOKEN');
   const hash = await bcrypt.hash(password, 10);
-  await db('users').where({ id: record.user_id }).update({ password_hash: hash });
+  await db('users').where({ id: record.user_id }).update({ password_hash: hash, updated_at: db.fn.now() });
   await db('password_reset_tokens').where({ id: record.id }).update({ used: true });
 }
 

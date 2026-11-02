@@ -35,6 +35,7 @@ export default function GradeEntry({ exam }) {
   const { t } = useI18n();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const isReviewer = ["owner", "admin", "quality_director", "principal", "vice_principal", "general_manager"].includes(user?.role);
   const { data: classesData, isLoading: loadingClasses } = useExamClasses(exam.id);
   const { data: sectionsData } = useExamSections(exam.id);
   const classes = classesData?.data || [];
@@ -69,6 +70,7 @@ export default function GradeEntry({ exam }) {
   const [requestFor, setRequestFor] = useState(null); // { studentId?, name? }
   const [reason, setReason] = useState("");
   const [requestError, setRequestError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   // Load any local autosave when the section changes.
   useEffect(() => {
@@ -214,10 +216,18 @@ export default function GradeEntry({ exam }) {
   }
 
   async function handleSubmit() {
-    if (pendingCount > 0) return;
-    await submitResults.mutateAsync({ exam_id: exam.id, class_id: selectedClass });
-    qc.invalidateQueries({ queryKey: ["exam-sections", exam.id] });
-    qc.invalidateQueries({ queryKey: ["grades", "exam", exam.id] });
+    setSubmitError("");
+    try {
+      // Submitting always saves what is currently on screen first.
+      if (totalPending() > 0) {
+        await handleSave();
+      }
+      await submitResults.mutateAsync({ exam_id: exam.id, class_id: selectedClass });
+      qc.invalidateQueries({ queryKey: ["exam-sections", exam.id] });
+      qc.invalidateQueries({ queryKey: ["grades", "exam", exam.id] });
+    } catch (err) {
+      setSubmitError(err?.response?.data?.error?.message || err?.message || "Could not submit these results");
+    }
   }
 
   async function submitRequest(e) {
@@ -259,20 +269,30 @@ export default function GradeEntry({ exam }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge className={sev(statusSeverity(status)).badge}>{t(STATUS_LABEL[status] || status)}</Badge>
-          {!locked && (
+          {(!locked || isReviewer) && (
             <Button size="sm" onClick={handleSave} disabled={enterGrades.isPending || totalPending() === 0}>
               <Save className="h-4 w-4 mr-1" />
               {enterGrades.isPending ? t("Saving...") : t("Save All Grades")}
               {totalPending() > 0 ? ` (${totalPending()})` : ""}
             </Button>
           )}
-          {!locked && status !== "editing" && (
-            <Button size="sm" variant="secondary" onClick={handleSubmit} disabled={submitResults.isPending || !graded || pendingCount > 0}>
+          {!isReviewer && !locked && status !== "editing" && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleSubmit}
+              disabled={submitResults.isPending || (!graded && totalPending() === 0)}
+            >
               <Send className="h-4 w-4 mr-1" /> {t("Submit for approval")}
             </Button>
           )}
-          {status === "editing" && (
-            <Button size="sm" variant="secondary" onClick={handleSubmit} disabled={submitResults.isPending || pendingCount > 0}>
+          {!isReviewer && status === "editing" && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleSubmit}
+              disabled={submitResults.isPending || (!graded && totalPending() === 0)}
+            >
               <Send className="h-4 w-4 mr-1" /> {t("Resubmit")}
             </Button>
           )}
@@ -307,6 +327,19 @@ export default function GradeEntry({ exam }) {
         <div className={`flex items-center gap-2 rounded-md border p-3 text-sm ${sev("warn").bg} ${sev("warn").border} ${sev("warn").text}`}>
           <CheckCircle2 className="h-4 w-4" />
           {t("Edit request approved — correct the mark, then resubmit.")}
+        </div>
+      )}
+
+      {isReviewer && (
+        <div className={`flex items-center gap-2 rounded-md border p-3 text-sm ${sev("info").bg} ${sev("info").border} ${sev("info").text}`}>
+          <ShieldCheck className="h-4 w-4" />
+          {t("You have review authority — your changes are saved as final and do not need a second approval.")}
+        </div>
+      )}
+
+      {submitError && (
+        <div className={`rounded-md border p-2 text-xs ${sev("danger").bg} ${sev("danger").border} ${sev("danger").text}`}>
+          {submitError}
         </div>
       )}
 
@@ -456,7 +489,7 @@ export default function GradeEntry({ exam }) {
           </DialogHeader>
           <form onSubmit={submitRequest} className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {t("The owner and quality assurance both need to approve before the marks unlock.")}
+              {t("Either the owner or quality assurance can approve this request.")}
             </p>
             <div className="space-y-1">
               <Label>{t("Reason")}</Label>
