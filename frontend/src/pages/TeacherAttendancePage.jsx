@@ -350,12 +350,12 @@ export default function TeacherAttendancePage() {
                           <TableCell key={day.date} className="p-1">
                             <div className="space-y-1">
                               <div className="flex items-center gap-1">
-                                <span className="text-[9px] font-semibold text-muted-foreground w-5">{t("AM")}</span>
+                                <span className="text-[9px] font-semibold text-muted-foreground w-12">{t("Morning")}</span>
                                 <StatusCell value={cellValue(row, day, "am").status} lateMinutes={cellValue(row, day, "am").late_minutes}
                                   onChange={(s) => handleCell(row, day, "am", { status: s })} onLateChange={(mins) => handleCell(row, day, "am", { late_minutes: mins })} />
                               </div>
                               <div className="flex items-center gap-1">
-                                <span className="text-[9px] font-semibold text-muted-foreground w-5">{t("PM")}</span>
+                                <span className="text-[9px] font-semibold text-muted-foreground w-12">{t("Afternoon")}</span>
                                 <StatusCell value={cellValue(row, day, "pm").status} lateMinutes={cellValue(row, day, "pm").late_minutes}
                                   onChange={(s) => handleCell(row, day, "pm", { status: s })} onLateChange={(mins) => handleCell(row, day, "pm", { late_minutes: mins })} />
                               </div>

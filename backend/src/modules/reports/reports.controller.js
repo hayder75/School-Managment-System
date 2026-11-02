@@ -23,7 +23,7 @@ async function getReportDetail(req, res) {
 }
 
 async function exportData(req, res) {
-  const ok = await excelService.streamNamedWorkbook(req.params.kind, req.tenant.id, res);
+  const ok = await excelService.streamNamedWorkbook(req.params.kind, req.tenant.id, res, req.query);
   if (!ok) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Unknown export' } });
 }
 
@@ -104,9 +104,9 @@ async function getClassReport(req, res) {
 }
 
 async function getEnrollmentReport(req, res) {
-  const { academic_year_id } = req.query;
+  const { academic_year_id, class_id } = req.query;
   const scopes = await require('../../shared/scope').getUserScopes(req.tenant.id, req.user.userId);
-  const report = await reportService.getStudentEnrollmentReport(req.tenant.id, { academic_year_id, scopes });
+  const report = await reportService.getStudentEnrollmentReport(req.tenant.id, { academic_year_id, scopes, class_id });
   res.json({ success: true, data: report });
 }
 

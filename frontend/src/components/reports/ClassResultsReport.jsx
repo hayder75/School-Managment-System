@@ -98,6 +98,11 @@ export default function ClassResultsReport({ scopedClasses = [], isTeacher = fal
               onChange={setClassIds}
               emptyLabel={t("No classes available")}
             />
+            {classIds.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                {t("Report and Excel include only")}: {scopedClasses.filter((c) => classIds.includes(c.id)).map((c) => c.name).join(", ")}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

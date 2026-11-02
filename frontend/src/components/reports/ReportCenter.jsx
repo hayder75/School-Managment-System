@@ -63,6 +63,8 @@ export default function ReportCenter() {
 
   const assigned = new Set((assignmentsData?.data || []).map((a) => a.class_id));
   const teacherClasses = (classesData?.data || []).filter((c) => assigned.has(c.id));
+  const filterClasses = isTeacher ? teacherClasses : (classesData?.data || []);
+  const canFilterClasses = ["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"].includes(user?.role);
   const types = typeData?.data || [];
 
   useEffect(() => {
@@ -72,9 +74,9 @@ export default function ReportCenter() {
   const filters = useMemo(() => ({
     from,
     to,
-    ...(isTeacher && classIds.length ? { class_id: classIds.join(",") } : {}),
+    ...(canFilterClasses && classIds.length ? { class_id: classIds.join(",") } : {}),
     ...(isTeacher && examType !== "all" ? { type: examType } : {}),
-  }), [from, to, isTeacher, classIds, examType]);
+  }), [from, to, canFilterClasses, isTeacher, classIds, examType]);
 
   const report = useReport(selected, filters);
   const payload = report.data?.data;
@@ -157,15 +159,29 @@ export default function ReportCenter() {
         <Button onClick={() => setShareOpen(true)} disabled={!payload}><Share2 className="h-4 w-4 mr-1" />{t("Share")}</Button>
       </div>
 
-      {isTeacher && (
+      {canFilterClasses && (
         <div className="no-print space-y-1">
-          <Label className="text-xs">{t("Classes (empty = all my classes)")}</Label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label className="text-xs">
+              {isTeacher ? t("Classes (empty = all my classes)") : t("Classes (empty = whole school)")}
+            </Label>
+            {classIds.length > 0 && (
+              <button type="button" className="text-xs text-primary underline" onClick={() => setClassIds([])}>
+                {t("Clear")}
+              </button>
+            )}
+          </div>
           <Chips
-            options={teacherClasses.map((c) => ({ value: c.id, label: c.name }))}
+            options={filterClasses.map((c) => ({ value: c.id, label: c.name }))}
             value={classIds}
             onChange={setClassIds}
-            emptyLabel={t("No classes assigned to you")}
+            emptyLabel={isTeacher ? t("No classes assigned to you") : t("No classes")}
           />
+          {classIds.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {t("Only these classes are included in the report and export")}: {filterClasses.filter((c) => classIds.includes(c.id)).map((c) => c.name).join(", ")}
+            </p>
+          )}
         </div>
       )}
 

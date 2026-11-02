@@ -154,9 +154,12 @@ async function hrSheets(tenantId, f) {
 
 async function attendanceSheets(tenantId, f) {
   const { s, e } = rangeOf(f);
-  const rows = await db('attendance as a')
-    .join('students as st', 'a.student_id', 'st.id').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
-    .where('a.tenant_id', tenantId).whereBetween('a.date', [s, e])
+  const classIds = String(f.class_id || f.class_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
+  let query = db('attendance as a')
+    .join('students as st', 'a.student_id', 'st.user_id').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
+    .where('a.tenant_id', tenantId).whereBetween('a.date', [s, e]);
+  if (classIds.length) query = query.whereIn('a.class_id', classIds);
+  const rows = await query
     .groupBy('u.first_name', 'u.last_name', 'st.student_number', 'c.name', 'c.grade_level', 'c.section')
     .select(db.raw("u.first_name || ' ' || u.last_name as name"), 'st.student_number', 'c.name as class', 'c.grade_level', 'c.section')
     .select(db.raw("count(*) filter (where lower(a.status)='present') as present"))
@@ -222,9 +225,13 @@ async function outstandingSheet(tenantId) {
 
 async function academicsSheets(tenantId, f) {
   const { s, e } = rangeOf(f);
-  const rows = await db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').leftJoin('subjects as sub', 'ex.subject_id', 'sub.id').leftJoin('classes as c', 'ex.class_id', 'c.id')
-    .join('students as st', 'g.student_id', 'st.id').join('users as u', 'st.user_id', 'u.id')
-    .where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0)
+  const classIds = String(f.class_id || f.class_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
+  let query = db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').leftJoin('subjects as sub', 'ex.subject_id', 'sub.id')
+    .join('students as st', 'g.student_id', 'st.user_id').join('users as u', 'st.user_id', 'u.id')
+    .leftJoin('classes as c', 'st.class_id', 'c.id')
+    .where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0);
+  if (classIds.length) query = query.whereIn('st.class_id', classIds);
+  const rows = await query
     .select(db.raw("u.first_name || ' ' || u.last_name as name"), 'st.student_number', 'c.name as class', 'sub.name as subject', 'ex.name as exam', 'ex.date', 'g.marks_obtained', 'ex.total_marks')
     .orderBy('class').orderBy('subject').orderBy('name');
   return [{
@@ -243,9 +250,12 @@ async function academicsSheets(tenantId, f) {
   }];
 }
 
-async function studentsRosterSheet(tenantId) {
-  const rows = await db('students as st').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
-    .where('st.tenant_id', tenantId).where('st.status', 'active')
+async function studentsRosterSheet(tenantId, f = {}) {
+  const classIds = String(f.class_id || f.class_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
+  let query = db('students as st').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
+    .where('st.tenant_id', tenantId).where('st.status', 'active');
+  if (classIds.length) query = query.whereIn('st.class_id', classIds);
+  const rows = await query
     .select(db.raw("u.first_name || ' ' || u.last_name as name"), 'st.student_number', 'c.name as class', 'c.grade_level', 'c.section', 'u.gender', 'u.phone', 'st.status')
     .orderBy('c.grade_level').orderBy('c.section').orderBy('name');
   const list = rows;
@@ -307,8 +317,11 @@ async function studentsMasterSheet(tenantId) {
   return [{ name: 'Students', columns, rows: data }];
 }
 
-async function enrollmentSheet(tenantId) {
-  const rows = await db('classes as c').where('c.tenant_id', tenantId)
+async function enrollmentSheet(tenantId, f = {}) {
+  const classIds = String(f.class_id || f.class_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
+  let query = db('classes as c').where('c.tenant_id', tenantId);
+  if (classIds.length) query = query.whereIn('c.id', classIds);
+  const rows = await query
     .leftJoin('students as st', function () { this.on('c.id', '=', 'st.class_id'); })
     .where(function () { this.whereNull('st.id').orWhere('st.status', 'active'); })
     .groupBy('c.id', 'c.name', 'c.grade_level', 'c.section')
@@ -389,11 +402,11 @@ async function studentsByClassSheets(tenantId) {
   return sheets;
 }
 
-async function streamNamedWorkbook(kind, tenantId, res) {
+async function streamNamedWorkbook(kind, tenantId, res, filters = {}) {
   const builders = { enrollment: enrollmentSheet, 'teacher-load': teacherLoadSheet, students: studentsMasterSheet, 'students-by-class': studentsByClassSheets };
   const build = builders[kind];
   if (!build) return false;
-  const sheets = await build(tenantId);
+  const sheets = await build(tenantId, filters);
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Mount Olive SMS';
   for (const s of sheets) addSheet(wb, s);
@@ -404,12 +417,15 @@ async function streamNamedWorkbook(kind, tenantId, res) {
   return true;
 }
 
-async function myStudentsSheet(tenantId, teacherId) {
-  const rows = await db('teacher_subjects as ts').join('classes as c', 'ts.class_id', 'c.id').join('subjects as sub', 'ts.subject_id', 'sub.id')
+async function myStudentsSheet(tenantId, teacherId, filters = {}) {
+  const classIds = String(filters.class_id || filters.class_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
+  let query = db('teacher_subjects as ts').join('classes as c', 'ts.class_id', 'c.id').join('subjects as sub', 'ts.subject_id', 'sub.id')
     .join('students as st', 'st.class_id', 'c.id').join('users as u', 'st.user_id', 'u.id')
     .where('ts.teacher_id', teacherId).where('st.status', 'active')
     .distinct(db.raw("u.first_name || ' ' || u.last_name as name"), 'st.student_number', 'c.name as class', 'sub.name as subject')
     .orderBy('class').orderBy('subject').orderBy('name');
+  if (classIds.length) query = query.whereIn('ts.class_id', classIds);
+  const rows = await query;
   return [{ name: 'My Students', columns: [{ header: 'Student', key: 'name', width: 28 }, { header: 'Student ID', key: 'student_number', width: 14 }, { header: 'Class', key: 'class', width: 16 }, { header: 'Subject', key: 'subject', width: 18 }], rows }];
 }
 
@@ -484,8 +500,8 @@ async function detailSheets(reportId, tenantId, userId, f) {
       case 'finance': return [await paymentsSheet(tenantId, f), await outstandingSheet(tenantId)];
       case 'cashier': return [await paymentsSheet(tenantId, f)];
       case 'academics': return await academicsSheets(tenantId, f);
-      case 'overview': return [await studentsRosterSheet(tenantId)];
-      case 'teacher': return await myStudentsSheet(tenantId, userId);
+      case 'overview': return [await studentsRosterSheet(tenantId, f)];
+      case 'teacher': return await myStudentsSheet(tenantId, userId, f);
       case 'student': return await studentSheets(tenantId, userId, f);
       case 'parent': return await childrenSheet(tenantId, userId);
       case 'operations': return await assetsSheet(tenantId);
@@ -803,6 +819,10 @@ async function homeroomAttendanceSheets(tenantId, filters = {}, viewer = {}) {
       { header: 'Student', key: 'name', width: 30 },
       { header: 'Student ID', key: 'student_number', width: 14 },
       ...(cls.days || []).map((d) => ({ header: d.slice(5), key: `d_${d}`, width: 6 })),
+      { header: 'Present', key: 'present', width: 9 },
+      { header: 'Absent', key: 'absent', width: 9 },
+      { header: 'Late', key: 'late', width: 8 },
+      { header: 'Excused', key: 'excused', width: 9 },
       { header: 'Present %', key: 'present_rate', width: 11 },
       { header: 'Absent %', key: 'absent_rate', width: 11 },
     ];
@@ -810,6 +830,10 @@ async function homeroomAttendanceSheets(tenantId, filters = {}, viewer = {}) {
       const row = {
         name: [st.first_name, st.middle_name, st.last_name].filter(Boolean).join(' '),
         student_number: st.student_number || '',
+        present: st.present,
+        absent: st.absent,
+        late: st.late,
+        excused: st.excused,
         present_rate: st.present_rate,
         absent_rate: st.absent_rate,
       };

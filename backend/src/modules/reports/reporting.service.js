@@ -37,8 +37,26 @@ function catalogFor(role) {
 }
 
 // ── shared query helpers ──
-async function attendanceRate(tenantId, f, t) {
-  const rows = await db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [f, t])
+function parseClassIds(f = {}) {
+  const raw = f.class_id ?? f.class_ids;
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  return String(raw || '').split(',').map((v) => v.trim()).filter(Boolean);
+}
+
+function examClassFilter(query, classIds, alias = 'ex') {
+  if (!classIds.length) return query;
+  return query.where(function () {
+    this.whereIn(`${alias}.class_id`, classIds);
+    for (const cid of classIds) {
+      this.orWhereRaw(`${alias}.class_ids @> ?::jsonb`, [JSON.stringify([cid])]);
+    }
+  });
+}
+
+async function attendanceRate(tenantId, f, t, classIds = []) {
+  let query = db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [f, t]);
+  if (classIds.length) query = query.whereIn('class_id', classIds);
+  const rows = await query
     .groupBy('status').select('status').count('* as c');
   let present = 0, total = 0;
   for (const r of rows) { const c = num(r.c); total += c; if (['present', 'late'].includes(String(r.status).toLowerCase())) present += c; }
@@ -48,35 +66,78 @@ async function collected(tenantId, f, t) {
   const r = await db('payments').where({ tenant_id: tenantId }).whereBetween('paid_date', [f, t]).sum('amount_paid as v').first();
   return num(r?.v);
 }
-async function avgScore(tenantId, f, t) {
-  const r = await db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id')
+async function avgScore(tenantId, f, t, classIds = []) {
+  let query = db('grades as g')
+    .join('exams as ex', 'g.exam_id', 'ex.id')
+    .join('students as st', 'g.student_id', 'st.user_id')
     .where('ex.tenant_id', tenantId).whereBetween('ex.date', [f, t])
-    .whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0)
-    .select(db.raw('AVG(g.marks_obtained / ex.total_marks * 100) as v')).first();
+    .whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0);
+  if (classIds.length) query = query.whereIn('st.class_id', classIds);
+  const r = await query.select(db.raw('AVG(g.marks_obtained / ex.total_marks * 100) as v')).first();
   return round(r?.v);
 }
 
 // ── builders ──
 async function overview(tenantId, f) {
   const { s, e, ps, pe } = resolveRange(f);
+  const classIds = parseClassIds(f);
+
+  let byGradeQuery = db('classes').where({ 'classes.tenant_id': tenantId })
+    .leftJoin('students', 'classes.id', 'students.class_id')
+    .where(function () { this.whereNull('students.id').orWhere('students.status', 'active'); })
+    .groupBy('classes.grade_level')
+    .select('classes.grade_level as grade')
+    .count('students.id as c')
+    .orderBy('classes.grade_level');
+  if (classIds.length) byGradeQuery = byGradeQuery.whereIn('classes.id', classIds);
+
+  let attGradeQuery = db('attendance')
+    .where({ 'attendance.tenant_id': tenantId })
+    .whereBetween('attendance.date', [s, e])
+    .join('students', 'attendance.student_id', 'students.user_id')
+    .join('classes', 'students.class_id', 'classes.id')
+    .groupBy('classes.grade_level')
+    .select('classes.grade_level as grade')
+    .select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as present"))
+    .select(db.raw('count(*) as total'))
+    .orderBy('classes.grade_level');
+  if (classIds.length) attGradeQuery = attGradeQuery.whereIn('attendance.class_id', classIds);
+
+  let bandsQuery = db('grades as g')
+    .join('exams as ex', 'g.exam_id', 'ex.id')
+    .join('students as st', 'g.student_id', 'st.user_id')
+    .where('ex.tenant_id', tenantId)
+    .whereBetween('ex.date', [s, e])
+    .whereNotNull('g.marks_obtained')
+    .where('ex.total_marks', '>', 0);
+  if (classIds.length) bandsQuery = bandsQuery.whereIn('st.class_id', classIds);
+  bandsQuery = bandsQuery
+    .select(db.raw("CASE WHEN g.marks_obtained/ex.total_marks>=0.9 THEN 'A' WHEN g.marks_obtained/ex.total_marks>=0.8 THEN 'B' WHEN g.marks_obtained/ex.total_marks>=0.7 THEN 'C' WHEN g.marks_obtained/ex.total_marks>=0.6 THEN 'D' ELSE 'F' END as band"))
+    .count('* as c')
+    .groupBy('band');
+
   const [students, staff, classes, outstanding, attC, attP, colC, colP, scC, scP, byGrade, attGrade, collTrend, bands, staffRole] = await Promise.all([
-    db('students').where({ tenant_id: tenantId, status: 'active' }).count('* as c').first(),
+    db('students').where({ tenant_id: tenantId, status: 'active' }).modify((q) => { if (classIds.length) q.whereIn('class_id', classIds); }).count('* as c').first(),
     db('users').where({ tenant_id: tenantId }).whereNotIn('role', ['student', 'parent']).whereNot('status', 'inactive').count('* as c').first(),
-    db('classes').where({ tenant_id: tenantId }).count('* as c').first(),
+    db('classes').where({ tenant_id: tenantId }).modify((q) => { if (classIds.length) q.whereIn('id', classIds); }).count('* as c').first(),
     db('student_monthly_bills').where({ tenant_id: tenantId, status: 'unpaid' }).select(db.raw('COALESCE(SUM(amount + penalty - amount_paid),0) as v')).first(),
-    attendanceRate(tenantId, s, e), attendanceRate(tenantId, ps, pe), collected(tenantId, s, e), collected(tenantId, ps, pe), avgScore(tenantId, s, e), avgScore(tenantId, ps, pe),
-    db('classes').where({ 'classes.tenant_id': tenantId }).leftJoin('students', 'classes.id', 'students.class_id').where(function () { this.whereNull('students.id').orWhere('students.status', 'active'); }).groupBy('classes.grade_level').select('classes.grade_level as grade').count('students.id as c').orderBy('classes.grade_level'),
-    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.user_id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.grade_level').select('classes.grade_level as grade').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as present")).select(db.raw('count(*) as total')).orderBy('classes.grade_level'),
+    attendanceRate(tenantId, s, e, classIds), attendanceRate(tenantId, ps, pe, classIds),
+    collected(tenantId, s, e), collected(tenantId, ps, pe),
+    avgScore(tenantId, s, e, classIds), avgScore(tenantId, ps, pe, classIds),
+    byGradeQuery,
+    attGradeQuery,
     db('payments').where({ tenant_id: tenantId }).whereBetween('paid_date', [s, e]).groupByRaw("to_char(paid_date,'YYYY-MM')").select(db.raw("to_char(paid_date,'YYYY-MM') as m")).sum('amount_paid as v').orderBy('m'),
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0).select(db.raw("CASE WHEN g.marks_obtained/ex.total_marks>=0.9 THEN 'A' WHEN g.marks_obtained/ex.total_marks>=0.8 THEN 'B' WHEN g.marks_obtained/ex.total_marks>=0.7 THEN 'C' WHEN g.marks_obtained/ex.total_marks>=0.6 THEN 'D' ELSE 'F' END as band")).count('* as c').groupBy('band'),
+    bandsQuery,
     db('users').where({ tenant_id: tenantId }).whereNotIn('role', ['student', 'parent']).whereNot('status', 'inactive').groupBy('role').select('role').count('* as c').orderBy('c', 'desc'),
   ]);
+
   const insights = [];
   if (attC.rate > 0 && attC.rate < 90) insights.push(`Attendance is ${attC.rate}% — below the 90% target.`);
   else if (attC.rate >= 90) insights.push(`Attendance is healthy at ${attC.rate}%.`);
   const out = num(outstanding?.v);
   if (out > 0) insights.push(`Outstanding fees total ${Math.round(out).toLocaleString()} ETB.`);
   if (num(staff?.c) > 0) insights.push(`Student-to-staff ratio is about ${Math.round(num(students.c) / num(staff.c))}:1.`);
+
   return {
     kpis: {
       students: { label: 'Active students', value: num(students.c) },
@@ -100,28 +161,61 @@ async function overview(tenantId, f) {
 
 async function academics(tenantId, f) {
   const { s, e } = resolveRange(f);
+  const classIds = parseClassIds(f);
+
+  const makeGradesQuery = () => {
+    let q = db('grades as g')
+      .join('exams as ex', 'g.exam_id', 'ex.id')
+      .join('students as st', 'g.student_id', 'st.user_id')
+      .where('ex.tenant_id', tenantId)
+      .whereBetween('ex.date', [s, e])
+      .whereNotNull('g.marks_obtained')
+      .where('ex.total_marks', '>', 0);
+    if (classIds.length) q = q.whereIn('st.class_id', classIds);
+    return q;
+  };
+
   const [bands, bySubject, topClasses, passRow] = await Promise.all([
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0).select(db.raw("CASE WHEN g.marks_obtained/ex.total_marks>=0.9 THEN 'A' WHEN g.marks_obtained/ex.total_marks>=0.8 THEN 'B' WHEN g.marks_obtained/ex.total_marks>=0.7 THEN 'C' WHEN g.marks_obtained/ex.total_marks>=0.6 THEN 'D' ELSE 'F' END as band")).count('* as c').groupBy('band'),
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').join('subjects as sub', 'ex.subject_id', 'sub.id').where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0).groupBy('sub.name').select('sub.name').select(db.raw('AVG(g.marks_obtained/ex.total_marks*100) as avg')).orderBy('avg', 'desc'),
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').join('classes as c', 'ex.class_id', 'c.id').where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0).groupBy('c.name').select('c.name').select(db.raw('AVG(g.marks_obtained/ex.total_marks*100) as avg')).orderBy('avg', 'desc').limit(10),
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0).select(db.raw("count(*) filter (where g.marks_obtained/ex.total_marks>=0.5) as passed")).select(db.raw('count(*) as total')).first(),
+    makeGradesQuery()
+      .select(db.raw("CASE WHEN g.marks_obtained/ex.total_marks>=0.9 THEN 'A' WHEN g.marks_obtained/ex.total_marks>=0.8 THEN 'B' WHEN g.marks_obtained/ex.total_marks>=0.7 THEN 'C' WHEN g.marks_obtained/ex.total_marks>=0.6 THEN 'D' ELSE 'F' END as band"))
+      .count('* as c').groupBy('band'),
+    makeGradesQuery()
+      .join('subjects as sub', 'ex.subject_id', 'sub.id')
+      .groupBy('sub.name').select('sub.name')
+      .select(db.raw('AVG(g.marks_obtained/ex.total_marks*100) as avg')).orderBy('avg', 'desc'),
+    makeGradesQuery()
+      .join('classes as c', 'st.class_id', 'c.id')
+      .groupBy('c.name').select('c.name')
+      .select(db.raw('AVG(g.marks_obtained/ex.total_marks*100) as avg')).orderBy('avg', 'desc').limit(10),
+    makeGradesQuery()
+      .select(db.raw('count(*) filter (where g.marks_obtained/ex.total_marks>=0.5) as passed'))
+      .select(db.raw('count(*) as total')).first(),
   ]);
-  const avg = await avgScore(tenantId, s, e);
+
+  const avg = await avgScore(tenantId, s, e, classIds);
   const passRate = pct(num(passRow?.passed), num(passRow?.total));
+
   const [csRows, subjPass] = await Promise.all([
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').join('classes as c', 'ex.class_id', 'c.id').join('subjects as sub', 'ex.subject_id', 'sub.id')
-      .where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0)
-      .groupBy('c.name', 'sub.name').select('c.name as cls', 'sub.name as sub').select(db.raw('AVG(g.marks_obtained/ex.total_marks*100) as avg')).catch(() => []),
-    db('grades as g').join('exams as ex', 'g.exam_id', 'ex.id').join('subjects as sub', 'ex.subject_id', 'sub.id')
-      .where('ex.tenant_id', tenantId).whereBetween('ex.date', [s, e]).whereNotNull('g.marks_obtained').where('ex.total_marks', '>', 0)
-      .groupBy('sub.name').select('sub.name').select(db.raw("count(*) filter (where g.marks_obtained/ex.total_marks>=0.5) as passed")).select(db.raw('count(*) as total')).catch(() => []),
+    makeGradesQuery()
+      .join('classes as c', 'st.class_id', 'c.id')
+      .join('subjects as sub', 'ex.subject_id', 'sub.id')
+      .groupBy('c.name', 'sub.name').select('c.name as cls', 'sub.name as sub')
+      .select(db.raw('AVG(g.marks_obtained/ex.total_marks*100) as avg')).catch(() => []),
+    makeGradesQuery()
+      .join('subjects as sub', 'ex.subject_id', 'sub.id')
+      .groupBy('sub.name').select('sub.name')
+      .select(db.raw("count(*) filter (where g.marks_obtained/ex.total_marks>=0.5) as passed"))
+      .select(db.raw('count(*) as total')).catch(() => []),
   ]);
+
   const heatRows = [...new Set(csRows.map((r) => r.cls))];
   const heatCols = [...new Set(csRows.map((r) => r.sub))];
   const heatData = heatRows.map((cls) => heatCols.map((sub) => { const m = csRows.find((r) => r.cls === cls && r.sub === sub); return m ? round(m.avg) : null; }));
+
   const insights = [];
   if (bySubject.length) insights.push(`Strongest subject: ${bySubject[0].name} (${round(bySubject[0].avg)}%).`);
   if (bySubject.length > 1) insights.push(`Weakest subject: ${bySubject[bySubject.length - 1].name} (${round(bySubject[bySubject.length - 1].avg)}%).`);
+
   return {
     kpis: {
       avg_score: { label: 'Average score', value: avg, unit: '%' },
@@ -141,23 +235,79 @@ async function academics(tenantId, f) {
 
 async function attendance(tenantId, f) {
   const { s, e, ps, pe } = resolveRange(f);
+  const classIds = parseClassIds(f);
+
+  const attQuery = (from, to) => {
+    let q = db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [from, to]);
+    if (classIds.length) q = q.whereIn('class_id', classIds);
+    return q;
+  };
+
+  let byGradeQuery = db('attendance')
+    .where({ 'attendance.tenant_id': tenantId })
+    .whereBetween('attendance.date', [s, e])
+    .join('students', 'attendance.student_id', 'students.user_id')
+    .join('classes', 'students.class_id', 'classes.id')
+    .groupBy('classes.grade_level')
+    .select('classes.grade_level as grade')
+    .select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p"))
+    .select(db.raw('count(*) as t'))
+    .orderBy('classes.grade_level');
+  if (classIds.length) byGradeQuery = byGradeQuery.whereIn('attendance.class_id', classIds);
+
+  let byClassQuery = db('attendance')
+    .where({ 'attendance.tenant_id': tenantId })
+    .whereBetween('attendance.date', [s, e])
+    .join('students', 'attendance.student_id', 'students.user_id')
+    .join('classes', 'students.class_id', 'classes.id')
+    .groupBy('classes.name')
+    .select('classes.name')
+    .select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p"))
+    .select(db.raw('count(*) as t'))
+    .orderBy('classes.name');
+  if (classIds.length) byClassQuery = byClassQuery.whereIn('attendance.class_id', classIds);
+
   const [cur, prev, byGrade, byClass, trend, chronic] = await Promise.all([
-    attendanceRate(tenantId, s, e), attendanceRate(tenantId, ps, pe),
-    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.user_id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.grade_level').select('classes.grade_level as grade').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('classes.grade_level'),
-    db('attendance').where({ 'attendance.tenant_id': tenantId }).whereBetween('attendance.date', [s, e]).join('students', 'attendance.student_id', 'students.user_id').join('classes', 'students.class_id', 'classes.id').groupBy('classes.name').select('classes.name').select(db.raw("count(*) filter (where lower(attendance.status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('classes.name'),
-    db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [s, e]).groupByRaw("to_char(date,'YYYY-MM-DD')").select(db.raw("to_char(date,'YYYY-MM-DD') as d")).select(db.raw("count(*) filter (where lower(status) in ('present','late')) as p")).select(db.raw('count(*) as t')).orderBy('d'),
-    db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [s, e]).groupBy('student_id').select('student_id').select(db.raw('count(*) as t')).select(db.raw("count(*) filter (where lower(status)='absent') as a")).havingRaw('count(*) >= 3'),
+    attendanceRate(tenantId, s, e, classIds), attendanceRate(tenantId, ps, pe, classIds),
+    byGradeQuery,
+    byClassQuery,
+    attQuery(s, e)
+      .groupByRaw("to_char(date,'YYYY-MM-DD')")
+      .select(db.raw("to_char(date,'YYYY-MM-DD') as d"))
+      .select(db.raw("count(*) filter (where lower(status) in ('present','late')) as p"))
+      .select(db.raw('count(*) as t')).orderBy('d'),
+    attQuery(s, e)
+      .groupBy('student_id').select('student_id')
+      .select(db.raw('count(*) as t'))
+      .select(db.raw("count(*) filter (where lower(status)='absent') as a"))
+      .havingRaw('count(*) >= 3'),
   ]);
+
   const chronicCount = chronic.filter((r) => num(r.t) > 0 && num(r.a) / num(r.t) > 0.1).length;
+
+  let chronicListQuery = db('attendance as a')
+    .join('students as st', 'a.student_id', 'st.user_id')
+    .join('users as u', 'st.user_id', 'u.id')
+    .join('classes as c', 'st.class_id', 'c.id')
+    .where('a.tenant_id', tenantId)
+    .whereBetween('a.date', [s, e])
+    .groupBy('u.first_name', 'u.last_name', 'c.name')
+    .select(db.raw("u.first_name || ' ' || u.last_name as name"), 'c.name as class')
+    .select(db.raw('count(*) as days'))
+    .select(db.raw("count(*) filter (where lower(a.status)='absent') as absent"))
+    .havingRaw("count(*) filter (where lower(a.status)='absent') > 0")
+    .orderBy('absent', 'desc').limit(15);
+  if (classIds.length) chronicListQuery = chronicListQuery.whereIn('a.class_id', classIds);
+
   const [chronicList, weekday] = await Promise.all([
-    db('attendance as a').join('students as st', 'a.student_id', 'st.id').join('users as u', 'st.user_id', 'u.id').join('classes as c', 'st.class_id', 'c.id')
-      .where('a.tenant_id', tenantId).whereBetween('a.date', [s, e]).groupBy('u.first_name', 'u.last_name', 'c.name')
-      .select(db.raw("u.first_name || ' ' || u.last_name as name"), 'c.name as class')
-      .select(db.raw('count(*) as days')).select(db.raw("count(*) filter (where lower(a.status)='absent') as absent"))
-      .havingRaw("count(*) filter (where lower(a.status)='absent') > 0").orderBy('absent', 'desc').limit(15).catch(() => []),
-    db('attendance').where({ tenant_id: tenantId }).whereBetween('date', [s, e]).groupByRaw("to_char(date,'Dy'), extract(dow from date)")
-      .select(db.raw("to_char(date,'Dy') as d")).select(db.raw("count(*) filter (where lower(status)='absent') as a")).orderByRaw('extract(dow from date)').catch(() => []),
+    chronicListQuery.catch(() => []),
+    attQuery(s, e)
+      .groupByRaw("to_char(date,'Dy'), extract(dow from date)")
+      .select(db.raw("to_char(date,'Dy') as d"))
+      .select(db.raw("count(*) filter (where lower(status)='absent') as a"))
+      .orderByRaw('extract(dow from date)').catch(() => []),
   ]);
+
   return {
     kpis: {
       attendance_rate: { label: 'Attendance rate', value: cur.rate, unit: '%', delta: delta(cur.rate, prev.rate) },

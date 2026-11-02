@@ -164,7 +164,7 @@ export default function FaceAttendancePage() {
     return () => { active = false; cancelAnimationFrame(rafRef.current); };
   }, [mode, modelsReady, drawOverlay, doScan]);
 
-  const sessionLabel = session === "am" ? t("Morning (AM)") : t("Afternoon (PM)");
+  const sessionLabel = session === "am" ? t("Morning") : t("Afternoon");
 
   return (
     <div className="space-y-5">
@@ -265,7 +265,7 @@ function ScanResult({ result }) {
       <p className="text-sm mt-1">{result.message}</p>
       {ok && (
         <p className="text-xs mt-1 opacity-80">
-          {String(result.session || "").toUpperCase()} · {result.time}
+          {result.session === "pm" ? t("Afternoon") : t("Morning")} · {result.time}
           {result.status ? ` · ${result.status}` : ""}
         </p>
       )}
@@ -376,7 +376,7 @@ function ExceptionPanel({ session, onSaved }) {
     setBusy(true); setMsg("");
     try {
       await api.post("/face-attendance/exception", { staffId: selected.id, session, status });
-      setMsg(t("Marked {name} as {status} for the {session} session.", { name: fullName(selected), status: t(status === "leave" ? "Leave" : "Emergency"), session: session.toUpperCase() }));
+      setMsg(t("Marked {name} as {status} for the {session} session.", { name: fullName(selected), status: t(status === "leave" ? "Leave" : "Emergency"), session: session === "pm" ? t("Afternoon") : t("Morning") }));
       onSaved?.();
     } catch (e) { setMsg(e?.error?.message || e?.message || "Could not save"); }
     finally { setBusy(false); }
@@ -385,7 +385,7 @@ function ExceptionPanel({ session, onSaved }) {
   return (
     <Card><CardContent className="p-4 space-y-3 max-w-2xl">
       <p className="text-md font-medium flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> {t("Mark leave / emergency for a session")}</p>
-      <p className="text-xs text-muted-foreground">{t("Current session")}: <span className="font-medium">{session.toUpperCase()}</span>. {t("Change the session toggle at the top.")}</p>
+      <p className="text-xs text-muted-foreground">{t("Current session")}: <span className="font-medium">{session === "pm" ? t("Afternoon") : t("Morning")}</span>. {t("Change the session toggle at the top.")}</p>
       <div className="flex gap-2">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("Search staff name…")} onKeyDown={(e) => e.key === "Enter" && searchStaff()} />
         <Button variant="outline" onClick={searchStaff}><RefreshCw className="h-4 w-4" /></Button>
@@ -490,8 +490,8 @@ function SettingsPanel({ settings, onSaved }) {
     <Card><CardContent className="p-4 space-y-4 max-w-3xl">
       <p className="text-md font-medium flex items-center gap-2"><SettingsIcon className="h-4 w-4" /> {t("Face attendance settings")}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1"><Label className="text-xs">{t("Morning (AM) start")}</Label><Input type="time" value={form.am_start || "08:00"} onChange={(e) => set("am_start", e.target.value)} /></div>
-        <div className="space-y-1"><Label className="text-xs">{t("Afternoon (PM) start")}</Label><Input type="time" value={form.pm_start || "13:30"} onChange={(e) => set("pm_start", e.target.value)} /></div>
+        <div className="space-y-1"><Label className="text-xs">{t("Morning start")}</Label><Input type="time" value={form.am_start || "08:00"} onChange={(e) => set("am_start", e.target.value)} /></div>
+        <div className="space-y-1"><Label className="text-xs">{t("Afternoon start")}</Label><Input type="time" value={form.pm_start || "13:30"} onChange={(e) => set("pm_start", e.target.value)} /></div>
         <div className="space-y-1"><Label className="text-xs">{t("Grace minutes (both)")}</Label><Input type="number" min="0" value={form.late_grace_minutes ?? 30} onChange={(e) => set("late_grace_minutes", e.target.value)} /></div>
         <div className="space-y-1"><Label className="text-xs">{t("Timezone")}</Label><Input value={form.timezone || "Africa/Addis_Ababa"} onChange={(e) => set("timezone", e.target.value)} /></div>
         <div className="space-y-1"><Label className="text-xs">{t("Match threshold")}</Label><Input type="number" step="0.01" value={form.match_threshold ?? 0.5} onChange={(e) => set("match_threshold", e.target.value)} /></div>

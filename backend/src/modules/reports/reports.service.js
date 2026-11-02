@@ -3,11 +3,16 @@ const knex = db;
 
 // ── Admin/Owner Reports ──
 
-async function getStudentEnrollmentReport(tenantId, { academic_year_id, scopes } = {}) {
+async function getStudentEnrollmentReport(tenantId, { academic_year_id, scopes, class_id } = {}) {
+  const classIds = Array.isArray(class_id)
+    ? class_id.filter(Boolean)
+    : String(class_id || '').split(',').map((v) => v.trim()).filter(Boolean);
+
   function baseQuery() {
     let q = db('classes').where({ 'classes.tenant_id': tenantId });
     if (academic_year_id) q = q.where('classes.academic_year_id', academic_year_id);
     if (scopes && scopes.length) q = q.whereIn('classes.level_group', scopes);
+    if (classIds.length) q = q.whereIn('classes.id', classIds);
     return q;
   }
 
@@ -42,6 +47,7 @@ async function getStudentEnrollmentReport(tenantId, { academic_year_id, scopes }
     .count('* as count')
     .groupBy('students.gender');
   if (scopes && scopes.length) genderQ = genderQ.whereIn('classes.level_group', scopes);
+  if (classIds.length) genderQ = genderQ.whereIn('students.class_id', classIds);
   const genderRows = await genderQ;
 
   const genderBreakdown = genderRows.map((r) => ({
@@ -55,6 +61,7 @@ async function getStudentEnrollmentReport(tenantId, { academic_year_id, scopes }
 async function getGradeDistributionReport(tenantId, { class_id, exam_id } = {}) {
   let query = db('grades')
     .where({ 'grades.tenant_id': tenantId })
+    .join('students as st', 'grades.student_id', 'st.user_id')
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
     .select('grades.grade_letter', db.raw('COUNT(*)::int as count'))
@@ -62,8 +69,8 @@ async function getGradeDistributionReport(tenantId, { class_id, exam_id } = {}) 
     .orderBy('grades.grade_letter');
 
   if (class_id) {
-    if (Array.isArray(class_id)) query = query.whereIn('exams.class_id', class_id);
-    else query = query.where('exams.class_id', class_id);
+    const ids = Array.isArray(class_id) ? class_id : [class_id];
+    query = query.whereIn('st.class_id', ids);
   }
   if (exam_id) query = query.where('grades.exam_id', exam_id);
 
@@ -74,9 +81,10 @@ async function getGradeDistributionReport(tenantId, { class_id, exam_id } = {}) 
 async function getClassPerformanceReport(tenantId, { class_id } = {}) {
   let query = db('grades')
     .where({ 'grades.tenant_id': tenantId })
+    .join('students as st', 'grades.student_id', 'st.user_id')
     .leftJoin('exams', 'grades.exam_id', 'exams.id')
     .leftJoin('subjects', 'exams.subject_id', 'subjects.id')
-    .leftJoin('classes', 'exams.class_id', 'classes.id')
+    .leftJoin('classes', 'st.class_id', 'classes.id')
     .select(
       'classes.name as class_name',
       'subjects.name as subject_name',
@@ -88,7 +96,10 @@ async function getClassPerformanceReport(tenantId, { class_id } = {}) {
     .groupBy('classes.name', 'subjects.name')
     .orderBy('classes.name', 'subjects.name');
 
-  if (class_id) query = query.where('exams.class_id', class_id);
+  if (class_id) {
+    const ids = Array.isArray(class_id) ? class_id : [class_id];
+    query = query.whereIn('st.class_id', ids);
+  }
 
   return { performance: await query };
 }
@@ -1172,6 +1183,17 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
 
 const round1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
 
+function eachDate(from, to) {
+  const out = [];
+  const start = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return out;
+  for (let d = start; d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
 async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) {
   const access = require('../../shared/access');
   const toDate = filters.to_date || new Date().toISOString().slice(0, 10);
@@ -1241,7 +1263,10 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
   const result = classes.map((cls) => {
     const classStudents = students.filter((s) => s.class_id === cls.id);
     const classRecords = byClass.get(cls.id) || [];
-    const days = [...new Set(classRecords.map((r) => r.day))].sort();
+    const recordedDays = [...new Set(classRecords.map((r) => r.day))].sort();
+    // Every date in the selected period, so a monthly sheet shows all 30 days
+    // (blank cells where attendance was not marked).
+    const days = eachDate(fromDate, toDate);
 
     const marks = new Map();
     for (const r of classRecords) {
@@ -1320,7 +1345,8 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
       daily,
       summary: {
         students: studentRows.length,
-        days_recorded: days.length,
+        days_recorded: recordedDays.length,
+        days_in_period: days.length,
         records: totals.recorded,
         present: totals.present,
         absent: totals.absent,

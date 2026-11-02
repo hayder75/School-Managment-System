@@ -66,11 +66,49 @@ function StatCard({ title, value, sub, color }) {
 // ── Admin/Owner Tab ──
 
 function EnrollmentReport() {
-  const { data, isLoading } = useEnrollmentReport();
+  const { classes } = useScopedClasses(200);
+  const [classIds, setClassIds] = useState([]);
+  const { data, isLoading } = useEnrollmentReport({ class_id: classIds.length ? classIds.join(",") : undefined });
   const report = data?.data;
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Student Enrollment</h3>
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">Classes (empty = all classes)</p>
+        <Chips
+          options={classes.map((c) => ({ value: c.id, label: c.name }))}
+          value={classIds}
+          onChange={setClassIds}
+          emptyLabel="No classes"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!report}
+          onClick={() => window.open(`/api/reports/export-data/enrollment?${classIds.length ? `class_id=${classIds.join(",")}` : ""}`, "_blank")}
+        >
+          Excel
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!report}
+          onClick={() => {
+            const rows = [["Class", "Grade", "Students"], ...(report?.by_class || []).map((c) => [c.name, c.grade_level, c.student_count])];
+            const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+            const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "student-enrollment.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          CSV
+        </Button>
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
           <StatCard title="Total Enrolled" value={report.total_enrolled} />
@@ -102,11 +140,22 @@ function EnrollmentReport() {
 }
 
 function GradeDistributionReport() {
-  const { data, isLoading } = useGradeDistribution();
+  const { classes } = useScopedClasses(200);
+  const [classId, setClassId] = useState("");
+  const { data, isLoading } = useGradeDistribution({ class_id: classId || undefined });
   const dist = data?.data?.distribution || [];
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Grade Distribution</h3>
+      <div className="w-72">
+        <Select value={classId || "all"} onValueChange={(v) => setClassId(v === "all" ? "" : v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All classes</SelectItem>
+            {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : dist.length === 0 ? (
         <p className="text-muted-foreground">No grade data yet</p>
       ) : (
@@ -121,11 +170,10 @@ function GradeDistributionReport() {
 }
 
 function ClassPerformanceReport() {
-  const { data: classesData } = useClasses({ limit: 200 });
+  const { classes } = useScopedClasses(200);
   const [classId, setClassId] = useState("");
   const { data, isLoading } = useClassPerformance({ class_id: classId || undefined });
   const perf = data?.data?.performance || [];
-  const classes = classesData?.data || [];
 
   return (
     <div className="space-y-4">
@@ -169,11 +217,22 @@ function ClassPerformanceReport() {
 }
 
 function AttendanceOverviewReport() {
-  const { data, isLoading } = useAttendanceOverview();
+  const { classes } = useScopedClasses(200);
+  const [classId, setClassId] = useState("");
+  const { data, isLoading } = useAttendanceOverview({ class_id: classId || undefined });
   const report = data?.data;
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Attendance Overview</h3>
+      <div className="w-72">
+        <Select value={classId || "all"} onValueChange={(v) => setClassId(v === "all" ? "" : v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All classes</SelectItem>
+            {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
           <div className="grid gap-4 md:grid-cols-2 sm:grid-cols-5">

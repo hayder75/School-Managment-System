@@ -244,6 +244,12 @@ export default function HomeroomAttendanceReport({ isTeacher = false, classes = 
                     <tr className="border-b bg-muted/50 text-left">
                       <th className="p-2 font-medium sticky left-0 bg-muted/50">{t("Student")}</th>
                       {cls.days.map((d) => <th key={d} className="p-2 font-medium whitespace-nowrap">{d.slice(5)}</th>)}
+                      <th className="p-2 font-medium text-emerald-700">{t("P")}</th>
+                      <th className="p-2 font-medium text-rose-700">{t("A")}</th>
+                      <th className="p-2 font-medium text-amber-700">{t("L")}</th>
+                      <th className="p-2 font-medium text-blue-700">{t("E")}</th>
+                      <th className="p-2 font-medium">{t("Present %")}</th>
+                      <th className="p-2 font-medium">{t("Absent %")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -265,13 +271,21 @@ export default function HomeroomAttendanceReport({ isTeacher = false, classes = 
                             </td>
                           );
                         })}
+                        <td className="p-2 font-semibold text-emerald-700">{st.present}</td>
+                        <td className="p-2 font-semibold text-rose-700">{st.absent}</td>
+                        <td className="p-2 font-semibold text-amber-700">{st.late}</td>
+                        <td className="p-2 font-semibold text-blue-700">{st.excused}</td>
+                        <td className="p-2 font-semibold">{st.present_rate == null ? "—" : `${st.present_rate}%`}</td>
+                        <td className="p-2 font-semibold">{st.absent_rate == null ? "—" : `${st.absent_rate}%`}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               {!cls.days.length && (
-                <p className="p-4 text-sm text-muted-foreground">{t("No attendance was marked in this period.")}</p>
+                <p className="px-4 py-2 text-[11px] text-muted-foreground">
+                {t("Blank (·) means attendance was not marked that day. P present · A absent · L late · E excused.")}
+              </p>
               )}
             </CardContent>
           </Card>
