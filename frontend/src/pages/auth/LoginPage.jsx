@@ -70,6 +70,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [devHint, setDevHint] = useState("");
   const [loading, setLoading] = useState(false);
   const [devUsers, setDevUsers] = useState([]);
   const [demoOpen, setDemoOpen] = useState(false);
@@ -104,8 +105,15 @@ export default function LoginPage() {
     setSelectedDev(user);
     setDemoOpen(false);
     setIdentifier(id);
-    setPassword("1234");
     setError("");
+    setDevHint("");
+    // The owner account has its own password — never auto-fill a shared demo one.
+    if (user.role === "owner") {
+      setPassword("");
+      setDevHint(t("Owner account: type its password to sign in."));
+      return;
+    }
+    setPassword("1234");
     setLoading(true);
     try {
       await login(id, "1234");
@@ -118,6 +126,7 @@ export default function LoginPage() {
   }
 
   async function handleSubmit(e) {
+    setDevHint("");
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -261,6 +270,11 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+            {!error && devHint && (
+              <div className="bg-amber-50 border border-amber-100 text-amber-700 text-xs p-2.5 rounded-lg">
+                {devHint}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-neutral-600 block">{t.auth.emailOrUsername}</label>
@@ -284,7 +298,7 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setDevHint(""); }}
                   required
                   placeholder="Enter your password"
                   className="w-full bg-white border border-neutral-200 rounded-lg pl-9 pr-10 py-2.5 text-[13px] focus:outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 transition-all placeholder:text-neutral-300"
