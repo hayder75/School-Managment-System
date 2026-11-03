@@ -4,7 +4,7 @@ import { useAuthStore } from "../store/auth";
 import { Button } from "../components/ui/button";
 import {
   ArrowLeft, BookOpen, Search, ChevronDown, ChevronRight,
-  Printer, Download, CornerUpLeft,
+  CornerUpLeft,
 } from "lucide-react";
 
 const ROLE_ORDER = [
@@ -287,14 +287,6 @@ export default function HelpPage() {
               </div>
 
               <div className="mt-10 pt-5 border-t border-neutral-200 flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => window.print()}>
-                  <Printer size={14} className="mr-1.5" /> Print this chapter
-                </Button>
-                <a href="/SMS_User_Manual.pdf" download>
-                  <Button variant="outline" size="sm">
-                    <Download size={14} className="mr-1.5" /> Download full manual (PDF)
-                  </Button>
-                </a>
                 <Button size="sm" onClick={backToSystem}>
                   Back to system
                 </Button>
