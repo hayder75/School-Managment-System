@@ -520,7 +520,7 @@ function addSheet(wb, sheet) {
   ws.columns = sheet.columns;
   ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C5A5E' } };
-  ws.views = [{ state: 'frozen', ySplit: 1 }];
+  ws.views = [{ state: 'frozen', ySplit: 1, ...(sheet.freezeX ? { xSplit: sheet.freezeX } : {}) }];
   for (const row of sheet.rows) ws.addRow(row);
   if (sheet.footer) {
     const fr = ws.addRow([sheet.footer]);
@@ -729,19 +729,106 @@ async function classResultsSheets(tenantId, filters = {}, viewer = {}) {
   return sheets;
 }
 
-const STATUS_LETTER = { present: 'P', absent: 'A', late: 'L', excused: 'E' };
+const STATUS_WORD = { present: 'Present', absent: 'Absent', late: 'Late', excused: 'Excused' };
 const STATUS_FILL = {
-  P: 'FFE8F6EE',
-  A: 'FFFDECEC',
-  L: 'FFFFF7E0',
-  E: 'FFE8F0FB',
+  Present: 'FFE8F6EE',
+  Absent: 'FFFDECEC',
+  Late: 'FFFFF7E0',
+  Excused: 'FFE8F0FB',
 };
+
+function fullNameOf(st) {
+  return [st.first_name, st.middle_name, st.last_name].filter(Boolean).join(' ');
+}
 
 async function homeroomAttendanceSheets(tenantId, filters = {}, viewer = {}) {
   const reportService = require('../modules/reports/reports.service');
   const data = await reportService.getHomeroomAttendanceReport(tenantId, filters, viewer);
   const usedNames = new Set(['Overview']);
-  const sheets = [];
+
+  const registerSheets = [];
+  const summarySheets = [];
+
+  // Detail register first: when someone opens the workbook, this is what they
+  // see — every student by name, one column per date in the period, with the
+  // actual status word in each cell and totals at the end.
+  for (const cls of data.classes || []) {
+    const registerColumns = [
+      { header: 'Student', key: 'name', width: 32 },
+      { header: 'Student ID', key: 'student_number', width: 15 },
+      ...(cls.days || []).map((d) => ({ header: d, key: `d_${d}`, width: 11 })),
+      { header: 'Present', key: 'present', width: 10 },
+      { header: 'Absent', key: 'absent', width: 10 },
+      { header: 'Late', key: 'late', width: 9 },
+      { header: 'Excused', key: 'excused', width: 10 },
+      { header: 'Present %', key: 'present_rate', width: 11 },
+      { header: 'Absent %', key: 'absent_rate', width: 11 },
+    ];
+    const registerRows = (cls.students || []).map((st) => {
+      const row = {
+        name: fullNameOf(st),
+        student_number: st.student_number || '',
+        present: st.present,
+        absent: st.absent,
+        late: st.late,
+        excused: st.excused,
+        present_rate: st.present_rate,
+        absent_rate: st.absent_rate,
+      };
+      for (const d of cls.days || []) {
+        const status = st.days?.[d];
+        row[`d_${d}`] = status ? (STATUS_WORD[status] || status) : '';
+      }
+      return row;
+    });
+
+    registerSheets.push({
+      name: safeSheetName(`${cls.class_name} register`, usedNames),
+      columns: registerColumns,
+      rows: registerRows,
+      freezeX: 2,
+      footer: `Class: ${cls.class_name} · Period: ${data.from_date} → ${data.to_date} · Blank = attendance not marked · Present/Absent/Late/Excused shown per day`,
+      percentKeys: [
+        { key: 'present_rate', good: 95, warn: 85 },
+        { key: 'absent_rate', good: 5, warn: 10, reverse: true },
+      ],
+      statusColumns: (cls.days || []).map((d) => `d_${d}`),
+    });
+
+    summarySheets.push({
+      name: safeSheetName(`${cls.class_name} summary`, usedNames),
+      columns: [
+        { header: 'Student', key: 'name', width: 32 },
+        { header: 'Student ID', key: 'student_number', width: 15 },
+        { header: 'Days recorded', key: 'recorded', width: 14 },
+        { header: 'Present', key: 'present', width: 10 },
+        { header: 'Absent', key: 'absent', width: 10 },
+        { header: 'Late', key: 'late', width: 9 },
+        { header: 'Excused', key: 'excused', width: 10 },
+        { header: 'Present %', key: 'present_rate', width: 11 },
+        { header: 'Absent %', key: 'absent_rate', width: 11 },
+        { header: 'Late %', key: 'late_rate', width: 10 },
+        { header: 'At risk', key: 'at_risk', width: 9 },
+      ],
+      rows: (cls.students || []).map((st) => ({
+        name: fullNameOf(st),
+        student_number: st.student_number || '',
+        recorded: st.recorded,
+        present: st.present,
+        absent: st.absent,
+        late: st.late,
+        excused: st.excused,
+        present_rate: st.present_rate,
+        absent_rate: st.absent_rate,
+        late_rate: st.late_rate,
+        at_risk: st.at_risk ? 'YES' : '',
+      })),
+      percentKeys: [
+        { key: 'present_rate', good: 95, warn: 85 },
+        { key: 'absent_rate', good: 5, warn: 10, reverse: true },
+      ],
+    });
+  }
 
   const overviewRows = (data.classes || []).map((c) => ({
     class_name: c.class_name,
@@ -755,7 +842,7 @@ async function homeroomAttendanceSheets(tenantId, filters = {}, viewer = {}) {
     at_risk: c.summary.at_risk,
   }));
 
-  sheets.push({
+  const overviewSheet = {
     name: 'Overview',
     columns: [
       { header: 'Class', key: 'class_name', width: 18 },
@@ -776,86 +863,10 @@ async function homeroomAttendanceSheets(tenantId, filters = {}, viewer = {}) {
       { key: 'present_rate', good: 95, warn: 85 },
       { key: 'absent_rate', good: 5, warn: 10, reverse: true },
     ],
-  });
+  };
 
-  for (const cls of data.classes || []) {
-    const summaryName = safeSheetName(`${cls.class_name} summary`, usedNames);
-    sheets.push({
-      name: summaryName,
-      columns: [
-        { header: 'Student', key: 'name', width: 30 },
-        { header: 'Student ID', key: 'student_number', width: 14 },
-        { header: 'Days recorded', key: 'recorded', width: 14 },
-        { header: 'Present', key: 'present', width: 10 },
-        { header: 'Absent', key: 'absent', width: 10 },
-        { header: 'Late', key: 'late', width: 8 },
-        { header: 'Excused', key: 'excused', width: 10 },
-        { header: 'Present %', key: 'present_rate', width: 11 },
-        { header: 'Absent %', key: 'absent_rate', width: 11 },
-        { header: 'Late %', key: 'late_rate', width: 10 },
-        { header: 'At risk', key: 'at_risk', width: 9 },
-      ],
-      rows: (cls.students || []).map((st) => ({
-        name: [st.first_name, st.middle_name, st.last_name].filter(Boolean).join(' '),
-        student_number: st.student_number || '',
-        recorded: st.recorded,
-        present: st.present,
-        absent: st.absent,
-        late: st.late,
-        excused: st.excused,
-        present_rate: st.present_rate,
-        absent_rate: st.absent_rate,
-        late_rate: st.late_rate,
-        at_risk: st.at_risk ? 'YES' : '',
-      })),
-      percentKeys: [
-        { key: 'present_rate', good: 95, warn: 85 },
-        { key: 'absent_rate', good: 5, warn: 10, reverse: true },
-      ],
-    });
-
-    const registerName = safeSheetName(`${cls.class_name} register`, usedNames);
-    const registerColumns = [
-      { header: 'Student', key: 'name', width: 30 },
-      { header: 'Student ID', key: 'student_number', width: 14 },
-      ...(cls.days || []).map((d) => ({ header: d.slice(5), key: `d_${d}`, width: 6 })),
-      { header: 'Present', key: 'present', width: 9 },
-      { header: 'Absent', key: 'absent', width: 9 },
-      { header: 'Late', key: 'late', width: 8 },
-      { header: 'Excused', key: 'excused', width: 9 },
-      { header: 'Present %', key: 'present_rate', width: 11 },
-      { header: 'Absent %', key: 'absent_rate', width: 11 },
-    ];
-    const registerRows = (cls.students || []).map((st) => {
-      const row = {
-        name: [st.first_name, st.middle_name, st.last_name].filter(Boolean).join(' '),
-        student_number: st.student_number || '',
-        present: st.present,
-        absent: st.absent,
-        late: st.late,
-        excused: st.excused,
-        present_rate: st.present_rate,
-        absent_rate: st.absent_rate,
-      };
-      for (const d of cls.days || []) {
-        const status = st.days?.[d];
-        row[`d_${d}`] = status ? (STATUS_LETTER[status] || status.charAt(0).toUpperCase()) : '';
-      }
-      return row;
-    });
-    sheets.push({
-      name: registerName,
-      columns: registerColumns,
-      rows: registerRows,
-      percentKeys: [
-        { key: 'present_rate', good: 95, warn: 85 },
-        { key: 'absent_rate', good: 5, warn: 10, reverse: true },
-      ],
-      statusColumns: (cls.days || []).map((d) => `d_${d}`),
-    });
-  }
-
-  return sheets;
+  // Registers first (the default view), then summaries, then the overview.
+  return [...registerSheets, ...summarySheets, overviewSheet];
 }
 
 function colourForRate(value, { good = 95, warn = 85, reverse = false } = {}) {
