@@ -35,6 +35,7 @@ import { FileSpreadsheet, ChevronDown, Award } from "lucide-react";
 import ReportCenter from "../components/reports/ReportCenter";
 import ClassResultsReport from "../components/reports/ClassResultsReport";
 import HomeroomAttendanceReport from "../components/reports/HomeroomAttendanceReport";
+import ExcelButton from "../components/reports/ExcelButton";
 import { useMyHomeroomClasses } from "../hooks/useAttendance";
 import Chips from "../components/ui/chips";
 
@@ -146,7 +147,14 @@ function GradeDistributionReport() {
   const dist = data?.data?.distribution || [];
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Grade Distribution</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Grade Distribution</h3>
+        <ExcelButton
+          filename={`grade-distribution${classId ? "-" + (classes.find((c) => c.id === classId)?.name || "") : ""}`}
+          disabled={!dist.length}
+          sheets={[{ name: "Grades", columns: [{ key: "grade_letter", label: "Grade" }, { key: "count", label: "Students" }], rows: dist }]}
+        />
+      </div>
       <div className="w-72">
         <Select value={classId || "all"} onValueChange={(v) => setClassId(v === "all" ? "" : v)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -177,7 +185,18 @@ function ClassPerformanceReport() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Class Performance</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Class Performance</h3>
+        <ExcelButton
+          filename="class-performance"
+          disabled={!perf.length}
+          sheets={[{ name: "Performance", columns: [
+            { key: "class_name", label: "Class" }, { key: "subject_name", label: "Subject" },
+            { key: "avg_marks", label: "Average" }, { key: "max_marks", label: "Highest" },
+            { key: "min_marks", label: "Lowest" }, { key: "student_count", label: "Students" },
+          ], rows: perf }]}
+        />
+      </div>
       <div className="w-72">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger><SelectValue placeholder="All classes" /></SelectTrigger>
@@ -223,7 +242,27 @@ function AttendanceOverviewReport() {
   const report = data?.data;
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Attendance Overview</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Attendance Overview</h3>
+        <ExcelButton
+          filename="attendance-overview"
+          disabled={!report}
+          sheets={[
+            { name: "Summary", columns: [{ key: "metric", label: "Metric" }, { key: "value", label: "Value" }], rows: report ? [
+              { metric: "Total records", value: report.summary?.total || 0 },
+              { metric: "Present", value: report.summary?.present || 0 },
+              { metric: "Absent", value: report.summary?.absent || 0 },
+              { metric: "Late", value: report.summary?.late || 0 },
+              { metric: "Excused", value: report.summary?.excused || 0 },
+            ] : [] },
+            { name: "By class", columns: [
+              { key: "class_name", label: "Class" }, { key: "present", label: "Present" },
+              { key: "absent", label: "Absent" }, { key: "late", label: "Late" },
+              { key: "excused", label: "Excused" }, { key: "total", label: "Total" },
+            ], rows: report?.by_class || [] },
+          ]}
+        />
+      </div>
       <div className="w-72">
         <Select value={classId || "all"} onValueChange={(v) => setClassId(v === "all" ? "" : v)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -274,7 +313,22 @@ function TeacherWorkloadReport() {
   const workload = data?.data?.workload || [];
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Teacher Workload</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Teacher Workload</h3>
+        <ExcelButton
+          filename="teacher-workload"
+          disabled={!workload.length}
+          sheets={[{ name: "Workload", columns: [
+            { key: "teacher", label: "Teacher" },
+            { key: "assignments", label: "Assignments" },
+            { key: "classes", label: "Subjects & classes" },
+          ], rows: workload.map((t) => ({
+            teacher: fullName(t),
+            assignments: t.total_assignments,
+            classes: (t.assignments || []).map((a) => `${a.subject} — ${a.class}`).join("; "),
+          })) }]}
+        />
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : workload.length === 0 ? (
         <p className="text-muted-foreground">No assignments yet</p>
       ) : (
@@ -354,7 +408,17 @@ function MyStudentsReport() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">My Students</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">My Students</h3>
+        <ExcelButton
+          filename="my-students"
+          disabled={!students.length}
+          sheets={[{ name: "My Students", columns: [
+            { key: "name", label: "Student" }, { key: "email", label: "Email" },
+            { key: "student_number", label: "Student #" }, { key: "class_name", label: "Class" },
+          ], rows: students.map((x) => ({ ...x, name: fullName(x) })) }]}
+        />
+      </div>
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground">Classes (pick any, or leave empty for all your classes)</p>
         <Chips
@@ -397,7 +461,19 @@ function MyAttendanceReport() {
   const records = data?.data?.records || [];
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">My Attendance Records</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">My Attendance Records</h3>
+        <ExcelButton
+          filename="my-attendance"
+          disabled={!records.length}
+          sheets={[{ name: "Attendance", columns: [
+            { key: "class_name", label: "Class" }, { key: "date", label: "Date" },
+            { key: "present", label: "Present" }, { key: "absent", label: "Absent" },
+            { key: "late", label: "Late" }, { key: "excused", label: "Excused" },
+            { key: "total", label: "Total" },
+          ], rows: records.map((r) => ({ ...r, date: String(r.date || "").slice(0, 10) })) }]}
+        />
+      </div>
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground">Classes (pick any, or leave empty for all your classes)</p>
         <Chips
@@ -453,7 +529,19 @@ function MyGradesReport() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Grades I Entered</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Grades I Entered</h3>
+        <ExcelButton
+          filename="my-grades"
+          disabled={!grades.length}
+          sheets={[{ name: "Grades", columns: [
+            { key: "student", label: "Student" }, { key: "exam_name", label: "Exam" },
+            { key: "exam_type", label: "Type" }, { key: "subject_name", label: "Subject" },
+            { key: "marks_obtained", label: "Marks" }, { key: "total_marks", label: "Total" },
+            { key: "grade_letter", label: "Grade" }, { key: "class_name", label: "Class" },
+          ], rows: grades.map((g) => ({ ...g, student: fullName(g) })) }]}
+        />
+      </div>
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground">Classes (pick any, or leave empty for all your classes)</p>
         <Chips
@@ -538,7 +626,17 @@ function FeeCollectionReport() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Fee Collection</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Fee Collection</h3>
+        <ExcelButton
+          filename="fee-collection"
+          disabled={!collection.length}
+          sheets={[{ name: "Fee collection", columns: [
+            { key: "class_name", label: "Class" }, { key: "payment_method", label: "Method" },
+            { key: "total", label: "Total" }, { key: "transaction_count", label: "Transactions" },
+          ], rows: collection }]}
+        />
+      </div>
       <div className="w-72">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger><SelectValue placeholder="All classes" /></SelectTrigger>
@@ -584,7 +682,17 @@ function OutstandingReport() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Outstanding Balances</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Outstanding Balances</h3>
+        <ExcelButton
+          filename="outstanding-balances"
+          disabled={!students.length}
+          sheets={[{ name: "Outstanding", columns: [
+            { key: "student", label: "Student" }, { key: "class_name", label: "Class" },
+            { key: "total_balance", label: "Balance" },
+          ], rows: students.map((x) => ({ ...x, student: fullName(x) })) }]}
+        />
+      </div>
       <div className="w-72">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger><SelectValue placeholder="All classes" /></SelectTrigger>
@@ -625,7 +733,18 @@ function RevenueExpensesReport() {
   const report = data?.data;
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Revenue vs Expenses — {year}</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Revenue vs Expenses — {year}</h3>
+        <ExcelButton
+          filename={`revenue-expenses-${year}`}
+          disabled={!report?.months?.length}
+          sheets={[{ name: "Monthly", columns: [
+            { key: "month_name", label: "Month" }, { key: "revenue", label: "Revenue" },
+            { key: "expenses", label: "Expenses" },
+            { key: "net", label: "Net", value: (r) => (Number(r.revenue) || 0) - (Number(r.expenses) || 0) },
+          ], rows: (report?.months || []).filter((m) => m.revenue || m.expenses) }]}
+        />
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
@@ -696,6 +815,23 @@ function CashierReports() {
 
   return (
     <div className="space-y-8">
+      <div className="flex justify-end">
+        <ExcelButton
+          filename={`collections-${year}`}
+          disabled={!classes.length}
+          sheets={[
+            { name: "By class", columns: [
+              { key: "class_name", label: "Class" }, { key: "student_count", label: "Students" },
+              { key: "collected_count", label: "Paid" }, { key: "partial_count", label: "Partial" },
+              { key: "unpaid_count", label: "Unpaid" }, { key: "expected", label: "Expected" },
+              { key: "collected", label: "Collected" },
+            ], rows: classes },
+            { name: "Monthly trend", columns: [
+              { key: "month", label: "Month" }, { key: "total", label: "Collected" },
+            ], rows: months.map((m) => ({ month: MONTHS[m.month - 1] || m.month, total: m.total })) },
+          ]}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Collected" value={`$${summary.total_collected?.toLocaleString() || 0}`} color="text-green-600" />
         <StatCard title="This Month" value={`$${summary.month_collected?.toLocaleString() || 0}`} sub={`${summary.month_transactions || 0} transactions`} />
@@ -768,7 +904,17 @@ function StaffDirectoryReport() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Staff Directory</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Staff Directory</h3>
+        <ExcelButton
+          filename="staff-directory"
+          disabled={!staff.length}
+          sheets={[{ name: "Staff", columns: [
+            { key: "name", label: "Name" }, { key: "email", label: "Email" },
+            { key: "role", label: "Role" }, { key: "status", label: "Status" },
+          ], rows: staff.map((x) => ({ ...x, name: fullName(x) })) }]}
+        />
+      </div>
       <div className="flex gap-4">
         <div className="w-48">
           <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -823,7 +969,19 @@ function PayrollSummaryReport() {
   const report = data?.data;
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Payroll Summary — {year}</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Payroll Summary — {year}</h3>
+        <ExcelButton
+          filename={`payroll-summary-${year}`}
+          disabled={!report?.monthly?.length}
+          sheets={[{ name: "Payroll", columns: [
+            { key: "month", label: "Month", value: (r) => new Date(2000, r.month - 1).toLocaleString("default", { month: "long" }) },
+            { key: "employee_count", label: "Employees" }, { key: "total_basic", label: "Basic pay" },
+            { key: "total_allowances", label: "Allowances" }, { key: "total_deductions", label: "Deductions" },
+            { key: "total_net", label: "Net pay" },
+          ], rows: report?.monthly || [] }]}
+        />
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
           <StatCard title="Yearly Total" value={report.yearly_total?.toLocaleString()} />
@@ -861,7 +1019,16 @@ function HeadcountReport() {
   const report = data?.data;
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Headcount</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">Headcount</h3>
+        <ExcelButton
+          filename="headcount"
+          disabled={!report?.by_role?.length}
+          sheets={[{ name: "Headcount", columns: [
+            { key: "role", label: "Role" }, { key: "count", label: "Users" },
+          ], rows: report?.by_role || [] }]}
+        />
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <>
           <StatCard title="Total Users" value={report.total} />
@@ -895,7 +1062,17 @@ function StudentGradesReport() {
   const report = data?.data;
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">My Grades</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">My Grades</h3>
+        <ExcelButton
+          filename="my-grade-summary"
+          disabled={!report?.by_subject?.length}
+          sheets={[{ name: "Subjects", columns: [
+            { key: "subject_name", label: "Subject" }, { key: "average", label: "Average %" },
+            { key: "exam_count", label: "Exams" },
+          ], rows: report?.by_subject || [] }]}
+        />
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report ? (
         <>
           <StatCard title="Overall Average" value={report.overall_average != null ? `${report.overall_average}%` : "—"} />
@@ -932,7 +1109,16 @@ function StudentAttendanceReport() {
   const report = data?.data;
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">My Attendance</h3>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-lg font-semibold">My Attendance</h3>
+        <ExcelButton
+          filename="my-attendance-summary"
+          disabled={!report}
+          sheets={[{ name: "Attendance", columns: [
+            { key: "status", label: "Status" }, { key: "count", label: "Days" },
+          ], rows: report?.records || [] }]}
+        />
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1043,6 +1229,28 @@ function SemesterResultsTab() {
           </Select>
         </div>
         <Button onClick={load} disabled={!termId || !classId || loading}>Load results</Button>
+        {results && results.students?.length > 0 && (
+          <ExcelButton
+            filename="semester-results"
+            sheets={[{
+              name: "Semester results",
+              columns: [
+                { key: "rank", label: "#" },
+                { key: "student_name", label: "Student" },
+                { key: "student_number", label: "Student ID" },
+                ...(results.students[0]?.subjects || []).map((sub, i) => ({
+                  key: `sub_${i}`,
+                  label: sub.name,
+                  value: (r) => (r.subjects[i] ? `${r.subjects[i].mark} (${r.subjects[i].letter})` : ""),
+                })),
+                { key: "total", label: "Total" },
+                { key: "average", label: "Average /100" },
+                { key: "letter", label: "Grade" },
+              ],
+              rows: results.students,
+            }]}
+          />
+        )}
         {results && results.students?.length > 0 && (
           <p className="text-sm text-muted-foreground ml-auto">
             Weights: CA {results.weights?.ca_pct ?? 50}% + Exam {results.weights?.exam_pct ?? 50}% · Scale A≥90 B≥80 C≥60 D≥50
@@ -1202,6 +1410,23 @@ function QualityReportsTab() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExcelButton
+          filename="quality-assurance"
+          disabled={!rows.length}
+          sheets={[
+            { name: "Teacher quality", columns: [
+              { key: "name", label: "Teacher" }, { key: "subs", label: "Submissions" },
+              { key: "approved", label: "Approved" }, { key: "rate", label: "Approval %" },
+              { key: "rating", label: "Avg rating /5" }, { key: "syllabus", label: "Syllabus %" },
+              { key: "feedback", label: "Feedback /5" },
+            ], rows },
+            { name: "Rubric averages", columns: [
+              { key: "area", label: "Area" }, { key: "score", label: "Average /5" },
+            ], rows: rubric.map(([key, val]) => ({ area: RUBRIC_LABELS[key] || key, score: Number(val || 0).toFixed(2) })) },
+          ]}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{totalSubs}</p><p className="text-xs text-muted-foreground">Content submissions reviewed</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-600">{approvalRate}%</p><p className="text-xs text-muted-foreground">First-pass approval rate</p></CardContent></Card>
@@ -1297,6 +1522,23 @@ function ShiftReportsTab() {
   const subs = subsData?.data || [];
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExcelButton
+          filename="shifts"
+          disabled={!subs.length && !report.topSubstitutes?.length}
+          sheets={[
+            { name: "Top substitutes", columns: [
+              { key: "teacher_name", label: "Teacher" }, { key: "coverage_count", label: "Covers" },
+            ], rows: report.topSubstitutes || [] },
+            { name: "Substitutions", columns: [
+              { key: "date", label: "Date" }, { key: "period_name", label: "Period" },
+              { key: "original_teacher_name", label: "Original teacher" },
+              { key: "substitute_teacher_name", label: "Substitute" },
+              { key: "reason", label: "Reason" }, { key: "status", label: "Status" },
+            ], rows: subs.map((x) => ({ ...x, date: String(x.date || "").slice(0, 10) })) },
+          ]}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Substitutions" value={report.totalSubstitutions || 0} />
         <StatCard title="Active Guard Shifts (today)" value={report.activeGuardShifts || 0} />
@@ -1420,9 +1662,20 @@ function FacilitiesReportsTab() {
 
 // Generic report table used by the security/facilities tabs.
 function ReportTable({ title, loading, rows, empty, cols, dateCol }) {
+  const exportCols = [
+    ...cols.map(([key, label]) => ({ key, label })),
+    ...(dateCol ? [{ key: dateCol, label: "Date", value: (r) => String(r?.[dateCol] || "").slice(0, 10) }] : []),
+  ];
   return (
     <div className="space-y-2">
-      <h3 className="text-lg font-semibold">{title}</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <ExcelButton
+          filename={title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
+          disabled={!rows?.length}
+          sheets={[{ name: title, columns: exportCols, rows: rows || [] }]}
+        />
+      </div>
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : rows.length === 0 ? (
