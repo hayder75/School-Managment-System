@@ -75,4 +75,11 @@ const compensationSchema = z.object({
   }),
 });
 
-module.exports = { createUserSchema, updateUserSchema, compensationSchema };
+const resetUserPasswordSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({
+    password: z.string().min(4, 'Password must be at least 4 characters').max(100),
+  }),
+});
+
+module.exports = { createUserSchema, updateUserSchema, compensationSchema, resetUserPasswordSchema };

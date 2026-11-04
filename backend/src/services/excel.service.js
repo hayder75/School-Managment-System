@@ -756,7 +756,7 @@ async function homeroomAttendanceSheets(tenantId, filters = {}, viewer = {}) {
     const registerColumns = [
       { header: 'Student', key: 'name', width: 32 },
       { header: 'Student ID', key: 'student_number', width: 15 },
-      ...(cls.days || []).map((d) => ({ header: d, key: `d_${d}`, width: 11 })),
+      ...(cls.days || []).map((d) => ({ header: d, key: `d_${d}`, width: 19 })),
       { header: 'Present', key: 'present', width: 10 },
       { header: 'Absent', key: 'absent', width: 10 },
       { header: 'Late', key: 'late', width: 9 },

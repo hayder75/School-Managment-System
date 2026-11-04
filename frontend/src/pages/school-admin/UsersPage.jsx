@@ -4,7 +4,7 @@ import { useDebouncedValue } from "../../hooks/useDebounce";
 import { useNavigate } from "react-router-dom";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
-import { useUsers, useCreateUser, useDeleteUser } from "../../hooks/useUsers";
+import { useUsers, useCreateUser, useDeleteUser, useResetUserPassword } from "../../hooks/useUsers";
 import { useAuthStore } from "../../store/auth";
 import { canEditStaff } from "../../components/staff/StaffEditDialog";
 import StaffEditDialog from "../../components/staff/StaffEditDialog";
@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
-import { Plus, Trash2, Search, Pencil } from "lucide-react";
+import { Plus, Trash2, Search, Pencil, KeyRound } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 
 const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head", "librarian", "face_attendance"];
@@ -34,6 +34,11 @@ export default function UsersPage() {
   const { data, isLoading } = useUsers({ page, limit: 20, search: debouncedSearch, role: roleFilter || undefined });
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
+  const resetPassword = useResetUserPassword();
+  const canResetPassword = ["owner", "admin"].includes(myRole);
+  const [pwUser, setPwUser] = useState(null);
+  const [pwForm, setPwForm] = useState({ password: "", confirm: "" });
+  const [pwError, setPwError] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ email: "", first_name: "", last_name: "", role: "teacher", job_title: "", qualification: "", field_of_study: "", gender: "", section_count: "", periods_per_week: "", overtime_periods: "0" });
   const [fieldErrors, setFieldErrors] = useState({});
@@ -235,6 +240,20 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end">
+                          {canResetPassword && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title={t("Reset password")}
+                              onClick={() => {
+                                setPwUser(user);
+                                setPwForm({ password: "", confirm: "" });
+                                setPwError("");
+                              }}
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                          )}
                           {canEdit && (
                             <Button variant="ghost" size="icon" title={t("Edit details")} onClick={() => setEditUser(user)}>
                               <Pencil className="h-4 w-4" />
@@ -268,6 +287,65 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!pwUser} onOpenChange={(o) => { if (!o) setPwUser(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("Reset password")}</DialogTitle>
+          </DialogHeader>
+          {pwUser && (
+            <form
+              className="space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setPwError("");
+                if (pwForm.password.length < 4) {
+                  setPwError(t("Password must be at least 4 characters"));
+                  return;
+                }
+                if (pwForm.password !== pwForm.confirm) {
+                  setPwError(t("The two passwords do not match"));
+                  return;
+                }
+                try {
+                  await resetPassword.mutateAsync({ id: pwUser.id, password: pwForm.password });
+                  setPwUser(null);
+                } catch (err) {
+                  setPwError(err?.response?.data?.error?.message || err?.message || t("Could not reset the password"));
+                }
+              }}
+            >
+              <p className="text-sm text-muted-foreground">
+                {fullName(pwUser)} · {pwUser.email}
+              </p>
+              <div className="space-y-1">
+                <Label>{t("New password")}</Label>
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  value={pwForm.password}
+                  onChange={(e) => setPwForm({ ...pwForm, password: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{t("Confirm password")}</Label>
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
+                  required
+                />
+              </div>
+              {pwError && <p className="text-xs text-rose-600">{pwError}</p>}
+              <Button type="submit" className="w-full" disabled={resetPassword.isPending}>
+                {resetPassword.isPending ? t("Saving...") : t("Set password")}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <StaffEditDialog user={editUser} open={!!editUser} onOpenChange={(o) => { if (!o) setEditUser(null); }} />
     </div>

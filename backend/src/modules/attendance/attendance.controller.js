@@ -16,7 +16,7 @@ async function getMyHomeroomClasses(req, res) {
 }
 
 async function mark(req, res) {
-  const { date, records } = req.validated.body;
+  const { date, session = 'am', records } = req.validated.body;
 
   const dateObj = new Date(`${date}T00:00:00`);
   if (Number.isNaN(dateObj.getTime())) {
@@ -37,14 +37,15 @@ async function mark(req, res) {
     req.params.classId,
     req.user.userId,
     date,
-    records
+    records,
+    session
   );
-  res.json({ success: true, data: { count: result.length } });
+  res.json({ success: true, data: { count: result.length, session } });
 }
 
 async function getByClassAndDate(req, res) {
   const { classId } = req.params;
-  const { date } = req.query;
+  const { date, session = 'am' } = req.query;
   if (!date) {
     return res.status(400).json({
       success: false,
@@ -65,7 +66,7 @@ async function getByClassAndDate(req, res) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view attendance for your children\'s classes' } });
     }
   }
-  const records = await attendanceService.getByClassAndDate(req.tenant.id, classId, date);
+  const records = await attendanceService.getByClassAndDate(req.tenant.id, classId, date, session);
   res.json({ success: true, data: records });
 }
 

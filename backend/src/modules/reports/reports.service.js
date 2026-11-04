@@ -523,13 +523,24 @@ async function getStudentAttendanceSummary(tenantId, studentId, { term_id } = {}
     .count('* as count')
     .groupBy('status');
 
-  const total = records.reduce((s, r) => s + parseInt(r.count, 10), 0);
-  const present = records.find((r) => r.status === 'present')?.count || 0;
+  const totalSessions = records.reduce((s, r) => s + parseInt(r.count, 10), 0);
+  const present = Number(records.find((r) => r.status === 'present')?.count || 0);
+  const late = Number(records.find((r) => r.status === 'late')?.count || 0);
+
+  let dayQuery = db('attendance').where({ tenant_id: tenantId, student_id: studentId });
+  if (term_id) {
+    const term = await db('terms').where({ id: term_id }).first();
+    if (term) {
+      dayQuery = dayQuery.where('date', '>=', term.start_date).where('date', '<=', term.end_date);
+    }
+  }
+  const dayRow = await dayQuery.countDistinct('date as days').first();
 
   return {
     records,
-    total,
-    present_percentage: total > 0 ? ((parseInt(present, 10) / total) * 100).toFixed(1) : null,
+    total: Number(dayRow?.days || 0),
+    total_sessions: totalSessions,
+    present_percentage: totalSessions > 0 ? (((present + late) / totalSessions) * 100).toFixed(1) : null,
   };
 }
 
@@ -1251,6 +1262,7 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
       'class_id',
       'student_id',
       db.raw("to_char(date,'YYYY-MM-DD') as day"),
+      db.raw("COALESCE(session, 'am') as session"),
       db.raw('lower(status) as status')
     );
 
@@ -1263,15 +1275,19 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
   const result = classes.map((cls) => {
     const classStudents = students.filter((s) => s.class_id === cls.id);
     const classRecords = byClass.get(cls.id) || [];
-    const recordedDays = [...new Set(classRecords.map((r) => r.day))].sort();
-    // Every date in the selected period, so a monthly sheet shows all 30 days
-    // (blank cells where attendance was not marked).
-    const days = eachDate(fromDate, toDate);
+    // Two sessions per day: one column for Morning and one for Afternoon.
+    const dates = eachDate(fromDate, toDate);
+    const slots = dates.flatMap((d) => [
+      { key: `${d}|am`, label: `${d} Morning` },
+      { key: `${d}|pm`, label: `${d} Afternoon` },
+    ]);
+    const days = slots.map((s) => s.label);
+    const recordedSlots = [...new Set(classRecords.map((r) => `${r.day}|${r.session}`))].sort();
 
     const marks = new Map();
     for (const r of classRecords) {
       if (!marks.has(r.student_id)) marks.set(r.student_id, {});
-      marks.get(r.student_id)[r.day] = r.status;
+      marks.get(r.student_id)[`${r.day}|${r.session}`] = r.status;
     }
 
     const studentRows = classStudents.map((st) => {
@@ -1280,8 +1296,8 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
       let absent = 0;
       let late = 0;
       let excused = 0;
-      for (const day of days) {
-        const status = map[day];
+      for (const slot of slots) {
+        const status = map[slot.key];
         if (status === 'present') present += 1;
         else if (status === 'absent') absent += 1;
         else if (status === 'late') late += 1;
@@ -1306,13 +1322,13 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
         late_rate: round1(recorded ? (late / recorded) * 100 : null),
         excused_rate: round1(recorded ? (excused / recorded) * 100 : null),
         at_risk: recorded >= 3 && ((absentRate != null && absentRate > 10) || absent >= 3),
-        days: Object.fromEntries(days.map((d) => [d, map[d] || null])),
+        days: Object.fromEntries(slots.map((slot) => [slot.label, map[slot.key] || null])),
       };
     });
 
     studentRows.sort((a, b) => (b.absent_rate ?? -1) - (a.absent_rate ?? -1) || a.first_name.localeCompare(b.first_name));
 
-    const daily = days.map((day) => {
+    const daily = dates.map((day) => {
       const dayRecords = classRecords.filter((r) => r.day === day);
       const count = (s) => dayRecords.filter((r) => r.status === s).length;
       const total = dayRecords.length;
@@ -1345,8 +1361,9 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
       daily,
       summary: {
         students: studentRows.length,
-        days_recorded: recordedDays.length,
-        days_in_period: days.length,
+        days_recorded: recordedSlots.length,
+        days_in_period: dates.length,
+        sessions_per_day: 2,
         records: totals.recorded,
         present: totals.present,
         absent: totals.absent,

@@ -230,7 +230,7 @@ async function findAll(tenantId, { page = 1, limit = 20, class_id, status, searc
       'users.first_name', 'users.middle_name', 'users.last_name', 'users.email', 'users.phone',
       'classes.name as class_name'
     )
-    .orderBy('users.last_name', 'asc');
+    .orderBy('users.first_name', 'asc').orderBy('users.middle_name', 'asc').orderBy('users.last_name', 'asc');
   if (class_id) query = query.where('students.class_id', class_id);
   if (scopes && scopes.length) query = query.whereIn('classes.level_group', scopes);
   if (user_id) query = query.where('students.user_id', user_id);
@@ -465,6 +465,8 @@ async function findByClass(tenantId, classId) {
     .where({ 'students.tenant_id': tenantId, 'students.class_id': classId, 'students.status': 'active' })
     .leftJoin('users', 'students.user_id', 'users.id')
     .select('students.*', 'users.first_name', 'users.middle_name', 'users.last_name', 'users.email', 'users.gender')
+    .orderBy('users.first_name', 'asc')
+    .orderBy('users.middle_name', 'asc')
     .orderBy('users.last_name', 'asc');
 }
 

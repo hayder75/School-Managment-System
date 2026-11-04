@@ -5,6 +5,7 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY
 const markAttendanceSchema = z.object({
   body: z.object({
     date: dateSchema,
+    session: z.enum(['am', 'pm']).default('am'),
     records: z.array(z.object({
       student_id: z.string().uuid(),
       status: z.enum(['present', 'absent', 'late', 'excused']),

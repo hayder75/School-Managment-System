@@ -1121,8 +1121,9 @@ function StudentAttendanceReport() {
       </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <StatCard title="Total Days" value={report.total} />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatCard title="Days" value={report.total} />
+            <StatCard title="Sessions recorded" value={report.total_sessions ?? "—"} />
             <StatCard title="Attendance Rate" value={report.present_percentage ? `${report.present_percentage}%` : "—"} color="text-green-600" />
           </div>
           {report.records?.length > 0 && (

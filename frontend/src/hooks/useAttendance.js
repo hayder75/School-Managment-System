@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 
-export function useAttendance(classId, date) {
+export function useAttendance(classId, date, session = "am") {
   return useQuery({
-    queryKey: ["attendance", classId, date],
-    queryFn: () => api.get(`/attendance/classes/${classId}`, { params: { date } }),
+    queryKey: ["attendance", classId, date, session],
+    queryFn: () => api.get(`/attendance/classes/${classId}`, { params: { date, session } }),
     enabled: !!classId && !!date,
   });
 }
@@ -12,8 +12,8 @@ export function useAttendance(classId, date) {
 export function useMarkAttendance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ classId, date, records }) =>
-      api.post(`/attendance/classes/${classId}`, { date, records }),
+    mutationFn: ({ classId, date, session = "am", records }) =>
+      api.post(`/attendance/classes/${classId}`, { date, session, records }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
   });
 }

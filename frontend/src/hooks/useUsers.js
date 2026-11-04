@@ -47,6 +47,12 @@ export function useUpdateUserCompensation() {
   });
 }
 
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: ({ id, password }) => api.put(`/users/${id}/password`, { password }),
+  });
+}
+
 export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation({

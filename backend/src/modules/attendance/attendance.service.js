@@ -3,7 +3,7 @@ const { paginatedResult } = require('../../shared/pagination');
 const broadcast = require('../../socket/broadcast');
 const logger = require('../../config/logger');
 
-async function mark(tenantId, classId, teacherId, date, records) {
+async function mark(tenantId, classId, teacherId, date, records, session = 'am') {
   const unique = [];
   const seen = new Set();
   for (const r of records) {
@@ -27,6 +27,7 @@ async function mark(tenantId, classId, teacherId, date, records) {
       student_id: r.student_id,
       class_id: classId,
       date,
+      session,
       status: r.status,
       marked_by: teacherId,
       remark: r.remark || null,
@@ -34,14 +35,14 @@ async function mark(tenantId, classId, teacherId, date, records) {
 
   await db.transaction(async (trx) => {
     const existing = await trx('attendance')
-      .where({ tenant_id: tenantId, class_id: classId, date })
+      .where({ tenant_id: tenantId, class_id: classId, date, session })
       .whereIn('student_id', studentIds)
       .select('student_id');
 
     for (const row of rows) {
       if (existing.some((e) => e.student_id === row.student_id)) {
         await trx('attendance')
-          .where({ tenant_id: tenantId, class_id: classId, date, student_id: row.student_id })
+          .where({ tenant_id: tenantId, class_id: classId, date, session, student_id: row.student_id })
           .update({
             status: row.status,
             marked_by: row.marked_by,
@@ -53,12 +54,12 @@ async function mark(tenantId, classId, teacherId, date, records) {
     }
   });
 
-  await notifyAttendanceMarked(tenantId, classId, date, rows);
+  await notifyAttendanceMarked(tenantId, classId, date, rows, session);
 
   return rows;
 }
 
-async function notifyAttendanceMarked(tenantId, classId, date, rows) {
+async function notifyAttendanceMarked(tenantId, classId, date, rows, session = 'am') {
   try {
     const notable = rows.filter((r) => r.status === 'absent' || r.status === 'late');
     if (notable.length === 0) return;
@@ -67,7 +68,7 @@ async function notifyAttendanceMarked(tenantId, classId, date, rows) {
 
     await broadcast.notifyUsers(tenantId, studentIds, {
       title: 'Attendance Update',
-      message: `You were marked ${statusLabel} on ${date}.`,
+      message: `You were marked ${statusLabel} on ${date} (${session === 'pm' ? 'afternoon' : 'morning'}).`,
       type: 'attendance',
       refType: 'attendance',
       refId: classId,
@@ -81,7 +82,7 @@ async function notifyAttendanceMarked(tenantId, classId, date, rows) {
 
     await broadcast.notifyUsers(tenantId, parentRows.map((p) => p.parent_id), {
       title: 'Attendance Update',
-      message: `Your child was marked ${statusLabel} on ${date}.`,
+      message: `Your child was marked ${statusLabel} on ${date} (${session === 'pm' ? 'afternoon' : 'morning'}).`,
       type: 'attendance',
       refType: 'attendance',
       refId: classId,
@@ -91,9 +92,9 @@ async function notifyAttendanceMarked(tenantId, classId, date, rows) {
   }
 }
 
-async function getByClassAndDate(tenantId, classId, date) {
+async function getByClassAndDate(tenantId, classId, date, session = 'am') {
   return db('attendance')
-    .where({ 'attendance.tenant_id': tenantId, 'attendance.class_id': classId, 'attendance.date': date })
+    .where({ 'attendance.tenant_id': tenantId, 'attendance.class_id': classId, 'attendance.date': date, 'attendance.session': session })
     .leftJoin('users', 'attendance.student_id', 'users.id')
     .select(
       'attendance.*',

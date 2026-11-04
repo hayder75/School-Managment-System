@@ -11,8 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useI18n } from "../../i18n/I18nContext";
 
+const ROLE_OPTIONS = ["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "teacher", "hr", "finance", "accountant", "cashier", "librarian", "support", "general_services", "shift_coordinator", "security_head", "face_attendance", "student", "parent"];
+
 const emptyForm = {
-  first_name: "", last_name: "", phone: "", gender: "",
+  role: "", first_name: "", last_name: "", phone: "", gender: "",
   job_title: "", qualification: "", field_of_study: "",
   section_count: "", periods_per_week: "", overtime_periods: "", joined_at: "", status: "active",
   basic_salary: "", allowance: "", housing_allowance: "", account_allowance: "", phone_allowance: "", scope: "all",
@@ -28,6 +30,9 @@ export function canEditStaff(role) {
 }
 export function canEditCompensation(role) {
   return COMP_ROLES.includes(role);
+}
+export function canEditRole(role) {
+  return ["owner", "admin"].includes(role);
 }
 export function canEditScope(role) {
   return ['admin', 'owner', 'general_manager'].includes(role);
@@ -64,6 +69,7 @@ export default function StaffEditDialog({ user, open, onOpenChange }) {
   useEffect(() => {
     if (!source) return;
     setForm({
+      role: source.role || "",
       first_name: source.first_name || "",
       last_name: source.last_name || "",
       phone: source.phone || "",
@@ -94,6 +100,7 @@ export default function StaffEditDialog({ user, open, onOpenChange }) {
     try {
       await update.mutateAsync({
         id: source.id,
+        ...(canEditRole(role) ? { role: form.role } : {}),
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
         phone: form.phone || null,
@@ -176,6 +183,22 @@ export default function StaffEditDialog({ user, open, onOpenChange }) {
               <Label>{t("Joining Date")}</Label>
               <Input type="date" value={form.joined_at} onChange={(e) => setForm({ ...form, joined_at: e.target.value })} />
             </div>
+            {canEditRole(role) && (
+              <div className="space-y-2">
+                <Label>{t("Role")}</Label>
+                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ROLE_OPTIONS.map((r) => (
+                      <SelectItem key={r} value={r}>{t.roles?.[r] || r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  {t("Changing the role changes what this person can access. Teaching assignments are managed separately.")}
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>{t("Status")}</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>

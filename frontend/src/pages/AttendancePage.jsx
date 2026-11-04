@@ -99,6 +99,7 @@ function TeacherAttendanceView() {
   const today = new Date().toISOString().split("T")[0];
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState(today);
+  const [session, setSession] = useState(() => (new Date().getHours() < 12 ? "am" : "pm"));
   const [rangeWeeks, setRangeWeeks] = useState(4);
 
   const fromDate = new Date(Date.now() - rangeWeeks * 7 * 86400000).toISOString().split("T")[0];
@@ -109,7 +110,7 @@ function TeacherAttendanceView() {
     to_date: today,
     today,
   });
-  const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(classId, date);
+  const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(classId, date, session);
   const { data: classStudentsData } = useStudentsByClass(classId);
   const markAttendance = useMarkAttendance();
 
@@ -135,25 +136,31 @@ function TeacherAttendanceView() {
 
   useEffect(() => {
     setStatusMap({});
-  }, [classId, date]);
+  }, [classId, date, session]);
 
   useEffect(() => {
     setStudentSearch("");
   }, [classId]);
 
-  const displayRecords = attendanceRecords.length > 0
-    ? attendanceRecords.map((r) => ({
-        id: r.student_id,
-        name: `${fullName(r)}`,
-        number: r.student_number,
-        status: r.status,
-      }))
-    : classStudents.map((s) => ({
-        id: s.user_id,
-        name: `${fullName(s)}`,
+  // Always list every active student in the class. Attendance rows only supply
+  // the saved status — a partially marked class must not hide the rest.
+  const attendanceById = new Map(attendanceRecords.map((r) => [r.student_id, r]));
+  const roster = classStudents.length
+    ? classStudents.map((s) => ({ id: s.user_id, ...s }))
+    : attendanceRecords.map((r) => ({ id: r.student_id, ...r }));
+
+  const displayRecords = roster
+    .map((s) => {
+      const saved = attendanceById.get(s.id);
+      return {
+        id: s.id,
+        name: fullName(s),
         number: s.student_number,
-        status: statusMap[s.user_id] || "present",
-      }));
+        status: saved?.status || statusMap[s.id] || "present",
+        remark: saved?.remark || "",
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 
   const filteredRecords = useMemo(() => {
     const q = studentSearch.trim().toLowerCase();
@@ -173,7 +180,7 @@ function TeacherAttendanceView() {
       student_id: r.id,
       status: statusMap[r.id] || r.status || "present",
     }));
-    await markAttendance.mutateAsync({ classId, date, records });
+    await markAttendance.mutateAsync({ classId, date, session, records });
   }
 
   const focusClass = classId ? overviewClasses.find((c) => c.class_id === classId) : null;
@@ -231,6 +238,19 @@ function TeacherAttendanceView() {
                 <EthiopianDateInput className="w-full sm:w-56" value={date} onChange={setDate} />
               </div>
             )}
+            {classId && (
+              <div className="space-y-2 w-full sm:w-auto">
+                <label className="text-sm font-medium">{t("Session")}</label>
+                <div className="flex gap-1">
+                  <Button size="sm" variant={session === "am" ? "default" : "outline"} onClick={() => setSession("am")}>
+                    {t("Morning")}
+                  </Button>
+                  <Button size="sm" variant={session === "pm" ? "default" : "outline"} onClick={() => setSession("pm")}>
+                    {t("Afternoon")}
+                  </Button>
+                </div>
+              </div>
+            )}
             {!classId && (
               <div className="space-y-2 w-full sm:w-auto">
                 <label className="text-sm font-medium">{t("Range")}</label>
@@ -277,7 +297,12 @@ function TeacherAttendanceView() {
           <Card className="max-md:order-first">
             <CardHeader className="flex flex-col gap-2">
               <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
-                <CardTitle>{t("Mark Attendance")}</CardTitle>
+                <CardTitle>
+                  {t("Mark Attendance")}
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {session === "am" ? t("Morning") : t("Afternoon")}
+                  </span>
+                </CardTitle>
                 <div className="flex w-full gap-2 sm:w-auto">
                   <Button variant="outline" onClick={() => navigate(`/attendance/class/${classId}/stats`)} className="gap-2 flex-1 sm:flex-none">
                     <BarChart3 className="h-4 w-4" /> {t("Class Stats")}

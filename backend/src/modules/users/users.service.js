@@ -103,8 +103,17 @@ async function update(tenantId, id, data) {
   return user;
 }
 
+async function setPassword(tenantId, id, password) {
+  const hash = await bcrypt.hash(password, 10);
+  const [user] = await db('users')
+    .where({ tenant_id: tenantId, id })
+    .update({ password_hash: hash, updated_at: db.fn.now() })
+    .returning(userFields);
+  return user;
+}
+
 async function remove(tenantId, id) {
   return db('users').where({ tenant_id: tenantId, id }).del();
 }
 
-module.exports = { create, findAll, findById, update, remove };
+module.exports = { create, findAll, findById, update, setPassword, remove };

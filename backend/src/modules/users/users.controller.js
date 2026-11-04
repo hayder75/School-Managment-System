@@ -1,3 +1,4 @@
+const audit = require('../../shared/audit');
 const userService = require('./users.service');
 
 const highPrivilegeRoles = ['owner', 'admin'];
@@ -164,4 +165,18 @@ async function updateCompensation(req, res) {
   res.json({ success: true, data: user });
 }
 
-module.exports = { create, list, getById, update, updateCompensation, remove };
+async function resetPassword(req, res) {
+  const target = await userService.findById(req.tenant.id, req.params.id);
+  if (!target) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
+  }
+  // Only an owner may reset another owner's password.
+  if (target.role === 'owner' && req.user.role !== 'owner') {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only an owner can reset an owner password' } });
+  }
+  const user = await userService.setPassword(req.tenant.id, req.params.id, req.validated.body.password);
+  await audit.record(req, 'reset_password', 'user', user.id, null, { email: target.email, role: target.role });
+  res.json({ success: true, data: { id: user.id } });
+}
+
+module.exports = { create, list, getById, update, updateCompensation, remove, resetPassword };

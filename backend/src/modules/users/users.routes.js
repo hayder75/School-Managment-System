@@ -4,7 +4,7 @@ const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
-const { createUserSchema, updateUserSchema, compensationSchema } = require('./users.validation');
+const { createUserSchema, updateUserSchema, compensationSchema, resetUserPasswordSchema } = require('./users.validation');
 
 const router = Router();
 
@@ -14,6 +14,7 @@ router.post('/', requireAccess(['admin', 'owner', 'hr'], ['users.manage']), vali
 router.get('/', requireAccess(['admin', 'owner', 'hr', 'finance', 'quality_director', 'principal', 'vice_principal'], ['users.manage']), controller.list);
 router.get('/:id', requireAccess(['admin', 'owner', 'hr', 'finance', 'quality_director', 'principal', 'vice_principal'], ['users.manage']), controller.getById);
 router.put('/:id/compensation', requireAccess(['admin', 'owner', 'finance'], []), validate(compensationSchema), controller.updateCompensation);
+router.put('/:id/password', requireAccess(['owner', 'admin'], ['users.manage']), validate(resetUserPasswordSchema), controller.resetPassword);
 router.put('/:id', requireAccess(['admin', 'owner', 'hr', 'quality_director', 'principal', 'vice_principal'], ['users.manage']), validate(updateUserSchema), controller.update);
 router.delete('/:id', requireAccess(['admin', 'owner', 'hr'], ['users.manage']), controller.remove);
 
