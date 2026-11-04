@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useUpdateUser, useUser, useUpdateUserCompensation } from "../../hooks/useUsers";
+import { useRoles } from "../../hooks/useRoles";
 import { useAuthStore } from "../../store/auth";
 import { useToast } from "../../store/toast";
 import { FieldError } from "../ui/form-error";
@@ -63,6 +64,9 @@ export default function StaffEditDialog({ user, open, onOpenChange }) {
   const source = fresh?.data || user;
   const update = useUpdateUser();
   const updateComp = useUpdateUserCompensation();
+  const { data: rolesData } = useRoles();
+  const roleOptions = (rolesData?.data || []).map((r) => r.name);
+  const availableRoles = roleOptions.length ? roleOptions : ROLE_OPTIONS;
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
 
@@ -189,7 +193,7 @@ export default function StaffEditDialog({ user, open, onOpenChange }) {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {ROLE_OPTIONS.map((r) => (
+                    {availableRoles.map((r) => (
                       <SelectItem key={r} value={r}>{t.roles?.[r] || r}</SelectItem>
                     ))}
                   </SelectContent>

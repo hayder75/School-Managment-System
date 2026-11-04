@@ -15,7 +15,18 @@ const userFields = [
   'scope_level_groups',
 ];
 
+async function assertRoleExists(tenantId, role) {
+  if (!role) return;
+  const row = await db('roles').where({ tenant_id: tenantId, name: role }).first();
+  if (!row) {
+    const err = new Error('INVALID_ROLE');
+    err.code = 'INVALID_ROLE';
+    throw err;
+  }
+}
+
 async function create(tenantId, data) {
+  await assertRoleExists(tenantId, data.role);
   const [user] = await db('users')
     .insert({
       tenant_id: tenantId,
@@ -84,6 +95,7 @@ async function findById(tenantId, id) {
 }
 
 async function update(tenantId, id, data) {
+  if (data.role) await assertRoleExists(tenantId, data.role);
   if (data.total_periods == null && (data.periods_per_week != null || data.overtime_periods != null)) {
     const current = await db('users').where({ tenant_id: tenantId, id }).first();
     const ppw = data.periods_per_week ?? current?.periods_per_week ?? 0;

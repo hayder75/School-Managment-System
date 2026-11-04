@@ -39,6 +39,9 @@ async function create(req, res) {
     if (err.code === 'FORBIDDEN') {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: err.message } });
     }
+    if (err.code === 'INVALID_ROLE') {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_ROLE', message: 'That role does not exist for this school' } });
+    }
     throw err;
   }
 }
@@ -106,6 +109,9 @@ async function update(req, res) {
     if (err.code === 'FORBIDDEN') {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: err.message } });
     }
+    if (err.code === 'INVALID_ROLE') {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_ROLE', message: 'That role does not exist for this school' } });
+    }
     throw err;
   }
 }
@@ -148,6 +154,9 @@ async function remove(req, res) {
   } catch (err) {
     if (err.code === 'FORBIDDEN') {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: err.message } });
+    }
+    if (err.code === 'INVALID_ROLE') {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_ROLE', message: 'That role does not exist for this school' } });
     }
     throw err;
   }

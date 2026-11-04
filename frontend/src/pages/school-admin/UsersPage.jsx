@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
 import { useUsers, useCreateUser, useDeleteUser, useResetUserPassword } from "../../hooks/useUsers";
+import { useRoles } from "../../hooks/useRoles";
 import { useAuthStore } from "../../store/auth";
 import { canEditStaff } from "../../components/staff/StaffEditDialog";
 import StaffEditDialog from "../../components/staff/StaffEditDialog";
@@ -19,13 +20,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Search, Pencil, KeyRound } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 
-const roles = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head", "librarian", "face_attendance"];
+const FALLBACK_ROLES = ["admin", "teacher", "student", "parent", "hr", "finance", "cashier", "support", "general_manager", "principal", "vice_principal", "quality_director", "general_services", "shift_coordinator", "accountant", "security_head", "librarian", "face_attendance"];
 
 export default function UsersPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const myRole = useAuthStore((s) => s.user?.role);
   const canEdit = canEditStaff(myRole);
+  const { data: rolesData } = useRoles();
+  const apiRoles = (rolesData?.data || []).map((r) => r.name);
+  const roles = apiRoles.length ? [...new Set([...FALLBACK_ROLES, ...apiRoles])] : FALLBACK_ROLES;
   const [editUser, setEditUser] = useState(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");

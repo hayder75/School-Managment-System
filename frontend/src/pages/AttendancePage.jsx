@@ -14,7 +14,7 @@ import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { BarChart, DonutChart, LineChart, RadarChart } from "../components/ui/charts";
 import AdminAttendancePage from "./AdminAttendancePage";
 import { useI18n } from "../i18n/I18nContext";
-import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search, Sun, Sunset } from "lucide-react";
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Present", active: "bg-emerald-500 text-white border-emerald-500", idle: "text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
@@ -134,6 +134,26 @@ function TeacherAttendanceView() {
   const [statusMap, setStatusMap] = useState({});
   const [studentSearch, setStudentSearch] = useState("");
 
+  const sessionTheme = session === "am"
+    ? {
+        label: t("Morning"),
+        icon: Sun,
+        banner: "border-amber-200 bg-amber-50 text-amber-900",
+        chip: "bg-amber-200/70 text-amber-900",
+        card: "border-t-4 border-t-amber-400",
+        head: "bg-amber-50 text-amber-900",
+        active: "bg-amber-500 hover:bg-amber-600 text-white",
+      }
+    : {
+        label: t("Afternoon"),
+        icon: Sunset,
+        banner: "border-indigo-200 bg-indigo-50 text-indigo-900",
+        chip: "bg-indigo-200/70 text-indigo-900",
+        card: "border-t-4 border-t-indigo-400",
+        head: "bg-indigo-50 text-indigo-900",
+        active: "bg-indigo-500 hover:bg-indigo-600 text-white",
+      };
+
   useEffect(() => {
     setStatusMap({});
   }, [classId, date, session]);
@@ -242,11 +262,21 @@ function TeacherAttendanceView() {
               <div className="space-y-2 w-full sm:w-auto">
                 <label className="text-sm font-medium">{t("Session")}</label>
                 <div className="flex gap-1">
-                  <Button size="sm" variant={session === "am" ? "default" : "outline"} onClick={() => setSession("am")}>
-                    {t("Morning")}
+                  <Button
+                    size="sm"
+                    variant={session === "am" ? "default" : "outline"}
+                    className={session === "am" ? "bg-amber-500 hover:bg-amber-600 text-white" : ""}
+                    onClick={() => setSession("am")}
+                  >
+                    <Sun className="h-4 w-4 mr-1" /> {t("Morning")}
                   </Button>
-                  <Button size="sm" variant={session === "pm" ? "default" : "outline"} onClick={() => setSession("pm")}>
-                    {t("Afternoon")}
+                  <Button
+                    size="sm"
+                    variant={session === "pm" ? "default" : "outline"}
+                    className={session === "pm" ? "bg-indigo-500 hover:bg-indigo-600 text-white" : ""}
+                    onClick={() => setSession("pm")}
+                  >
+                    <Sunset className="h-4 w-4 mr-1" /> {t("Afternoon")}
                   </Button>
                 </div>
               </div>
@@ -267,6 +297,21 @@ function TeacherAttendanceView() {
           </div>
         </CardContent>
       </Card>
+
+      {classId && (
+        <div className={`flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${sessionTheme.banner}`}>
+          <sessionTheme.icon className="h-6 w-6 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-semibold">{sessionTheme.label} {t("attendance")}</p>
+            <p className="text-xs opacity-80">
+              {date} · {t("Statuses saved here apply only to the")} {sessionTheme.label.toLowerCase()} {t("session.")}
+            </p>
+          </div>
+          <span className={`ml-auto rounded-full px-3 py-1 text-xs font-bold tracking-wide ${sessionTheme.chip}`}>
+            {session === "am" ? "AM" : "PM"}
+          </span>
+        </div>
+      )}
 
       {classId ? (
         <>
@@ -294,7 +339,7 @@ function TeacherAttendanceView() {
           )}
 
           {/* Marking table */}
-          <Card className="max-md:order-first">
+          <Card className={`max-md:order-first ${sessionTheme.card}`}>
             <CardHeader className="flex flex-col gap-2">
               <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
                 <CardTitle>
@@ -335,7 +380,7 @@ function TeacherAttendanceView() {
                     <p className="text-muted-foreground">{t("No students match your search")}</p>
                   ) : (
                     <div className="divide-y rounded-md border">
-                      <div className="hidden sm:grid grid-cols-[1fr_120px_auto] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
+                      <div className={`hidden sm:grid grid-cols-[1fr_120px_auto] gap-2 px-3 py-2 text-xs font-semibold ${sessionTheme.head}`}>
                         <span>{t("Name")}</span>
                         <span>{t("Student #")}</span>
                         <span className="text-right">{t("Status")}</span>
