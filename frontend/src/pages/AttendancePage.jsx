@@ -1,6 +1,7 @@
 import { fullName } from "../lib/fullName";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
 import { useAttendance, useMarkAttendance, useTeacherAttendanceOverview, useMyHomeroomClasses } from "../hooks/useAttendance";
@@ -14,7 +15,7 @@ import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { BarChart, DonutChart, LineChart, RadarChart } from "../components/ui/charts";
 import AdminAttendancePage from "./AdminAttendancePage";
 import { useI18n } from "../i18n/I18nContext";
-import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search, Sun, Sunset } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search, Sun, Sunset, Pencil } from "lucide-react";
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Present", active: "bg-emerald-500 text-white border-emerald-500", idle: "text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
@@ -35,7 +36,7 @@ export default function AttendancePage() {
   return <TeacherAttendanceView />;
 }
 
-function StatusButtons({ value, onChange }) {
+function StatusButtons({ value, onChange, disabled = false }) {
   const { t } = useI18n();
   return (
     <div className="flex w-full flex-wrap gap-1 sm:w-auto">
@@ -46,7 +47,8 @@ function StatusButtons({ value, onChange }) {
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold border transition-colors ${selected ? opt.active : opt.idle}`}
+            disabled={disabled}
+            className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold border transition-colors ${selected ? opt.active : opt.idle} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
           >
             {t(opt.label)}
           </button>
@@ -91,18 +93,22 @@ function shortDate(dateStr) {
   return `${dateStr.slice(5, 7)}/${dateStr.slice(8, 10)}`;
 }
 
+function localIso(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function TeacherAttendanceView() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "teacher";
-  const today = new Date().toISOString().split("T")[0];
+  const today = localIso();
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState(today);
   const [session, setSession] = useState(() => (new Date().getHours() < 12 ? "am" : "pm"));
   const [rangeWeeks, setRangeWeeks] = useState(4);
 
-  const fromDate = new Date(Date.now() - rangeWeeks * 7 * 86400000).toISOString().split("T")[0];
+  const fromDate = localIso(new Date(Date.now() - rangeWeeks * 7 * 86400000));
   const { data: classesData } = useClasses({ limit: 200 });
   const { data: homeroomData, isLoading: loadingHomeroom } = useMyHomeroomClasses();
   const { data: overviewData, isLoading: loadingOverview } = useTeacherAttendanceOverview({
@@ -113,6 +119,7 @@ function TeacherAttendanceView() {
   const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(classId, date, session);
   const { data: classStudentsData } = useStudentsByClass(classId);
   const markAttendance = useMarkAttendance();
+  const qc = useQueryClient();
 
   const allClasses = classesData?.data || [];
   // Attendance is the homeroom teacher's responsibility: a teacher only sees
@@ -133,6 +140,11 @@ function TeacherAttendanceView() {
 
   const [statusMap, setStatusMap] = useState({});
   const [studentSearch, setStudentSearch] = useState("");
+  const [editing, setEditing] = useState(true);
+  const [savedMarks, setSavedMarks] = useState({});
+  const [savedAt, setSavedAt] = useState(null);
+  const loadedRef = useRef("");
+  const loadKey = `${classId}|${date}|${session}`;
 
   const sessionTheme = session === "am"
     ? {
@@ -156,7 +168,23 @@ function TeacherAttendanceView() {
 
   useEffect(() => {
     setStatusMap({});
-  }, [classId, date, session]);
+    setSavedMarks({});
+    setSavedAt(null);
+    setEditing(true);
+    loadedRef.current = "";
+  }, [loadKey]);
+
+  // When the saved register for this class/date/session arrives, show it as
+  // saved and lock the buttons until the user presses Edit.
+  useEffect(() => {
+    if (!attendanceData || loadedRef.current === loadKey) return;
+    loadedRef.current = loadKey;
+    const rows = attendanceData.data || [];
+    if (rows.length) {
+      setSavedMarks(Object.fromEntries(rows.map((r) => [r.student_id, r.status])));
+      setEditing(false);
+    }
+  }, [attendanceData, loadKey]);
 
   useEffect(() => {
     setStudentSearch("");
@@ -176,11 +204,21 @@ function TeacherAttendanceView() {
         id: s.id,
         name: fullName(s),
         number: s.student_number,
-        status: saved?.status || statusMap[s.id] || "present",
+        status: editing
+          ? (statusMap[s.id] ?? savedMarks[s.id] ?? saved?.status ?? "present")
+          : (savedMarks[s.id] ?? saved?.status ?? "present"),
         remark: saved?.remark || "",
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
+  const sessionCounts = useMemo(() => {
+    const counts = { present: 0, absent: 0, late: 0, excused: 0 };
+    for (const r of displayRecords) {
+      if (counts[r.status] != null) counts[r.status] += 1;
+    }
+    return counts;
+  }, [displayRecords]);
 
   const filteredRecords = useMemo(() => {
     const q = studentSearch.trim().toLowerCase();
@@ -198,9 +236,16 @@ function TeacherAttendanceView() {
     if (!classId || !date) return;
     const records = displayRecords.map((r) => ({
       student_id: r.id,
-      status: statusMap[r.id] || r.status || "present",
+      status: statusMap[r.id] ?? savedMarks[r.id] ?? r.status ?? "present",
     }));
     await markAttendance.mutateAsync({ classId, date, session, records });
+    // Show the result immediately, without waiting for the refetch.
+    setSavedMarks(Object.fromEntries(records.map((r) => [r.student_id, r.status])));
+    setSavedAt(new Date());
+    setStatusMap({});
+    setEditing(false);
+    await qc.invalidateQueries({ queryKey: ["attendance", classId, date, session] });
+    await qc.invalidateQueries({ queryKey: ["attendance-teacher-overview"] });
   }
 
   const focusClass = classId ? overviewClasses.find((c) => c.class_id === classId) : null;
@@ -302,13 +347,37 @@ function TeacherAttendanceView() {
         <div className={`flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${sessionTheme.banner}`}>
           <sessionTheme.icon className="h-6 w-6 shrink-0" />
           <div className="min-w-0">
-            <p className="font-semibold">{sessionTheme.label} {t("attendance")}</p>
-            <p className="text-xs opacity-80">
-              {date} · {t("Statuses saved here apply only to the")} {sessionTheme.label.toLowerCase()} {t("session.")}
+            <p className="font-semibold">
+              {sessionTheme.label} {t("attendance")} — {editing ? t("editing") : t("saved")}
+            </p>
+            <p className="text-xs opacity-90">
+              {date} · {t("Present")} {sessionCounts.present} · {t("Absent")} {sessionCounts.absent} · {t("Late")} {sessionCounts.late} · {t("Excused")} {sessionCounts.excused}
             </p>
           </div>
           <span className={`ml-auto rounded-full px-3 py-1 text-xs font-bold tracking-wide ${sessionTheme.chip}`}>
             {session === "am" ? "AM" : "PM"}
+          </span>
+          {!editing && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-white/70"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1" /> {t("Edit")}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {classId && !editing && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+          <CheckCircle className="h-4 w-4" />
+          <span className="font-medium">
+            {savedAt ? `${t("Saved")} ${savedAt.toLocaleTimeString()}` : t("Saved attendance loaded")}
+          </span>
+          <span className="text-xs">
+            {t("The register is locked — press Edit to make changes.")}
           </span>
         </div>
       )}
@@ -352,11 +421,15 @@ function TeacherAttendanceView() {
                   <Button variant="outline" onClick={() => navigate(`/attendance/class/${classId}/stats`)} className="gap-2 flex-1 sm:flex-none">
                     <BarChart3 className="h-4 w-4" /> {t("Class Stats")}
                   </Button>
-                  {displayRecords.length > 0 && (
+                  {displayRecords.length > 0 && (editing ? (
                     <Button onClick={handleSave} disabled={markAttendance.isPending} className="flex-1 sm:flex-none">
                       {markAttendance.isPending ? t("Saving...") : t("Save Attendance")}
                     </Button>
-                  )}
+                  ) : (
+                    <Button variant="outline" onClick={() => setEditing(true)} className="flex-1 sm:flex-none">
+                      <Pencil className="h-4 w-4 mr-1" /> {t("Edit attendance")}
+                    </Button>
+                  ))}
                 </div>
               </div>
               <div className="relative">
@@ -386,9 +459,15 @@ function TeacherAttendanceView() {
                         <span className="text-right">{t("Status")}</span>
                       </div>
                       {filteredRecords.map((record) => (
-                        <div key={record.id} className="flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_120px_auto] sm:items-center sm:gap-2">
+                        <div
+                          key={record.id}
+                          className={`flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_120px_auto] sm:items-center sm:gap-2 ${!editing ? "bg-emerald-50/50" : ""}`}
+                        >
                           <div className="min-w-0">
-                            <p className="font-medium truncate">{record.name}</p>
+                            <p className="font-medium truncate">
+                              {!editing && <CheckCircle className="inline h-3.5 w-3.5 text-emerald-600 mr-1" />}
+                              {record.name}
+                            </p>
                             <p className="text-xs text-muted-foreground sm:hidden">{record.number}</p>
                           </div>
                           <p className="hidden sm:block text-sm text-muted-foreground">{record.number}</p>
@@ -396,6 +475,7 @@ function TeacherAttendanceView() {
                             <StatusButtons
                               value={statusMap[record.id] || record.status || "present"}
                               onChange={(v) => handleStatusChange(record.id, v)}
+                              disabled={!editing}
                             />
                           </div>
                         </div>

@@ -11,9 +11,34 @@ import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Button } from "../components/ui/button";
 import { UserCheck, AlertTriangle, Clock, CheckCircle, CalendarDays, BarChart3, Users, GraduationCap, TrendingDown, Search, X } from "lucide-react";
 import { useI18n } from "../i18n/I18nContext";
+import ExcelButton from "../components/reports/ExcelButton";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const LEVEL_ORDER = ["Nursery", "LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8"];
+function localIso(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function startOfWeek(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+function presetRange(preset) {
+  const now = new Date();
+  if (preset === "this_week") return [localIso(startOfWeek(now)), localIso(now)];
+  if (preset === "last_week") {
+    const start = startOfWeek(now);
+    const end = new Date(start); end.setDate(end.getDate() - 1);
+    const prev = new Date(start); prev.setDate(prev.getDate() - 7);
+    return [localIso(prev), localIso(end)];
+  }
+  if (preset === "this_month") return [localIso(new Date(now.getFullYear(), now.getMonth(), 1)), localIso(now)];
+  if (preset === "last_month") {
+    return [localIso(new Date(now.getFullYear(), now.getMonth() - 1, 1)), localIso(new Date(now.getFullYear(), now.getMonth(), 0))];
+  }
+  return null;
+}
+
 const PALETTE = ["#2c5a5e", "#7fb3a0", "#c9a86a", "#8f9bb3", "#d47a6a", "#6a8fd4", "#a0b2c6", "#e0a458"];
 
 function levelLabel(c) {
@@ -53,7 +78,7 @@ function RankBadge({ rank }) {
 
 export default function AdminAttendancePage() {
   const { t } = useI18n();
-  const today = new Date().toISOString().split("T")[0];
+  const today = localIso();
   const [draftFrom, setDraftFrom] = useState("2026-01-01");
   const [draftTo, setDraftTo] = useState(today);
   const [fromDate, setFromDate] = useState("2026-01-01");
@@ -73,6 +98,8 @@ export default function AdminAttendancePage() {
   const topAbsent = overview.top_absent || [];
   const classDetail = classData?.data || null;
   const allClasses = classesData?.data || [];
+  const dailyByClass = overview.daily_by_class || [];
+  const selectedClass = allClasses.find((c) => c.id === classId);
 
   const levelAgg = {};
   for (const c of byClass) {
@@ -143,6 +170,89 @@ export default function AdminAttendancePage() {
             {classId && (
               <Button variant="outline" onClick={() => selectClass("")} className="gap-2"><X className="h-4 w-4" /> {t("Clear class")}</Button>
             )}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {[
+              ["this_week", "This week"],
+              ["last_week", "Last week"],
+              ["this_month", "This month"],
+              ["last_month", "Last month"],
+            ].map(([key, label]) => (
+              <Button
+                key={key}
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const range = presetRange(key);
+                  if (!range) return;
+                  setDraftFrom(range[0]);
+                  setDraftTo(range[1]);
+                  setFromDate(range[0]);
+                  setToDate(range[1]);
+                }}
+              >
+                {t(label)}
+              </Button>
+            ))}
+            <div className="flex-1" />
+            <ExcelButton
+              filename={`attendance-${fromDate}-to-${toDate}${selectedClass ? "-" + selectedClass.name.replace(/[^a-z0-9]+/gi, "-") : ""}`}
+              disabled={!dailyByClass.length}
+              sheets={[
+                {
+                  name: "Daily by class",
+                  columns: [
+                    { key: "date", label: "Date" },
+                    { key: "class_name", label: "Class" },
+                    { key: "present", label: "Present" },
+                    { key: "absent", label: "Absent" },
+                    { key: "late", label: "Late" },
+                    { key: "excused", label: "Excused" },
+                    { key: "total", label: "Total" },
+                    { key: "present_rate", label: "Present %" },
+                    { key: "absent_rate", label: "Absent %" },
+                  ],
+                  rows: dailyByClass,
+                },
+                {
+                  name: "Class totals",
+                  columns: [
+                    { key: "class_name", label: "Class" },
+                    { key: "level", label: "Level" },
+                    { key: "present", label: "Present" },
+                    { key: "absent", label: "Absent" },
+                    { key: "late", label: "Late" },
+                    { key: "excused", label: "Excused" },
+                    { key: "total", label: "Total" },
+                    { key: "absent_rate", label: "Absent %" },
+                  ],
+                  rows: byClass.map((c) => ({ ...c, level: levelLabel(c) })),
+                },
+                {
+                  name: "Daily school totals",
+                  columns: [
+                    { key: "date", label: "Date" },
+                    { key: "present", label: "Present" },
+                    { key: "absent", label: "Absent" },
+                    { key: "late", label: "Late" },
+                    { key: "total", label: "Total" },
+                  ],
+                  rows: (trend || []).map((x) => ({ ...x, date: String(x.date || "").slice(0, 10) })),
+                },
+                ...(classDetail ? [{
+                  name: "Student breakdown",
+                  columns: [
+                    { key: "name", label: "Student" },
+                    { key: "present", label: "Present" },
+                    { key: "absent", label: "Absent" },
+                    { key: "late", label: "Late" },
+                    { key: "excused", label: "Excused" },
+                    { key: "absent_rate", label: "Absent %" },
+                  ],
+                  rows: (classDetail.students || []).map((x) => ({ ...x, name: fullName(x) })),
+                }] : []),
+              ]}
+            />
           </div>
         </CardContent>
       </Card>

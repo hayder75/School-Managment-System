@@ -260,6 +260,31 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
     .groupBy('attendance.date')
     .orderBy('attendance.date');
 
+  // Every class × every date in the range — this feeds the owner Excel export.
+  const dailyByClass = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId })
+    .leftJoin('classes', 'attendance.class_id', 'classes.id'))
+    .select(
+      'classes.id as class_id',
+      'classes.name as class_name',
+      'classes.level_group',
+      'classes.grade_level',
+      db.raw("to_char(attendance.date, 'YYYY-MM-DD') as date"),
+      db.raw('COUNT(*)::int as total'),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'present')::int as present"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'absent')::int as absent"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'late')::int as late"),
+      db.raw("COUNT(*) FILTER (WHERE attendance.status = 'excused')::int as excused")
+    )
+    .groupBy('classes.id', 'classes.name', 'classes.level_group', 'classes.grade_level', 'attendance.date')
+    .orderBy('attendance.date')
+    .orderBy('classes.name');
+
+  dailyByClass.forEach((row) => {
+    row.present_rate = rate((row.present / row.total) * 100);
+    row.absent_rate = rate((row.absent / row.total) * 100);
+    row.late_rate = rate((row.late / row.total) * 100);
+  });
+
   const topAbsent = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId })
     .leftJoin('users', 'attendance.student_id', 'users.id')
     .leftJoin('students', 'users.id', 'students.user_id')
@@ -281,7 +306,7 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
     s.absent_rate = rate((s.absent / s.total) * 100);
   });
 
-  return { summary, by_class: byClass, trend, top_absent: topAbsent };
+  return { summary, by_class: byClass, trend, daily_by_class: dailyByClass, top_absent: topAbsent };
 }
 
 async function getTeacherOverview(tenantId, teacherUserId, { fromDate, toDate, classId, today } = {}) {
