@@ -90,6 +90,7 @@ export default function AdminAttendancePage() {
   const [fromDate, setFromDate] = useState(monthStart);
   const [toDate, setToDate] = useState(today);
   const [classId, setClassId] = useState("");
+  const [activePreset, setActivePreset] = useState("this_month");
   const { data: classesData } = useClasses({ limit: 200 });
 
   const params = { from_date: fromDate, to_date: toDate };
@@ -271,6 +272,11 @@ export default function AdminAttendancePage() {
           <p className="text-muted-foreground">{t("School-wide attendance overview, absence hotspots and student-level breakdown")}</p>
           <p className="mt-1 text-xs font-medium text-muted-foreground">
             {fromDate} → {toDate} · {selectedClass?.name || t("All classes")}
+            {activePreset !== "custom" && ` · ${t(([
+              ["today", "Today"], ["yesterday", "Yesterday"],
+              ["this_week", "This week"], ["last_week", "Last week"],
+              ["this_month", "This month"], ["last_month", "Last month"],
+            ].find(([k]) => k === activePreset) || [])[1] || "")}`}
           </p>
         </div>
         <ExcelButton
@@ -285,11 +291,11 @@ export default function AdminAttendancePage() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("From")}</label>
-              <EthiopianDateInput className="w-56" value={draftFrom} onChange={setDraftFrom} />
+              <EthiopianDateInput className="w-56" value={draftFrom} onChange={(v) => { setDraftFrom(v); setActivePreset("custom"); }} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("To")}</label>
-              <EthiopianDateInput className="w-56" value={draftTo} onChange={setDraftTo} />
+              <EthiopianDateInput className="w-56" value={draftTo} onChange={(v) => { setDraftTo(v); setActivePreset("custom"); }} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("Class")}</label>
@@ -320,7 +326,8 @@ export default function AdminAttendancePage() {
               <Button
                 key={key}
                 size="sm"
-                variant="outline"
+                variant={activePreset === key ? "default" : "outline"}
+                className={activePreset === key ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm" : ""}
                 onClick={() => {
                   const range = presetRange(key);
                   if (!range) return;
@@ -328,6 +335,7 @@ export default function AdminAttendancePage() {
                   setDraftTo(range[1]);
                   setFromDate(range[0]);
                   setToDate(range[1]);
+                  setActivePreset(key);
                 }}
               >
                 {t(label)}
