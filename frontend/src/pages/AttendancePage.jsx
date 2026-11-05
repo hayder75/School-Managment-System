@@ -493,7 +493,7 @@ function TeacherAttendanceView() {
           )}
 
           {/* Marking table */}
-          <Card className={`max-md:order-first ${sessionTheme.card}`}>
+          <Card className={sessionTheme.card}>
             <CardHeader className="flex flex-col gap-2">
               <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
                 <CardTitle>
@@ -516,6 +516,27 @@ function TeacherAttendanceView() {
                     </Button>
                   ))}
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">{t("Session")}</span>
+                <Button
+                  size="sm"
+                  variant={session === "am" ? "default" : "outline"}
+                  className={session === "am" ? "bg-amber-500 hover:bg-amber-600 text-white" : ""}
+                  onClick={() => setSession("am")}
+                >
+                  <Sun className="h-4 w-4 mr-1" /> {t("Morning")}
+                  {amCount > 0 && <span className="ml-1.5 rounded-full bg-white/25 px-1.5 text-[10px] font-bold">{amCount}</span>}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={session === "pm" ? "default" : "outline"}
+                  className={session === "pm" ? "bg-indigo-500 hover:bg-indigo-600 text-white" : ""}
+                  onClick={() => setSession("pm")}
+                >
+                  <Sunset className="h-4 w-4 mr-1" /> {t("Afternoon")}
+                  {pmCount > 0 && <span className="ml-1.5 rounded-full bg-white/25 px-1.5 text-[10px] font-bold">{pmCount}</span>}
+                </Button>
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
