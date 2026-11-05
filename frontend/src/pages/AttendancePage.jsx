@@ -210,10 +210,11 @@ function TeacherAttendanceView() {
   // Remember the session the teacher last used so a refresh reopens the same
   // register instead of an empty one.
   useEffect(() => {
-    try { localStorage.setItem("attendance.session", session); } catch {
+    if (!classId || !date) return;
+    try { localStorage.setItem(`attendance.session.${classId}.${date}`, session); } catch {
       // ignore
     }
-  }, [session]);
+  }, [session, classId, date]);
 
   useEffect(() => {
     try {
@@ -236,17 +237,20 @@ function TeacherAttendanceView() {
     if (!classes.some((c) => c.id === classId)) setClassId("");
   }, [classId, classes]);
 
-  // On first load for a class/date, if only one session has saved records,
-  // open that one.
-  const autoSessionRef = useRef("");
+  // Remember the session per class + date. Never auto-switch based on which
+  // query happens to have data — that raced with saving and hid the saved
+  // afternoon register behind the morning one.
   useEffect(() => {
-    if (!classId || !amAttendance || !pmAttendance) return;
-    const key = `${classId}|${date}`;
-    if (autoSessionRef.current === key) return;
-    autoSessionRef.current = key;
-    if (amCount > 0 && pmCount === 0) setSession("am");
-    else if (pmCount > 0 && amCount === 0) setSession("pm");
-  }, [classId, date, amAttendance, pmAttendance, amCount, pmCount]);
+    if (!classId || !date) return;
+    let saved = null;
+    try {
+      saved = localStorage.getItem(`attendance.session.${classId}.${date}`);
+    } catch {
+      // ignore
+    }
+    if (saved === "am" || saved === "pm") setSession(saved);
+    else setSession(new Date().getHours() < 12 ? "am" : "pm");
+  }, [classId, date]);
 
   // Always list every active student in the class. Attendance rows only supply
   // the saved status — a partially marked class must not hide the rest.
