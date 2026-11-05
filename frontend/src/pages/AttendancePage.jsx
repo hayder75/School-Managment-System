@@ -164,10 +164,8 @@ function TeacherAttendanceView() {
 
   const [statusMap, setStatusMap] = useState({});
   const [studentSearch, setStudentSearch] = useState("");
-  const [editing, setEditing] = useState(true);
-  const [savedMarks, setSavedMarks] = useState({});
   const [savedAt, setSavedAt] = useState(null);
-  const loadedRef = useRef("");
+  const [editKey, setEditKey] = useState("");
   const loadKey = `${classId}|${date}|${session}`;
 
   const sessionTheme = session === "am"
@@ -190,25 +188,20 @@ function TeacherAttendanceView() {
         active: "bg-indigo-500 hover:bg-indigo-600 text-white",
       };
 
+  // Saved status comes straight from the query for THIS session. No effect
+  // juggling, so switching Morning -> Afternoon -> Morning cannot wipe it.
+  const savedStatusMap = useMemo(
+    () => Object.fromEntries((attendanceData?.data || []).map((r) => [r.student_id, r.status])),
+    [attendanceData]
+  );
+  const hasSaved = (attendanceData?.data || []).length > 0;
+  const editing = editKey === loadKey || !hasSaved;
+
   useEffect(() => {
     setStatusMap({});
-    setSavedMarks({});
     setSavedAt(null);
-    setEditing(true);
-    loadedRef.current = "";
+    setEditKey("");
   }, [loadKey]);
-
-  // When the saved register for this class/date/session arrives, show it as
-  // saved and lock the buttons until the user presses Edit.
-  useEffect(() => {
-    if (!attendanceData || loadedRef.current === loadKey) return;
-    loadedRef.current = loadKey;
-    const rows = attendanceData.data || [];
-    if (rows.length) {
-      setSavedMarks(Object.fromEntries(rows.map((r) => [r.student_id, r.status])));
-      setEditing(false);
-    }
-  }, [attendanceData, loadKey]);
 
   useEffect(() => {
     setStudentSearch("");
@@ -270,8 +263,8 @@ function TeacherAttendanceView() {
         name: fullName(s),
         number: s.student_number,
         status: editing
-          ? (statusMap[s.id] ?? savedMarks[s.id] ?? saved?.status ?? "present")
-          : (savedMarks[s.id] ?? saved?.status ?? "present"),
+          ? (statusMap[s.id] ?? savedStatusMap[s.id] ?? saved?.status ?? "present")
+          : (savedStatusMap[s.id] ?? saved?.status ?? "present"),
         remark: saved?.remark || "",
       };
     })
@@ -302,15 +295,32 @@ function TeacherAttendanceView() {
     setSaveError("");
     const records = displayRecords.map((r) => ({
       student_id: r.id,
-      status: statusMap[r.id] ?? savedMarks[r.id] ?? r.status ?? "present",
+      status: statusMap[r.id] ?? savedStatusMap[r.id] ?? r.status ?? "present",
     }));
     try {
       await markAttendance.mutateAsync({ classId, date, session, records });
-      // Show the result immediately, without waiting for the refetch.
-      setSavedMarks(Object.fromEntries(records.map((r) => [r.student_id, r.status])));
+
+      // Put the saved rows straight into the query cache so the screen shows
+      // them as saved immediately, before the refetch finishes.
+      qc.setQueryData(["attendance", classId, date, session], (old) => {
+        const previous = Array.isArray(old?.data) ? old.data : [];
+        const byStudent = new Map(previous.map((r) => [r.student_id, r]));
+        return {
+          ...(old || { success: true }),
+          success: true,
+          data: records.map((r) => ({
+            ...(byStudent.get(r.student_id) || {}),
+            student_id: r.student_id,
+            status: r.status,
+            class_id: classId,
+            date,
+            session,
+          })),
+        };
+      });
       setSavedAt(new Date());
       setStatusMap({});
-      setEditing(false);
+      setEditKey("");
       await qc.invalidateQueries({ queryKey: ["attendance", classId, date, session] });
       await qc.invalidateQueries({ queryKey: ["attendance-teacher-overview"] });
     } catch (err) {
@@ -319,6 +329,10 @@ function TeacherAttendanceView() {
   }
 
   const focusClass = classId ? overviewClasses.find((c) => c.class_id === classId) : null;
+  const focusClassName = classes.find((c) => c.id === classId)?.name || focusClass?.class_name || "";
+  const sessionTotal = displayRecords.length;
+  const sessionRate = (n) => (sessionTotal ? Math.round((n / sessionTotal) * 1000) / 10 : 0);
+  const sessionAttendanceRate = sessionRate(sessionCounts.present + sessionCounts.late);
 
   const trendPoints = trend.map((d) => ({ label: shortDate(d.date), value: d.present_rate }));
   const classBars = overviewClasses.map((c) => ({ label: c.class_name, value: c.present_rate }));
@@ -441,7 +455,7 @@ function TeacherAttendanceView() {
               size="sm"
               variant="outline"
               className="bg-white/70"
-              onClick={() => setEditing(true)}
+              onClick={() => setEditKey(loadKey)}
             >
               <Pencil className="h-3.5 w-3.5 mr-1" /> {t("Edit")}
             </Button>
@@ -469,25 +483,36 @@ function TeacherAttendanceView() {
 
       {classId ? (
         <>
-          {/* Focused class overview */}
-          {focusClass && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{focusClass.class_name} — {t("Overview")}</CardTitle>
+          {/* Focused class overview — current session + date only */}
+          {classId && (
+            <Card className={sessionTheme.card}>
+              <CardHeader className="pb-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-base">
+                    {focusClassName} — {sessionTheme.label} {t("overview")}
+                  </CardTitle>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${sessionTheme.chip}`}>
+                    {date}
+                  </span>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
-                  <div className="bg-emerald-500" style={{ width: `${focusClass.present_rate || 0}%` }} />
-                  <div className="bg-amber-500" style={{ width: `${focusClass.late_rate || 0}%` }} />
-                  <div className="bg-rose-500" style={{ width: `${focusClass.absent_rate || 0}%` }} />
-                  <div className="bg-blue-500" style={{ width: `${focusClass.excused_rate || 0}%` }} />
+                  <div className="bg-emerald-500" style={{ width: `${sessionRate(sessionCounts.present)}%` }} />
+                  <div className="bg-amber-500" style={{ width: `${sessionRate(sessionCounts.late)}%` }} />
+                  <div className="bg-rose-500" style={{ width: `${sessionRate(sessionCounts.absent)}%` }} />
+                  <div className="bg-blue-500" style={{ width: `${sessionRate(sessionCounts.excused)}%` }} />
                 </div>
-                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span className="text-emerald-600">{t("Present")} {focusClass.present}</span>
-                  <span className="text-amber-600">{t("Late")} {focusClass.late}</span>
-                  <span className="text-rose-600">{t("Absent")} {focusClass.absent}</span>
-                  <span className="text-blue-600">{t("Excused")} {focusClass.excused}</span>
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs">
+                  <span className="text-emerald-700">{t("Present")} {sessionCounts.present}</span>
+                  <span className="text-amber-700">{t("Late")} {sessionCounts.late}</span>
+                  <span className="text-rose-700">{t("Absent")} {sessionCounts.absent}</span>
+                  <span className="text-blue-700">{t("Excused")} {sessionCounts.excused}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  {sessionTotal} {t("students")} · {t("Attendance rate")} {sessionAttendanceRate}% · {t("Absent")} {sessionRate(sessionCounts.absent)}%
+                  {!hasSaved && ` · ${t("not marked yet")}`}
+                </p>
               </CardContent>
             </Card>
           )}
@@ -511,7 +536,7 @@ function TeacherAttendanceView() {
                       {markAttendance.isPending ? t("Saving...") : t("Save Attendance")}
                     </Button>
                   ) : (
-                    <Button variant="outline" onClick={() => setEditing(true)} className="flex-1 sm:flex-none">
+                    <Button variant="outline" onClick={() => setEditKey(loadKey)} className="flex-1 sm:flex-none">
                       <Pencil className="h-4 w-4 mr-1" /> {t("Edit attendance")}
                     </Button>
                   ))}
