@@ -325,7 +325,10 @@ function TeacherAttendanceView() {
       setSavedAt(new Date());
       setStatusMap({});
       setEditKey("");
-      await qc.invalidateQueries({ queryKey: ["attendance", classId, date, session] });
+      // Refresh the other session (its student list/totals may change) but
+      // never the one we just saved from the optimistic cache.
+      const otherSession = session === "am" ? "pm" : "am";
+      await qc.invalidateQueries({ queryKey: ["attendance", classId, date, otherSession] });
       await qc.invalidateQueries({ queryKey: ["attendance-teacher-overview"] });
     } catch (err) {
       setSaveError(err?.response?.data?.error?.message || err?.message || t("Could not save attendance"));
@@ -477,7 +480,9 @@ function TeacherAttendanceView() {
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           <CheckCircle className="h-4 w-4" />
           <span className="font-medium">
-            {savedAt ? `${t("Saved")} ${savedAt.toLocaleTimeString()}` : t("Saved attendance loaded")}
+            {savedAt
+              ? `${t("Saved")} ${sessionTheme.label} ${savedAt.toLocaleTimeString()}`
+              : `${t("Saved attendance loaded")} — ${sessionTheme.label}`}
           </span>
           <span className="text-xs">
             {t("The register is locked — press Edit to make changes.")}

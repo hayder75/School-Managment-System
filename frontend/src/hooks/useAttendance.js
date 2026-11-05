@@ -14,7 +14,10 @@ export function useMarkAttendance() {
   return useMutation({
     mutationFn: ({ classId, date, session = "am", records }) =>
       api.post(`/attendance/classes/${classId}`, { date, session, records }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
+    // The attendance page writes the saved rows into the cache itself. Do not
+    // refetch every attendance query here — that refetch could land before the
+    // saved session is ready and make the just-saved register look empty.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance-teacher-overview"] }),
   });
 }
 

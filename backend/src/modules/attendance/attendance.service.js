@@ -54,6 +54,15 @@ async function mark(tenantId, classId, teacherId, date, records, session = 'am')
     }
   });
 
+  logger.info('attendance marked', {
+    tenantId,
+    classId,
+    date,
+    session,
+    records: rows.length,
+    markedBy: teacherId,
+  });
+
   await notifyAttendanceMarked(tenantId, classId, date, rows, session);
 
   return rows;
