@@ -302,14 +302,16 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
       'classes.level_group',
       'classes.grade_level',
       db.raw("to_char(attendance.date, 'YYYY-MM-DD') as date"),
+      db.raw("COALESCE(attendance.session, 'am') as session"),
       db.raw('COUNT(*)::int as total'),
       db.raw("COUNT(*) FILTER (WHERE attendance.status = 'present')::int as present"),
       db.raw("COUNT(*) FILTER (WHERE attendance.status = 'absent')::int as absent"),
       db.raw("COUNT(*) FILTER (WHERE attendance.status = 'late')::int as late"),
       db.raw("COUNT(*) FILTER (WHERE attendance.status = 'excused')::int as excused")
     )
-    .groupBy('classes.id', 'classes.name', 'classes.level_group', 'classes.grade_level', 'attendance.date')
+    .groupBy('classes.id', 'classes.name', 'classes.level_group', 'classes.grade_level', 'attendance.date', 'attendance.session')
     .orderBy('attendance.date')
+    .orderBy('attendance.session')
     .orderBy('classes.name');
 
   dailyByClass.forEach((row) => {

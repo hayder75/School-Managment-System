@@ -25,6 +25,11 @@ function startOfWeek(d) {
 }
 function presetRange(preset) {
   const now = new Date();
+  if (preset === "today") return [localIso(now), localIso(now)];
+  if (preset === "yesterday") {
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    return [localIso(y), localIso(y)];
+  }
   if (preset === "this_week") return [localIso(startOfWeek(now)), localIso(now)];
   if (preset === "last_week") {
     const start = startOfWeek(now);
@@ -79,9 +84,10 @@ function RankBadge({ rank }) {
 export default function AdminAttendancePage() {
   const { t } = useI18n();
   const today = localIso();
-  const [draftFrom, setDraftFrom] = useState("2026-01-01");
+  const monthStart = localIso(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [draftFrom, setDraftFrom] = useState(monthStart);
   const [draftTo, setDraftTo] = useState(today);
-  const [fromDate, setFromDate] = useState("2026-01-01");
+  const [fromDate, setFromDate] = useState(monthStart);
   const [toDate, setToDate] = useState(today);
   const [classId, setClassId] = useState("");
   const { data: classesData } = useClasses({ limit: 200 });
@@ -128,11 +134,35 @@ export default function AdminAttendancePage() {
   ];
 
   const exportSheets = useMemo(() => {
+    const sessionTotalsMap = {};
+    for (const r of dailyByClass) {
+      const key = `${r.class_id}|${r.session}`;
+      if (!sessionTotalsMap[key]) {
+        sessionTotalsMap[key] = {
+          class_name: r.class_name,
+          session: r.session,
+          present: 0, absent: 0, late: 0, excused: 0, total: 0,
+        };
+      }
+      const t = sessionTotalsMap[key];
+      t.present += Number(r.present || 0);
+      t.absent += Number(r.absent || 0);
+      t.late += Number(r.late || 0);
+      t.excused += Number(r.excused || 0);
+      t.total += Number(r.total || 0);
+    }
+    const sessionTotals = Object.values(sessionTotalsMap).map((r) => ({
+      ...r,
+      present_rate: r.total ? Math.round(((r.present + r.late) / r.total) * 1000) / 10 : 0,
+      absent_rate: r.total ? Math.round((r.absent / r.total) * 1000) / 10 : 0,
+    }));
+
     const dailyRows = dailyByClass.length
       ? dailyByClass
       : [{
           date: `${fromDate} → ${toDate}`,
           class_name: selectedClass?.name || "All classes",
+          session: "",
           present: 0,
           absent: 0,
           late: 0,
@@ -144,9 +174,20 @@ export default function AdminAttendancePage() {
 
     return [
       {
+        name: "Report",
+        columns: [{ key: "field", label: "Field" }, { key: "value", label: "Value" }],
+        rows: [
+          { field: "From", value: fromDate },
+          { field: "To", value: toDate },
+          { field: "Class", value: selectedClass?.name || "All classes" },
+          { field: "Generated", value: new Date().toLocaleString() },
+        ],
+      },
+      {
         name: "Daily by class",
         columns: [
           { key: "date", label: "Date" },
+          { key: "session_label", label: "Session", value: (r) => (r.session === "pm" ? "Afternoon" : r.session === "am" ? "Morning" : "") },
           { key: "class_name", label: "Class" },
           { key: "present", label: "Present" },
           { key: "absent", label: "Absent" },
@@ -157,6 +198,21 @@ export default function AdminAttendancePage() {
           { key: "absent_rate", label: "Absent %" },
         ],
         rows: dailyRows,
+      },
+      {
+        name: "Session totals",
+        columns: [
+          { key: "class_name", label: "Class" },
+          { key: "session_label", label: "Session", value: (r) => (r.session === "pm" ? "Afternoon" : "Morning") },
+          { key: "present", label: "Present" },
+          { key: "absent", label: "Absent" },
+          { key: "late", label: "Late" },
+          { key: "excused", label: "Excused" },
+          { key: "total", label: "Total" },
+          { key: "present_rate", label: "Present %" },
+          { key: "absent_rate", label: "Absent %" },
+        ],
+        rows: sessionTotals,
       },
       {
         name: "Class totals",
@@ -213,6 +269,9 @@ export default function AdminAttendancePage() {
         <div>
           <h1 className="text-3xl font-bold">{t("Attendance Analytics")}</h1>
           <p className="text-muted-foreground">{t("School-wide attendance overview, absence hotspots and student-level breakdown")}</p>
+          <p className="mt-1 text-xs font-medium text-muted-foreground">
+            {fromDate} → {toDate} · {selectedClass?.name || t("All classes")}
+          </p>
         </div>
         <ExcelButton
           filename={`attendance-${fromDate}-to-${toDate}${selectedClass ? "-" + selectedClass.name.replace(/[^a-z0-9]+/gi, "-") : ""}`}
@@ -251,6 +310,8 @@ export default function AdminAttendancePage() {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {[
+              ["today", "Today"],
+              ["yesterday", "Yesterday"],
               ["this_week", "This week"],
               ["last_week", "Last week"],
               ["this_month", "This month"],
