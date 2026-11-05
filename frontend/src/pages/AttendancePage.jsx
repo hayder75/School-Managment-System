@@ -103,8 +103,19 @@ function TeacherAttendanceView() {
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "teacher";
   const today = localIso();
-  const [classId, setClassId] = useState("");
-  const [date, setDate] = useState(today);
+  const [classId, setClassId] = useState(() => {
+    try { return localStorage.getItem("attendance.class") || ""; } catch { return ""; }
+  });
+  const [date, setDate] = useState(() => {
+    try {
+      const saved = localStorage.getItem("attendance.date");
+      if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved) && saved === today) return saved;
+    } catch {
+      // ignore
+    }
+    return today;
+  });
+  const [saveError, setSaveError] = useState("");
   const [session, setSession] = useState(() => {
     try {
       const saved = localStorage.getItem("attendance.session");
@@ -211,6 +222,27 @@ function TeacherAttendanceView() {
     }
   }, [session]);
 
+  useEffect(() => {
+    try {
+      if (classId) localStorage.setItem("attendance.class", classId);
+      else localStorage.removeItem("attendance.class");
+    } catch {
+      // ignore
+    }
+  }, [classId]);
+
+  useEffect(() => {
+    try { localStorage.setItem("attendance.date", date); } catch {
+      // ignore
+    }
+  }, [date]);
+
+  // If a remembered class is no longer visible to this user, clear it.
+  useEffect(() => {
+    if (!classId || !classes.length) return;
+    if (!classes.some((c) => c.id === classId)) setClassId("");
+  }, [classId, classes]);
+
   // On first load for a class/date, if only one session has saved records,
   // open that one.
   const autoSessionRef = useRef("");
@@ -267,18 +299,23 @@ function TeacherAttendanceView() {
 
   async function handleSave() {
     if (!classId || !date) return;
+    setSaveError("");
     const records = displayRecords.map((r) => ({
       student_id: r.id,
       status: statusMap[r.id] ?? savedMarks[r.id] ?? r.status ?? "present",
     }));
-    await markAttendance.mutateAsync({ classId, date, session, records });
-    // Show the result immediately, without waiting for the refetch.
-    setSavedMarks(Object.fromEntries(records.map((r) => [r.student_id, r.status])));
-    setSavedAt(new Date());
-    setStatusMap({});
-    setEditing(false);
-    await qc.invalidateQueries({ queryKey: ["attendance", classId, date, session] });
-    await qc.invalidateQueries({ queryKey: ["attendance-teacher-overview"] });
+    try {
+      await markAttendance.mutateAsync({ classId, date, session, records });
+      // Show the result immediately, without waiting for the refetch.
+      setSavedMarks(Object.fromEntries(records.map((r) => [r.student_id, r.status])));
+      setSavedAt(new Date());
+      setStatusMap({});
+      setEditing(false);
+      await qc.invalidateQueries({ queryKey: ["attendance", classId, date, session] });
+      await qc.invalidateQueries({ queryKey: ["attendance-teacher-overview"] });
+    } catch (err) {
+      setSaveError(err?.response?.data?.error?.message || err?.message || t("Could not save attendance"));
+    }
   }
 
   const focusClass = classId ? overviewClasses.find((c) => c.class_id === classId) : null;
@@ -409,6 +446,12 @@ function TeacherAttendanceView() {
               <Pencil className="h-3.5 w-3.5 mr-1" /> {t("Edit")}
             </Button>
           )}
+        </div>
+      )}
+
+      {saveError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+          {saveError}
         </div>
       )}
 
