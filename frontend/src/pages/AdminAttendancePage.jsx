@@ -1,5 +1,5 @@
 import { fullName } from "../lib/fullName";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useClasses } from "../hooks/useClasses";
 import { useAdminAttendanceOverview, useAdminClassAttendance } from "../hooks/useAttendance";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -127,6 +127,77 @@ export default function AdminAttendancePage() {
     { label: t("Excused"), value: summary.excused || 0, color: "#8f9bb3" },
   ];
 
+  const exportSheets = useMemo(() => {
+    const dailyRows = dailyByClass.length
+      ? dailyByClass
+      : [{
+          date: `${fromDate} → ${toDate}`,
+          class_name: selectedClass?.name || "All classes",
+          present: 0,
+          absent: 0,
+          late: 0,
+          excused: 0,
+          total: 0,
+          present_rate: 0,
+          absent_rate: 0,
+        }];
+
+    return [
+      {
+        name: "Daily by class",
+        columns: [
+          { key: "date", label: "Date" },
+          { key: "class_name", label: "Class" },
+          { key: "present", label: "Present" },
+          { key: "absent", label: "Absent" },
+          { key: "late", label: "Late" },
+          { key: "excused", label: "Excused" },
+          { key: "total", label: "Total" },
+          { key: "present_rate", label: "Present %" },
+          { key: "absent_rate", label: "Absent %" },
+        ],
+        rows: dailyRows,
+      },
+      {
+        name: "Class totals",
+        columns: [
+          { key: "class_name", label: "Class" },
+          { key: "level", label: "Level" },
+          { key: "present", label: "Present" },
+          { key: "absent", label: "Absent" },
+          { key: "late", label: "Late" },
+          { key: "excused", label: "Excused" },
+          { key: "total", label: "Total" },
+          { key: "absent_rate", label: "Absent %" },
+        ],
+        rows: byClass.map((c) => ({ ...c, level: levelLabel(c) })),
+      },
+      {
+        name: "Daily school totals",
+        columns: [
+          { key: "date", label: "Date" },
+          { key: "present", label: "Present" },
+          { key: "absent", label: "Absent" },
+          { key: "late", label: "Late" },
+          { key: "total", label: "Total" },
+        ],
+        rows: (trend || []).map((x) => ({ ...x, date: String(x.date || "").slice(0, 10) })),
+      },
+      ...(classDetail ? [{
+        name: "Student breakdown",
+        columns: [
+          { key: "name", label: "Student" },
+          { key: "present", label: "Present" },
+          { key: "absent", label: "Absent" },
+          { key: "late", label: "Late" },
+          { key: "excused", label: "Excused" },
+          { key: "absent_rate", label: "Absent %" },
+        ],
+        rows: (classDetail.students || []).map((x) => ({ ...x, name: fullName(x) })),
+      }] : []),
+    ];
+  }, [dailyByClass, byClass, trend, classDetail, fromDate, toDate, selectedClass]);
+
   function applyFilters() {
     setFromDate(draftFrom);
     setToDate(draftTo);
@@ -138,9 +209,16 @@ export default function AdminAttendancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t("Attendance Analytics")}</h1>
-        <p className="text-muted-foreground">{t("School-wide attendance overview, absence hotspots and student-level breakdown")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{t("Attendance Analytics")}</h1>
+          <p className="text-muted-foreground">{t("School-wide attendance overview, absence hotspots and student-level breakdown")}</p>
+        </div>
+        <ExcelButton
+          filename={`attendance-${fromDate}-to-${toDate}${selectedClass ? "-" + selectedClass.name.replace(/[^a-z0-9]+/gi, "-") : ""}`}
+          sheets={exportSheets}
+          label={t("Download Excel")}
+        />
       </div>
 
       <Card>
@@ -194,65 +272,6 @@ export default function AdminAttendancePage() {
                 {t(label)}
               </Button>
             ))}
-            <div className="flex-1" />
-            <ExcelButton
-              filename={`attendance-${fromDate}-to-${toDate}${selectedClass ? "-" + selectedClass.name.replace(/[^a-z0-9]+/gi, "-") : ""}`}
-              disabled={!dailyByClass.length}
-              sheets={[
-                {
-                  name: "Daily by class",
-                  columns: [
-                    { key: "date", label: "Date" },
-                    { key: "class_name", label: "Class" },
-                    { key: "present", label: "Present" },
-                    { key: "absent", label: "Absent" },
-                    { key: "late", label: "Late" },
-                    { key: "excused", label: "Excused" },
-                    { key: "total", label: "Total" },
-                    { key: "present_rate", label: "Present %" },
-                    { key: "absent_rate", label: "Absent %" },
-                  ],
-                  rows: dailyByClass,
-                },
-                {
-                  name: "Class totals",
-                  columns: [
-                    { key: "class_name", label: "Class" },
-                    { key: "level", label: "Level" },
-                    { key: "present", label: "Present" },
-                    { key: "absent", label: "Absent" },
-                    { key: "late", label: "Late" },
-                    { key: "excused", label: "Excused" },
-                    { key: "total", label: "Total" },
-                    { key: "absent_rate", label: "Absent %" },
-                  ],
-                  rows: byClass.map((c) => ({ ...c, level: levelLabel(c) })),
-                },
-                {
-                  name: "Daily school totals",
-                  columns: [
-                    { key: "date", label: "Date" },
-                    { key: "present", label: "Present" },
-                    { key: "absent", label: "Absent" },
-                    { key: "late", label: "Late" },
-                    { key: "total", label: "Total" },
-                  ],
-                  rows: (trend || []).map((x) => ({ ...x, date: String(x.date || "").slice(0, 10) })),
-                },
-                ...(classDetail ? [{
-                  name: "Student breakdown",
-                  columns: [
-                    { key: "name", label: "Student" },
-                    { key: "present", label: "Present" },
-                    { key: "absent", label: "Absent" },
-                    { key: "late", label: "Late" },
-                    { key: "excused", label: "Excused" },
-                    { key: "absent_rate", label: "Absent %" },
-                  ],
-                  rows: (classDetail.students || []).map((x) => ({ ...x, name: fullName(x) })),
-                }] : []),
-              ]}
-            />
           </div>
         </CardContent>
       </Card>
@@ -268,6 +287,10 @@ export default function AdminAttendancePage() {
             <StatCard title="Excused" value={summary.excused || "—"} icon={CheckCircle} color="text-blue-600" sub={`${summary.excused_rate}% ${t("excused rate")}`} />
             <StatCard title="Total Records" value={summary.total?.toLocaleString() || "—"} icon={CalendarDays} color="text-neutral-600" sub={`${byClass.length} ${t("classes tracked")}`} />
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            {byClass.filter((c) => Number(c.total) > 0).length} {t("of")} {byClass.length} {t("classes have attendance in this range.")}
+          </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
@@ -388,6 +411,11 @@ export default function AdminAttendancePage() {
                     <p className="text-lg font-bold">{classDetail.summary.total?.toLocaleString()}</p>
                   </div>
                 </div>
+                {classDetail.students.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    {t("No attendance was marked for this class between")} {fromDate} {t("and")} {toDate}.
+                  </p>
+                ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -416,6 +444,7 @@ export default function AdminAttendancePage() {
                     ))}
                   </TableBody>
                 </Table>
+                )}
               </CardContent>
             </Card>
           )}

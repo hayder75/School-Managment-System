@@ -258,6 +258,30 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
     c.absent_rate = rate((c.absent / c.total) * 100);
   });
 
+  // Include classes with no attendance in the range as zero rows, so the
+  // owner can see which classes are empty instead of an apparently missing
+  // class in the dropdown.
+  const allClasses = await db('classes')
+    .where({ tenant_id: tenantId })
+    .modify((q) => { if (classId) q.where('id', classId); })
+    .select('id', 'name', 'level_group', 'grade_level');
+  const seenClasses = new Set(byClass.map((c) => c.class_id));
+  for (const c of allClasses) {
+    if (seenClasses.has(c.id)) continue;
+    byClass.push({
+      class_id: c.id,
+      class_name: c.name,
+      level_group: c.level_group,
+      grade_level: c.grade_level,
+      total: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      absent_rate: 0,
+    });
+  }
+
   const trend = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId }))
     .select(
       'attendance.date',
