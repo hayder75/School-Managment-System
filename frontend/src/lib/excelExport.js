@@ -37,6 +37,28 @@ export function exportExcel(filename, sheets) {
     XLSX.utils.book_append_sheet(wb, ws, name);
   }
 
-  const file = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
-  XLSX.writeFile(wb, file);
+  const base = String(filename || "report")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim() || "report";
+  const file = base.toLowerCase().endsWith(".xlsx") ? base : `${base}.xlsx`;
+
+  // Explicit Blob download with the .xlsx name and MIME type. XLSX.writeFile
+  // can leave the browser without an extension in some setups.
+  if (typeof document === "undefined") {
+    XLSX.writeFile(wb, file);
+    return;
+  }
+  const data = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([data], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }

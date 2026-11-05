@@ -105,7 +105,15 @@ function TeacherAttendanceView() {
   const today = localIso();
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState(today);
-  const [session, setSession] = useState(() => (new Date().getHours() < 12 ? "am" : "pm"));
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem("attendance.session");
+      if (saved === "am" || saved === "pm") return saved;
+    } catch {
+      // ignore
+    }
+    return new Date().getHours() < 12 ? "am" : "pm";
+  });
   const [rangeWeeks, setRangeWeeks] = useState(4);
 
   const fromDate = localIso(new Date(Date.now() - rangeWeeks * 7 * 86400000));
@@ -116,7 +124,12 @@ function TeacherAttendanceView() {
     to_date: today,
     today,
   });
-  const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(classId, date, session);
+  const { data: amAttendance, isLoading: amLoading } = useAttendance(classId, date, "am");
+  const { data: pmAttendance, isLoading: pmLoading } = useAttendance(classId, date, "pm");
+  const attendanceData = session === "am" ? amAttendance : pmAttendance;
+  const loadingAttendance = amLoading || pmLoading;
+  const amCount = amAttendance?.data?.length || 0;
+  const pmCount = pmAttendance?.data?.length || 0;
   const { data: classStudentsData } = useStudentsByClass(classId);
   const markAttendance = useMarkAttendance();
   const qc = useQueryClient();
@@ -189,6 +202,26 @@ function TeacherAttendanceView() {
   useEffect(() => {
     setStudentSearch("");
   }, [classId]);
+
+  // Remember the session the teacher last used so a refresh reopens the same
+  // register instead of an empty one.
+  useEffect(() => {
+    try { localStorage.setItem("attendance.session", session); } catch {
+      // ignore
+    }
+  }, [session]);
+
+  // On first load for a class/date, if only one session has saved records,
+  // open that one.
+  const autoSessionRef = useRef("");
+  useEffect(() => {
+    if (!classId || !amAttendance || !pmAttendance) return;
+    const key = `${classId}|${date}`;
+    if (autoSessionRef.current === key) return;
+    autoSessionRef.current = key;
+    if (amCount > 0 && pmCount === 0) setSession("am");
+    else if (pmCount > 0 && amCount === 0) setSession("pm");
+  }, [classId, date, amAttendance, pmAttendance, amCount, pmCount]);
 
   // Always list every active student in the class. Attendance rows only supply
   // the saved status — a partially marked class must not hide the rest.
@@ -314,6 +347,9 @@ function TeacherAttendanceView() {
                     onClick={() => setSession("am")}
                   >
                     <Sun className="h-4 w-4 mr-1" /> {t("Morning")}
+                    {amCount > 0 && (
+                      <span className="ml-1.5 rounded-full bg-white/25 px-1.5 text-[10px] font-bold">{amCount}</span>
+                    )}
                   </Button>
                   <Button
                     size="sm"
@@ -322,8 +358,14 @@ function TeacherAttendanceView() {
                     onClick={() => setSession("pm")}
                   >
                     <Sunset className="h-4 w-4 mr-1" /> {t("Afternoon")}
+                    {pmCount > 0 && (
+                      <span className="ml-1.5 rounded-full bg-white/25 px-1.5 text-[10px] font-bold">{pmCount}</span>
+                    )}
                   </Button>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {t("Morning")}: {amCount ? `${t("saved")} (${amCount})` : t("not marked")} · {t("Afternoon")}: {pmCount ? `${t("saved")} (${pmCount})` : t("not marked")}
+                </p>
               </div>
             )}
             {!classId && (
