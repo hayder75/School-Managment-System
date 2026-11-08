@@ -13,7 +13,7 @@ router.use(tenant);
 
 const READ_ROLES = [
   'owner', 'admin', 'teacher', 'principal', 'vice_principal', 'quality_director',
-  'general_manager', 'hr', 'super_admin',
+  'general_manager', 'hr', 'super_admin', 'Unit Leader',
 ];
 
 router.get('/', requireAccess(READ_ROLES, ['exams.manage', 'grades.manage', 'timetable.view']), controller.list);

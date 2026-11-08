@@ -98,6 +98,17 @@ const navItems = {
     { to: "/sms", label: "sms", icon: MessageSquare },
     { to: "/early-years", label: "earlyYears", icon: CalendarDays },
   ],
+  'Unit Leader': [
+    { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
+    { to: "/teachers", label: "teachers", icon: Users },
+    { to: "/students", label: "students", icon: GraduationCap },
+    { to: "/attendance", label: "attendance", icon: Users },
+    { to: "/exams", label: "exams", icon: BookOpen },
+    { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
+    { to: "/reports", label: "reports", icon: BarChart3 },
+    { to: "/announcements", label: "announcements", icon: Megaphone },
+    { to: "/chat", label: "chat", icon: MessageSquare },
+  ],
   teacher: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
     { to: "/teacher/workspace", label: "workspace", icon: BadgeCheck },

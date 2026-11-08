@@ -67,7 +67,22 @@ async function getByClassAndDate(req, res) {
     }
   }
   const records = await attendanceService.getByClassAndDate(req.tenant.id, classId, date, session);
-  res.json({ success: true, data: records });
+  const cls = await db('classes as c')
+    .leftJoin('users as u', 'c.class_teacher_id', 'u.id')
+    .where({ 'c.tenant_id': req.tenant.id, 'c.id': classId })
+    .select('c.name as class_name', 'u.first_name', 'u.middle_name', 'u.last_name')
+    .first();
+  const homeroom = cls ? [cls.first_name, cls.middle_name, cls.last_name].filter(Boolean).join(' ') : '';
+  res.json({
+    success: true,
+    data: records,
+    meta: {
+      class_name: cls?.class_name || null,
+      homeroom_teacher_name: homeroom || null,
+      session,
+      date,
+    },
+  });
 }
 
 async function getByStudent(req, res) {

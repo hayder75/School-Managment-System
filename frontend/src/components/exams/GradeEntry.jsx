@@ -31,7 +31,7 @@ function lsKey(examId, classId, userId) {
   return `sms.grades.v1.${examId}.${classId}.${userId || "anon"}`;
 }
 
-export default function GradeEntry({ exam }) {
+export default function GradeEntry({ exam, readOnly = false }) {
   const { t } = useI18n();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -52,7 +52,7 @@ export default function GradeEntry({ exam }) {
   const meta = gradesData?.meta || {};
   const section = sectionMap[selectedClass];
   const status = meta.status || section?.status || "draft";
-  const locked = ["submitted", "approved"].includes(status);
+  const locked = readOnly || ["submitted", "approved"].includes(status);
 
   const enterGrades = useEnterGrades();
   const submitResults = useSubmitResults();
@@ -269,14 +269,14 @@ export default function GradeEntry({ exam }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge className={sev(statusSeverity(status)).badge}>{t(STATUS_LABEL[status] || status)}</Badge>
-          {(!locked || isReviewer) && (
+          {!readOnly && (!locked || isReviewer) && (
             <Button size="sm" onClick={handleSave} disabled={enterGrades.isPending || totalPending() === 0}>
               <Save className="h-4 w-4 mr-1" />
               {enterGrades.isPending ? t("Saving...") : t("Save All Grades")}
               {totalPending() > 0 ? ` (${totalPending()})` : ""}
             </Button>
           )}
-          {!isReviewer && !locked && status !== "editing" && (
+          {!readOnly && !isReviewer && !locked && status !== "editing" && (
             <Button
               size="sm"
               variant="secondary"
@@ -286,7 +286,7 @@ export default function GradeEntry({ exam }) {
               <Send className="h-4 w-4 mr-1" /> {t("Submit for approval")}
             </Button>
           )}
-          {!isReviewer && status === "editing" && (
+          {!readOnly && !isReviewer && status === "editing" && (
             <Button
               size="sm"
               variant="secondary"
@@ -296,7 +296,7 @@ export default function GradeEntry({ exam }) {
               <Send className="h-4 w-4 mr-1" /> {t("Resubmit")}
             </Button>
           )}
-          {locked && !openRequest && (
+          {!readOnly && locked && !openRequest && (
             <Button size="sm" variant="outline" onClick={() => { setRequestFor({ studentId: null }); setReason(""); }}>
               <PencilLine className="h-4 w-4 mr-1" /> {t("Request edit")}
             </Button>
@@ -327,6 +327,13 @@ export default function GradeEntry({ exam }) {
         <div className={`flex items-center gap-2 rounded-md border p-3 text-sm ${sev("warn").bg} ${sev("warn").border} ${sev("warn").text}`}>
           <CheckCircle2 className="h-4 w-4" />
           {t("Edit request approved — correct the mark, then resubmit.")}
+        </div>
+      )}
+
+      {readOnly && (
+        <div className={`flex items-center gap-2 rounded-md border p-3 text-sm ${sev("info").bg} ${sev("info").border} ${sev("info").text}`}>
+          <ShieldCheck className="h-4 w-4" />
+          {t("View only — you can see the marks and approval status but cannot change them.")}
         </div>
       )}
 
@@ -438,7 +445,7 @@ export default function GradeEntry({ exam }) {
               {records.map((r) => {
                 const val = valueFor(r);
                 const sevKey = markSeverity(val, totalMarks, passMarks);
-                const editable = r.editable !== false || !locked;
+                const editable = !readOnly && (r.editable !== false || !locked);
                 return (
                   <TableRow key={r.student_id} className={sevKey === "danger" ? sev("danger").bg : undefined}>
                     <TableCell className="font-medium">

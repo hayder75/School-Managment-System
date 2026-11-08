@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { BarChart, DonutChart, LineChart, RadarChart } from "../components/ui/charts";
 import AdminAttendancePage from "./AdminAttendancePage";
+import UnitLeaderAttendanceView from "../components/attendance/UnitLeaderAttendanceView";
 import { useI18n } from "../i18n/I18nContext";
 import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search, Sun, Sunset, Pencil } from "lucide-react";
 
@@ -28,6 +29,10 @@ const ALL_CLASSES = "__all__";
 
 export default function AttendancePage() {
   const user = useAuthStore((s) => s.user);
+
+  if (user?.role === "Unit Leader") {
+    return <UnitLeaderAttendanceView />;
+  }
 
   if (user?.role === "admin" || user?.role === "owner") {
     return <AdminAttendancePage />;

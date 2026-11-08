@@ -16,6 +16,7 @@ const rolesHierarchy = {
   general_services: ['general_services'],
   librarian: ['librarian'],
   face_attendance: ['face_attendance'],
+  'Unit Leader': ['Unit Leader'],
   security_head: ['security_head'],
   accountant: ['accountant'],
   shift_coordinator: ['shift_coordinator', 'teacher'],

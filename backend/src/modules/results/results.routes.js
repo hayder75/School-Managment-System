@@ -11,7 +11,7 @@ const router = Router();
 router.use(auth);
 router.use(tenant);
 
-const STAFF = ['owner', 'admin', 'teacher', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'super_admin'];
+const STAFF = ['owner', 'admin', 'teacher', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'super_admin', 'Unit Leader'];
 
 router.get('/sections', requireAccess(STAFF, ['grades.manage', 'results.review']), controller.sections);
 router.get('/status', requireAccess(STAFF, ['grades.manage']), controller.myStatus);

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useI18n } from "../i18n/I18nContext";
+import { useAuthStore } from "../store/auth";
 import { ChevronLeft, ChevronRight, Save, Settings, Users, UserCheck, UserX, Clock, CalendarOff, Siren, Wallet, BarChart3 } from "lucide-react";
 
 const STATUS_OPTIONS = [
@@ -74,10 +75,17 @@ function StatCard({ title, value, sub, icon: Icon, tone = "primary" }) {
   );
 }
 
-function StatusCell({ value, onChange, lateMinutes = 0, onLateChange }) {
+function StatusCell({ value, onChange, lateMinutes = 0, onLateChange, readOnly = false }) {
   const meta = statusMeta(value);
   const h = Math.floor((lateMinutes || 0) / 60);
   const m = (lateMinutes || 0) % 60;
+  if (readOnly) {
+    return (
+      <span className={`inline-flex w-full min-w-[92px] items-center justify-center rounded-md border px-1.5 py-1 text-xs font-medium ${meta.cls}`}>
+        {meta.label}
+      </span>
+    );
+  }
   return (
     <div className="space-y-0.5">
       <select
@@ -106,6 +114,8 @@ function StatusCell({ value, onChange, lateMinutes = 0, onLateChange }) {
 
 export default function TeacherAttendancePage() {
   const { t } = useI18n();
+  const myRole = useAuthStore((s) => s.user?.role);
+  const readOnly = myRole === "Unit Leader";
   const navigate = useNavigate();
   const today = toISO(new Date());
   const [weekStart, setWeekStart] = useState(toISO(startOfWeek(today)));
@@ -174,6 +184,7 @@ export default function TeacherAttendancePage() {
   }
 
   function handleCell(row, day, session, patch) {
+    if (readOnly) return;
     const key = `${row.staff_id}|${day.date}|${session}`;
     setEdits((prev) => ({ ...prev, [key]: { ...cellValue(row, day, session), ...patch } }));
     setSaved(false);
@@ -213,22 +224,30 @@ export default function TeacherAttendancePage() {
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <UserCheck className="h-7 w-7 text-primary" /> {t("Teacher & Staff Attendance")}
           </h1>
-          <p className="text-muted-foreground">{t("Mark weekly attendance for teachers and staff. Unreasoned absences feed payroll deductions.")}</p>
+          <p className="text-muted-foreground">
+            {readOnly ? t("View-only staff attendance. You cannot change any entries.") : t("Mark weekly attendance for teachers and staff. Unreasoned absences feed payroll deductions.")}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setSettingsOpen((v) => !v)} className="gap-2">
-            <Settings className="h-4 w-4" /> {t("Deduction Settings")}
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/payroll")} className="gap-2">
-            <Wallet className="h-4 w-4" /> {t("Payroll")}
-          </Button>
-          <Button onClick={handleSave} disabled={saving || editCount === 0} className="gap-2">
-            <Save className="h-4 w-4" /> {saving ? t("Saving...") : saved ? t("Saved") : `${t("Save")}${editCount ? ` (${editCount})` : ""}`}
-          </Button>
+          {readOnly ? (
+            <Badge variant="outline">{t("View only")}</Badge>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setSettingsOpen((v) => !v)} className="gap-2">
+                <Settings className="h-4 w-4" /> {t("Deduction Settings")}
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/payroll")} className="gap-2">
+                <Wallet className="h-4 w-4" /> {t("Payroll")}
+              </Button>
+              <Button onClick={handleSave} disabled={saving || editCount === 0} className="gap-2">
+                <Save className="h-4 w-4" /> {saving ? t("Saving...") : saved ? t("Saved") : `${t("Save")}${editCount ? ` (${editCount})` : ""}`}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {settingsOpen && settings && (
+      {!readOnly && settingsOpen && settings && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">{t("Attendance Deduction Settings")}</CardTitle></CardHeader>
           <CardContent>
@@ -351,12 +370,12 @@ export default function TeacherAttendancePage() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-1">
                                 <span className="text-[9px] font-semibold text-muted-foreground w-12">{t("Morning")}</span>
-                                <StatusCell value={cellValue(row, day, "am").status} lateMinutes={cellValue(row, day, "am").late_minutes}
+                                <StatusCell value={cellValue(row, day, "am").status} lateMinutes={cellValue(row, day, "am").late_minutes} readOnly={readOnly}
                                   onChange={(s) => handleCell(row, day, "am", { status: s })} onLateChange={(mins) => handleCell(row, day, "am", { late_minutes: mins })} />
                               </div>
                               <div className="flex items-center gap-1">
                                 <span className="text-[9px] font-semibold text-muted-foreground w-12">{t("Afternoon")}</span>
-                                <StatusCell value={cellValue(row, day, "pm").status} lateMinutes={cellValue(row, day, "pm").late_minutes}
+                                <StatusCell value={cellValue(row, day, "pm").status} lateMinutes={cellValue(row, day, "pm").late_minutes} readOnly={readOnly}
                                   onChange={(s) => handleCell(row, day, "pm", { status: s })} onLateChange={(mins) => handleCell(row, day, "pm", { late_minutes: mins })} />
                               </div>
                             </div>

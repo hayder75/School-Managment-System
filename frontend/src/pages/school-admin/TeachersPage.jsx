@@ -14,8 +14,9 @@ import { Badge } from "../../components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Label } from "../../components/ui/label";
-import { Plus, Trash2, BookOpen, Pencil } from "lucide-react";
+import { Plus, Trash2, BookOpen, Pencil, Eye } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
+import { useAuthStore } from "../../store/auth";
 
 function CheckList({ title, items, labelOf, selected, setSelected, search, setSearch, placeholder }) {
   const { t } = useI18n();
@@ -52,7 +53,7 @@ function CheckList({ title, items, labelOf, selected, setSelected, search, setSe
   );
 }
 
-function TeacherAssignments({ teacherId, teacherName }) {
+function TeacherAssignments({ teacherId, teacherName, readOnly = false }) {
   const { t } = useI18n();
   const { toast } = useToast();
   const { data: assignments, isLoading } = useTeacherAssignments(teacherId);
@@ -115,13 +116,15 @@ function TeacherAssignments({ teacherId, teacherName }) {
                   <TableCell>{a.subject_name}</TableCell>
                   <TableCell>{a.class_name}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeAssignment.mutate({ teacherId, assignmentId: a.id })}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeAssignment.mutate({ teacherId, assignmentId: a.id })}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -130,14 +133,16 @@ function TeacherAssignments({ teacherId, teacherName }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium text-sm">{combos > 0 ? `${combos} ${t("assignments")}` : t("Assign Subjects to Classes")}</h3>
-        <Button size="sm" variant="outline" onClick={() => setShowForm((s) => !s)}>
-          <Plus className="h-4 w-4 mr-1" /> {showForm ? t("Hide") : t("Assign")}
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-sm">{combos > 0 ? `${combos} ${t("assignments")}` : t("Assign Subjects to Classes")}</h3>
+          <Button size="sm" variant="outline" onClick={() => setShowForm((s) => !s)}>
+            <Plus className="h-4 w-4 mr-1" /> {showForm ? t("Hide") : t("Assign")}
+          </Button>
+        </div>
+      )}
 
-      {showForm && (
+      {!readOnly && showForm && (
         <form onSubmit={handleAssign} className="space-y-4">
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -176,6 +181,8 @@ function TeacherAssignments({ teacherId, teacherName }) {
 
 export default function TeachersPage() {
   const { t } = useI18n();
+  const myRole = useAuthStore((s) => s.user?.role);
+  const readOnly = myRole === "Unit Leader";
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
@@ -242,12 +249,20 @@ export default function TeachersPage() {
                     <TableCell>{teacher.joined_at ? String(teacher.joined_at).slice(0, 10) : "—"}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center">
-                        <Button variant="ghost" size="icon" title={t("Edit details")} onClick={() => setEditTeacher(teacher)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title={t("Assignments")} onClick={() => setSelectedTeacher(teacher)}>
-                          <BookOpen className="h-4 w-4" />
-                        </Button>
+                        {readOnly ? (
+                          <Button variant="ghost" size="icon" title={t("View details")} onClick={() => setPreviewTeacher(teacher)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" title={t("Edit details")} onClick={() => setEditTeacher(teacher)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" title={t("Assignments")} onClick={() => setSelectedTeacher(teacher)}>
+                              <BookOpen className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -267,6 +282,7 @@ export default function TeachersPage() {
             <TeacherAssignments
               teacherId={selectedTeacher.id}
               teacherName={`${fullName(selectedTeacher)}`}
+              readOnly={readOnly}
             />
           )}
         </DialogContent>
@@ -293,14 +309,17 @@ export default function TeachersPage() {
                     {previewTeacher.joined_at ? ` · ${t("Joined")}: ${String(previewTeacher.joined_at).slice(0, 10)}` : ""}
                   </p>
                 </div>
-                <Button onClick={() => { setEditTeacher(previewTeacher); setPreviewTeacher(null); }}>
-                  <Pencil className="h-4 w-4 mr-1" /> {t("Edit Staff Details")}
-                </Button>
+                {!readOnly && (
+                  <Button onClick={() => { setEditTeacher(previewTeacher); setPreviewTeacher(null); }}>
+                    <Pencil className="h-4 w-4 mr-1" /> {t("Edit Staff Details")}
+                  </Button>
+                )}
               </div>
               <div className="border-t pt-4">
                 <TeacherAssignments
                   teacherId={previewTeacher.id}
                   teacherName={`${fullName(previewTeacher)}`}
+                  readOnly={readOnly}
                 />
               </div>
             </div>
@@ -308,7 +327,9 @@ export default function TeachersPage() {
         </DialogContent>
       </Dialog>
 
-      <StaffEditDialog user={editTeacher} open={!!editTeacher} onOpenChange={(open) => { if (!open) setEditTeacher(null); }} />
+      {!readOnly && (
+        <StaffEditDialog user={editTeacher} open={!!editTeacher} onOpenChange={(open) => { if (!open) setEditTeacher(null); }} />
+      )}
 
       {meta.totalPages > 1 && (
         <div className="flex items-center justify-between">

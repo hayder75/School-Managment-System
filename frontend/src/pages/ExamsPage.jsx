@@ -15,13 +15,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import GradeEntry from "../components/exams/GradeEntry";
 import ExamDialog from "../components/exams/ExamDialog";
 import AssessmentTypesDialog from "../components/exams/AssessmentTypesDialog";
 import EditRequestsDialog from "../components/exams/EditRequestsDialog";
 import DeleteExamDialog from "../components/exams/DeleteExamDialog";
 import { classes as sev, statusSeverity } from "../lib/gradeColors";
-import { Plus, Trash2, Edit3, Settings2, ClipboardCheck, Search, Archive } from "lucide-react";
+import { Plus, Trash2, Edit3, Settings2, ClipboardCheck, Search, Archive, Download } from "lucide-react";
 
 const STATUS_LABEL = {
   draft: "Draft",
@@ -46,6 +47,7 @@ export default function ExamsPage() {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
   const isTeacher = role === "teacher";
+  const isUnitLeader = role === "Unit Leader";
   const isOwner = role === "owner";
   const isAdmin = ["owner", "admin"].includes(role);
   const canReview = ["owner", "admin", "quality_director", "principal", "vice_principal", "general_manager"].includes(role);
@@ -61,6 +63,7 @@ export default function ExamsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [typesOpen, setTypesOpen] = useState(false);
   const [requestsOpen, setRequestsOpen] = useState(false);
+  const [downloadExam, setDownloadExam] = useState(null);
 
   const { data, isLoading } = useExams({
     page,
@@ -150,9 +153,11 @@ export default function ExamsPage() {
               <Settings2 className="h-4 w-4 mr-2" /> {t("Assessment types")}
             </Button>
           )}
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" /> {t("New Exam")}
-          </Button>
+          {!isUnitLeader && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> {t("New Exam")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -271,6 +276,11 @@ export default function ExamsPage() {
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               )}
+                              {isUnitLeader && (
+                                <Button variant="ghost" size="icon" title={t("Download class report")} onClick={() => setDownloadExam(exam)}>
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -310,7 +320,7 @@ export default function ExamsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <GradeEntry exam={selectedExam} />
+            <GradeEntry exam={selectedExam} readOnly={isUnitLeader} />
           </CardContent>
         </Card>
       )}
@@ -352,6 +362,43 @@ export default function ExamsPage() {
         exam={deleteExam}
         onDone={() => setDeleteExam(null)}
       />
+
+      <Dialog open={!!downloadExam} onOpenChange={(o) => !o && setDownloadExam(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("Download report")}</DialogTitle></DialogHeader>
+          {downloadExam && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {downloadExam.name} · {downloadExam.subject_name}
+              </p>
+              {(() => {
+                const ids = Array.isArray(downloadExam.class_ids) && downloadExam.class_ids.length
+                  ? downloadExam.class_ids
+                  : (downloadExam.class_id ? [downloadExam.class_id] : []);
+                if (!ids.length) {
+                  return <p className="text-sm text-muted-foreground">{t("No class attached to this exam.")}</p>;
+                }
+                return ids.map((cid) => {
+                  const cls = allClasses.find((c) => c.id === cid);
+                  return (
+                    <Button
+                      key={cid}
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        window.open(`/api/reports/class-results/export?exam_id=${downloadExam.id}&class_id=${cid}`, "_blank");
+                        setDownloadExam(null);
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" /> {cls?.name || cid}
+                    </Button>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

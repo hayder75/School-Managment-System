@@ -55,7 +55,7 @@ async function submit(req, res) {
 async function list(req, res) {
   const { status, exam_id, class_id, teacher_id, subject_id, type } = req.query;
   const canReview = await service.canReview(req.tenant.id, req.user.role);
-  if (!canReview && req.user.role !== 'teacher') {
+  if (!canReview && !['teacher', 'Unit Leader'].includes(req.user.role)) {
     return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You cannot review results' } });
   }
 

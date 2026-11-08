@@ -229,7 +229,7 @@ function AppContent() {
             <Route path="/shift-hub" element={<ShiftDutyHubPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "hr", "teacher", "shift_coordinator", "principal", "vice_principal", "quality_director", "general_services", "face_attendance"]} permissions={["staff-attendance.manage"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "hr", "teacher", "shift_coordinator", "principal", "vice_principal", "quality_director", "general_services", "face_attendance", "Unit Leader"]} permissions={["staff-attendance.manage", "reports.view"]} />}>
             <Route path="/teacher-attendance" element={<TeacherAttendancePage />} />
           </Route>
 
