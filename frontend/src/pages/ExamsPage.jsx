@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import {
   useExams, useCreateExam, useUpdateExam, useAssessmentTypes, useGradingScheme, useExamSections,
@@ -44,6 +45,7 @@ function aggregateStatus(rows) {
 
 export default function ExamsPage() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
   const isTeacher = role === "teacher";
@@ -261,10 +263,13 @@ export default function ExamsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title={t("Enter grades")}
-                                onClick={() => setSelectedExamId(selectedExam?.id === exam.id ? null : exam.id)}
+                                title={isUnitLeader ? t("View details") : t("Enter grades")}
+                                onClick={() => {
+                                  if (isUnitLeader) navigate(`/exams/${exam.id}`);
+                                  else setSelectedExamId(selectedExam?.id === exam.id ? null : exam.id);
+                                }}
                               >
-                                <Edit3 className="h-4 w-4" />
+                                {isUnitLeader ? <Search className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
                               </Button>
                               {(isAdmin || isTeacher) && !exam.archived_at && (
                                 <Button variant="ghost" size="icon" title={t("Edit exam")} onClick={() => setEditExam(exam)}>

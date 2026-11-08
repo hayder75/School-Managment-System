@@ -22,6 +22,7 @@ const TeachersPage = lazy(() => import("./pages/school-admin/TeachersPage"));
 const AttendancePage = lazy(() => import("./pages/AttendancePage"));
 const ClassAttendanceStatsPage = lazy(() => import("./pages/ClassAttendanceStatsPage"));
 const ExamsPage = lazy(() => import("./pages/ExamsPage"));
+const ExamDetailPage = lazy(() => import("./pages/ExamDetailPage"));
 const TimetablePage = lazy(() => import("./pages/TimetablePage"));
 const TimetableConfigPage = lazy(() => import("./pages/TimetableConfigPage"));
 const ExamResultsPage = lazy(() => import("./pages/ExamResultsPage"));
@@ -146,6 +147,7 @@ function AppContent() {
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/attendance/class/:classId/stats" element={<ClassAttendanceStatsPage />} />
             <Route path="/exams" element={<ExamsPage />} />
+            <Route path="/exams/:examId" element={<ExamDetailPage />} />
           </Route>
 
           {/* Enrollment wizard — cashier registers students at the counter */}

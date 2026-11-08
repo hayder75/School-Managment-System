@@ -9,6 +9,14 @@ function invalidateExam(qc, examId) {
   qc.invalidateQueries({ queryKey: ["exam-draft", examId] });
 }
 
+export function useExam(id) {
+  return useQuery({
+    queryKey: ["exams", "detail", id],
+    queryFn: () => api.get(`/exams/${id}`),
+    enabled: !!id,
+  });
+}
+
 export function useExams(params = {}) {
   return useQuery({
     queryKey: ["exams", params],

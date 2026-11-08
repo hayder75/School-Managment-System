@@ -169,6 +169,8 @@ function TeacherAttendanceView() {
 
   const [statusMap, setStatusMap] = useState({});
   const [studentSearch, setStudentSearch] = useState("");
+  const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const [savedAt, setSavedAt] = useState(null);
   const [editKey, setEditKey] = useState("");
   const loadKey = `${classId}|${date}|${session}`;
@@ -300,7 +302,7 @@ function TeacherAttendanceView() {
   }
 
   async function handleSave() {
-    if (!classId || !date) return;
+    if (!classId || !date || isWeekend) return;
     setSaveError("");
     const records = displayRecords.map((r) => ({
       student_id: r.id,
@@ -497,8 +499,20 @@ function TeacherAttendanceView() {
 
       {classId ? (
         <>
+          {isWeekend && (
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center">
+                <CalendarDays className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                <p className="font-semibold">{t("Weekend — no attendance is taken")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("Saturday and Sunday are not school days. Pick a weekday to view or mark attendance.")}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Focused class overview — current session + date only */}
-          {classId && (
+          {!isWeekend && classId && (
             <Card className={sessionTheme.card}>
               <CardHeader className="pb-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -532,6 +546,7 @@ function TeacherAttendanceView() {
           )}
 
           {/* Marking table */}
+          {!isWeekend && (
           <Card className={sessionTheme.card}>
             <CardHeader className="flex flex-col gap-2">
               <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
@@ -631,6 +646,7 @@ function TeacherAttendanceView() {
               )}
             </CardContent>
           </Card>
+          )}
         </>
       ) : loadingOverview ? (
         <p className="text-muted-foreground">{t("Loading...")}</p>

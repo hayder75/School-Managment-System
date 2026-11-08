@@ -38,6 +38,8 @@ export default function UnitLeaderAttendanceView() {
   const students = rosterData?.data || [];
   const saved = records.length > 0;
   const isToday = date === today;
+  const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const sessionLabel = session === "am" ? t("Morning") : t("Afternoon");
 
   const byStudent = useMemo(
@@ -133,6 +135,15 @@ export default function UnitLeaderAttendanceView() {
 
       {!classId ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t("Select a class to see its attendance.")}</CardContent></Card>
+      ) : isWeekend ? (
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center">
+            <p className="text-lg font-semibold">{t("Weekend — no attendance")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("Saturday and Sunday are not school days, so there is no attendance to show.")}
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <>
           <div className={`flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${saved ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
