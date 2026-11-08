@@ -17,16 +17,18 @@ async function setupSocket(httpServer) {
 
   // Share rooms/broadcasts across clustered workers. If Redis is unavailable
   // the app still works in single-instance mode.
-  try {
-    const pubClient = createClient({ url: config.redis.url });
-    const subClient = pubClient.duplicate();
-    pubClient.on('error', (err) => logger.error('Redis pub client error', { error: err.message }));
-    subClient.on('error', (err) => logger.error('Redis sub client error', { error: err.message }));
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    io.adapter(createAdapter(pubClient, subClient));
-    logger.info('Socket.io Redis adapter enabled');
-  } catch (err) {
-    logger.error('Socket.io Redis adapter disabled (single-instance mode)', { error: err.message });
+  if (process.env.SKIP_REDIS !== '1') {
+    try {
+      const pubClient = createClient({ url: config.redis.url });
+      const subClient = pubClient.duplicate();
+      pubClient.on('error', (err) => logger.error('Redis pub client error', { error: err.message }));
+      subClient.on('error', (err) => logger.error('Redis sub client error', { error: err.message }));
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      io.adapter(createAdapter(pubClient, subClient));
+      logger.info('Socket.io Redis adapter enabled');
+    } catch (err) {
+      logger.error('Socket.io Redis adapter disabled (single-instance mode)', { error: err.message });
+    }
   }
 
   broadcast.setIo(io);

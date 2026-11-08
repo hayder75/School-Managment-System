@@ -13,8 +13,8 @@ router.use(auth);
 router.use(tenant);
 
 router.post('/exams/:examId', blockReadOnlyWrites, requireAccess(['teacher', 'admin', 'owner', 'quality_director', 'principal', 'vice_principal', 'general_manager'], ['grades.manage']), validate(enterGradesSchema), controller.enterGrades);
-router.get('/exams/:examId/classes', requireAccess(['teacher', 'admin', 'owner', 'parent', 'quality_director', 'principal', 'vice_principal', 'general_manager'], ['grades.manage']), controller.getExamClasses);
-router.get('/exams/:examId', requireAccess(['teacher', 'admin', 'owner', 'parent', 'quality_director', 'principal', 'vice_principal', 'general_manager'], ['grades.manage']), controller.getByExam);
+router.get('/exams/:examId/classes', requireAccess(['teacher', 'admin', 'owner', 'parent', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'Unit Leader'], ['grades.manage']), controller.getExamClasses);
+router.get('/exams/:examId', requireAccess(['teacher', 'admin', 'owner', 'parent', 'quality_director', 'principal', 'vice_principal', 'general_manager', 'Unit Leader'], ['grades.manage']), controller.getByExam);
 router.put('/exams/:examId/lock', blockReadOnlyWrites, requireAccess(['teacher', 'admin', 'owner', 'quality_director', 'principal', 'vice_principal', 'general_manager'], ['grades.manage']), validate(lockGradesSchema), controller.lockGrades);
 
 // Autosave drafts (server-side backup of in-progress mark entry).
