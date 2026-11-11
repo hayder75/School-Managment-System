@@ -263,8 +263,8 @@ function TeacherAttendanceView() {
   // the saved status — a partially marked class must not hide the rest.
   const attendanceById = new Map(attendanceRecords.map((r) => [r.student_id, r]));
   const roster = classStudents.length
-    ? classStudents.map((s) => ({ id: s.user_id, ...s }))
-    : attendanceRecords.map((r) => ({ id: r.student_id, ...r }));
+    ? classStudents.map((s) => ({ ...s, id: s.user_id }))
+    : attendanceRecords.map((r) => ({ ...r, id: r.student_id }));
 
   const displayRecords = roster
     .map((s) => {

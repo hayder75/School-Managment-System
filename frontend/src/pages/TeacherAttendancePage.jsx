@@ -15,6 +15,11 @@ const STATUS_OPTIONS = [
   { value: "present", label: "Present", cls: "text-emerald-700 border-emerald-300 bg-emerald-50" },
   { value: "late", label: "Late", cls: "text-amber-700 border-amber-300 bg-amber-50" },
   { value: "absent", label: "Absent", cls: "text-rose-700 border-rose-300 bg-rose-50" },
+  { value: "paid_leave", label: "Paid Leave (PL)", cls: "text-teal-700 border-teal-300 bg-teal-50" },
+  { value: "absent_permission", label: "Absent with Permission (AP)", cls: "text-indigo-700 border-indigo-300 bg-indigo-50" },
+  { value: "sick_leave", label: "Sick Leave (SL)", cls: "text-pink-700 border-pink-300 bg-pink-50" },
+  { value: "annual_leave", label: "Annual Leave (AL)", cls: "text-cyan-700 border-cyan-300 bg-cyan-50" },
+  { value: "maternity_leave", label: "Maternity Leave (ML)", cls: "text-fuchsia-700 border-fuchsia-300 bg-fuchsia-50" },
   { value: "leave", label: "Leave", cls: "text-blue-700 border-blue-300 bg-blue-50" },
   { value: "emergency", label: "Emergency", cls: "text-purple-700 border-purple-300 bg-purple-50" },
   { value: "half_day", label: "Half Day", cls: "text-sky-700 border-sky-300 bg-sky-50" },
@@ -81,7 +86,7 @@ function StatusCell({ value, onChange, lateMinutes = 0, onLateChange, readOnly =
   const m = (lateMinutes || 0) % 60;
   if (readOnly) {
     return (
-      <span className={`inline-flex w-full min-w-[92px] items-center justify-center rounded-md border px-1.5 py-1 text-xs font-medium ${meta.cls}`}>
+      <span className={`inline-flex w-full min-w-[150px] items-center justify-center rounded-md border px-1.5 py-1 text-xs font-medium ${meta.cls}`}>
         {meta.label}
       </span>
     );
@@ -91,7 +96,7 @@ function StatusCell({ value, onChange, lateMinutes = 0, onLateChange, readOnly =
       <select
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full min-w-[92px] rounded-md border px-1.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary ${meta.cls}`}
+        className={`w-full min-w-[150px] rounded-md border px-1.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary ${meta.cls}`}
       >
         <option value="">—</option>
         {STATUS_OPTIONS.map((s) => (

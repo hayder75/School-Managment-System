@@ -46,8 +46,17 @@ function weekDates(start) {
   return Array.from({ length: 5 }, (_, i) => addDays(start, i));
 }
 
+const LEAVE_STATUSES = [
+  'leave', 'on_leave',
+  'paid_leave',            // PL — Paid Leave
+  'absent_permission',     // AP — Absent with Permission
+  'sick_leave',            // SL — Sick Leave
+  'annual_leave',          // AL — Annual Leave
+  'maternity_leave',       // ML — Maternity Leave
+];
+
 function isLeave(status) {
-  return status === 'leave' || status === 'on_leave';
+  return LEAVE_STATUSES.includes(status);
 }
 
 function unpaidWeight(status) {
@@ -418,7 +427,7 @@ async function getStaffUnavailability(tenantId, { from, to } = {}) {
 
   const att = await knex('staff_attendance')
     .where({ tenant_id: tenantId })
-    .whereIn('status', ['leave', 'on_leave', 'emergency'])
+    .whereIn('status', [...LEAVE_STATUSES, 'emergency'])
     .whereBetween('date', [begin, end])
     .select('staff_id', 'date', 'status', 'notes');
   for (const r of att) {
@@ -426,7 +435,7 @@ async function getStaffUnavailability(tenantId, { from, to } = {}) {
     map.set(`${r.staff_id}|${d}`, {
       staff_id: r.staff_id,
       date: d,
-      status: r.status === 'on_leave' ? 'leave' : r.status,
+      status: LEAVE_STATUSES.includes(r.status) ? 'leave' : r.status,
       source: 'attendance',
       note: r.notes || null,
     });

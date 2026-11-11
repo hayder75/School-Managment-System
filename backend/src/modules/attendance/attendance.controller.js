@@ -18,13 +18,18 @@ async function getMyHomeroomClasses(req, res) {
 async function mark(req, res) {
   const { date, session = 'am', records } = req.validated.body;
 
-  const dateObj = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(dateObj.getTime())) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || Number.isNaN(new Date(`${date}T00:00:00Z`).getTime())) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid date' } });
   }
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (dateObj > today) {
+  // The school day is Africa/Addis_Ababa (UTC+3). Comparing with the server's
+  // UTC date rejected "today" between 00:00 and 03:00 local time.
+  const todayLocal = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Addis_Ababa',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  if (String(date) > todayLocal) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Cannot mark attendance for a future date' } });
   }
 
@@ -32,15 +37,28 @@ async function mark(req, res) {
     return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: HOMEROOM_MSG } });
   }
 
-  const result = await attendanceService.mark(
-    req.tenant.id,
-    req.params.classId,
-    req.user.userId,
-    date,
-    records,
-    session
-  );
-  res.json({ success: true, data: { count: result.length, session } });
+  try {
+    const result = await attendanceService.mark(
+      req.tenant.id,
+      req.params.classId,
+      req.user.userId,
+      date,
+      records,
+      session
+    );
+    res.json({ success: true, data: { count: result.length, session } });
+  } catch (err) {
+    if (err.code === 'NO_VALID_STUDENTS') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_VALID_STUDENTS',
+          message: 'None of those students belong to this class. Nothing was saved — refresh and try again.',
+        },
+      });
+    }
+    throw err;
+  }
 }
 
 async function getByClassAndDate(req, res) {

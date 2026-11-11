@@ -33,6 +33,17 @@ async function mark(tenantId, classId, teacherId, date, records, session = 'am')
       remark: r.remark || null,
     }));
 
+  if (unique.length > 0 && rows.length === 0) {
+    logger.warn('attendance mark rejected: no valid student ids', {
+      tenantId, classId, date, session, submitted: unique.length,
+      sample: unique.slice(0, 3).map((r) => r.student_id),
+    });
+    const err = new Error('NO_VALID_STUDENTS');
+    err.code = 'NO_VALID_STUDENTS';
+    err.submitted = unique.length;
+    throw err;
+  }
+
   await db.transaction(async (trx) => {
     const existing = await trx('attendance')
       .where({ tenant_id: tenantId, class_id: classId, date, session })
@@ -60,6 +71,7 @@ async function mark(tenantId, classId, teacherId, date, records, session = 'am')
     date,
     session,
     records: rows.length,
+    submitted: unique.length,
     markedBy: teacherId,
   });
 
