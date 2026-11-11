@@ -309,7 +309,10 @@ function TeacherAttendanceView() {
       status: statusMap[r.id] ?? savedStatusMap[r.id] ?? r.status ?? "present",
     }));
     try {
-      await markAttendance.mutateAsync({ classId, date, session, records });
+      const saved = await markAttendance.mutateAsync({ classId, date, session, records });
+      if (!saved?.data?.count) {
+        throw new Error(t("No marks were saved. Refresh the page and try again."));
+      }
 
       // Put the saved rows straight into the query cache so the screen shows
       // them as saved immediately, before the refetch finishes.
