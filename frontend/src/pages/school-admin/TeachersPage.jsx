@@ -17,6 +17,7 @@ import { Label } from "../../components/ui/label";
 import { Plus, Trash2, BookOpen, Pencil, Eye } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 import { useAuthStore } from "../../store/auth";
+import ExcelButton from "../../components/reports/ExcelButton";
 
 function CheckList({ title, items, labelOf, selected, setSelected, search, setSearch, placeholder }) {
   const { t } = useI18n();
@@ -196,9 +197,34 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t("Teachers")}</h1>
-        <p className="text-muted-foreground">{t("Manage teacher details and their class/subject assignments")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">{t("Teachers")}</h1>
+          <p className="text-muted-foreground">
+            {readOnly ? t("View-only teacher list and assignments.") : t("Manage teacher details and their class/subject assignments")}
+          </p>
+        </div>
+        <ExcelButton
+          filename="teachers"
+          disabled={!teachers.length}
+          sheets={[{
+            name: "Teachers",
+            columns: [
+              { key: "name", label: "Name" },
+              { key: "email", label: "Email" },
+              { key: "role", label: "Role" },
+              { key: "job_title", label: "Job Title" },
+              { key: "qualification", label: "Qualification" },
+              { key: "field_of_study", label: "Field of Study" },
+              { key: "section_count", label: "Sections" },
+              { key: "periods_per_week", label: "Periods / week" },
+              { key: "overtime_periods", label: "Overtime" },
+              { key: "status", label: "Status" },
+              { key: "joined_at", label: "Joined", value: (r) => (r.joined_at ? String(r.joined_at).slice(0, 10) : "") },
+            ],
+            rows: teachers.map((r) => ({ ...r, name: fullName(r) })),
+          }]}
+        />
       </div>
 
       <Card>

@@ -17,13 +17,13 @@ function resolveRange({ from, to, days = 29 } = {}) {
 
 // role -> visible reports
 const CATALOG = [
-  { id: 'overview', title: 'School Overview', category: 'School', roles: ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director'] },
-  { id: 'academics', title: 'Academic Performance', category: 'Academics', roles: ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director'] },
-  { id: 'attendance', title: 'Attendance', category: 'Academics', roles: ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director'] },
+  { id: 'overview', title: 'School Overview', category: 'School', roles: ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'Unit Leader'] },
+  { id: 'academics', title: 'Academic Performance', category: 'Academics', roles: ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'Unit Leader'] },
+  { id: 'attendance', title: 'Attendance', category: 'Academics', roles: ['admin', 'owner', 'general_manager', 'principal', 'vice_principal', 'quality_director', 'Unit Leader'] },
   { id: 'finance', title: 'Finance', category: 'Finance', roles: ['admin', 'owner', 'general_manager', 'finance', 'accountant'] },
   { id: 'cashier', title: 'Collections', category: 'Finance', roles: ['admin', 'owner', 'cashier', 'finance'] },
   { id: 'hr', title: 'Staff & HR', category: 'People', roles: ['admin', 'owner', 'general_manager', 'hr'] },
-  { id: 'quality', title: 'Quality Assurance', category: 'People', roles: ['admin', 'owner', 'quality_director', 'principal', 'vice_principal'] },
+  { id: 'quality', title: 'Quality Assurance', category: 'People', roles: ['admin', 'owner', 'quality_director', 'principal', 'vice_principal', 'Unit Leader'] },
   { id: 'operations', title: 'Operations & Assets', category: 'Operations', roles: ['admin', 'owner', 'general_manager', 'general_services'] },
   { id: 'security', title: 'Security', category: 'Operations', roles: ['admin', 'owner', 'security_head', 'general_manager', 'principal'] },
   { id: 'shifts', title: 'Shifts & Coverage', category: 'Operations', roles: ['admin', 'owner', 'shift_coordinator', 'principal', 'vice_principal', 'quality_director'] },

@@ -22,6 +22,7 @@ import ExamDialog from "../components/exams/ExamDialog";
 import AssessmentTypesDialog from "../components/exams/AssessmentTypesDialog";
 import EditRequestsDialog from "../components/exams/EditRequestsDialog";
 import DeleteExamDialog from "../components/exams/DeleteExamDialog";
+import ExcelButton from "../components/reports/ExcelButton";
 import { classes as sev, statusSeverity } from "../lib/gradeColors";
 import { Plus, Trash2, Edit3, Settings2, ClipboardCheck, Search, Archive, Download } from "lucide-react";
 
@@ -140,6 +141,24 @@ export default function ExamsPage() {
           <p className="text-muted-foreground">{t("Create exams, enter marks and send them for approval")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ExcelButton
+            filename="exams"
+            disabled={!filtered.length}
+            sheets={[{
+              name: "Exams",
+              columns: [
+                { key: "name", label: "Exam" },
+                { key: "type", label: "Type", value: (r) => typeMap[r.type]?.name || r.type },
+                { key: "class_names", label: "Classes", value: (r) => classNames(r) },
+                { key: "subject_name", label: "Subject" },
+                { key: "date", label: "Date", value: (r) => (r.date ? String(r.date).slice(0, 10) : "") },
+                { key: "total_marks", label: "Total" },
+                { key: "pass_marks", label: "Pass" },
+                { key: "approval", label: "Approval", value: (r) => STATUS_LABEL[aggregateStatus(resultsByExam[r.id])] || "Draft" },
+              ],
+              rows: filtered,
+            }]}
+          />
           {canReview && (
             <Button variant="outline" onClick={() => setRequestsOpen(true)} className="relative">
               <ClipboardCheck className="h-4 w-4 mr-2" /> {t("Edit requests")}

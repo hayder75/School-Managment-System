@@ -1741,18 +1741,18 @@ export default function ReportsPage() {
   const tabs = useMemo(() => {
     const list = [{ value: "analytics", label: t("Analytics") }];
     if (role === "quality_director") list.push({ value: "quality", label: t.rep.quality });
-    if (["owner", "admin", "general_manager", "principal", "vice_principal"].includes(role))
+    if (["owner", "admin", "general_manager", "principal", "vice_principal", "Unit Leader"].includes(role))
       list.push({ value: "admin", label: t.rep.school });
     if (["quality_director", "principal", "vice_principal"].includes(role) && role !== "quality_director")
       list.push({ value: "quality", label: t.rep.quality });
-    if (["owner", "admin", "general_manager", "principal", "vice_principal", "teacher"].includes(role))
+    if (["owner", "admin", "general_manager", "principal", "vice_principal", "teacher", "Unit Leader"].includes(role))
       list.push({ value: "semester", label: t.rep.semester });
     if (["teacher"].includes(role)) list.push({ value: "teacher", label: t.rep.myReports });
     if (["teacher"].includes(role) && hasHomeroom)
       list.push({ value: "homeroom", label: t("Homeroom Attendance") });
-    if (["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"].includes(role))
+    if (["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "Unit Leader"].includes(role))
       list.push({ value: "homeroom", label: t("Homeroom Attendance") });
-    if (["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"].includes(role))
+    if (["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "Unit Leader"].includes(role))
       list.push({ value: "results", label: t("Class Results") });
     if (["finance", "accountant", "general_manager", "owner", "admin"].includes(role)) list.push({ value: "finance", label: t.rep.finance });
     if (["cashier"].includes(role)) list.push({ value: "cashier", label: t.rep.collection });

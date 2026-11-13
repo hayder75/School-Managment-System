@@ -9,6 +9,7 @@ import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useI18n } from "../i18n/I18nContext";
 import { useAuthStore } from "../store/auth";
+import ExcelButton from "../components/reports/ExcelButton";
 import { ChevronLeft, ChevronRight, Save, Settings, Users, UserCheck, UserX, Clock, CalendarOff, Siren, Wallet, BarChart3 } from "lucide-react";
 
 const STATUS_OPTIONS = [
@@ -234,6 +235,47 @@ export default function TeacherAttendancePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ExcelButton
+            filename={`staff-attendance-${weekStart}`}
+            disabled={!grid?.rows?.length}
+            sheets={[
+              {
+                name: "Weekly attendance",
+                columns: [
+                  { key: "name", label: "Staff" },
+                  { key: "email", label: "Email" },
+                  { key: "role", label: "Role" },
+                  ...(grid?.dates || []).flatMap((d) => {
+                    const label = String(d).slice(5);
+                    return [
+                      { key: `am_${d}`, label: `${label} AM`, value: (r) => statusMeta((r.days || []).find((x) => x.date === d)?.am?.status || "").label },
+                      { key: `pm_${d}`, label: `${label} PM`, value: (r) => statusMeta((r.days || []).find((x) => x.date === d)?.pm?.status || "").label },
+                    ];
+                  }),
+                  { key: "rate", label: "Present %", value: (r) => r.stats?.attendance_rate ?? "" },
+                  { key: "unpaid", label: "Unpaid days", value: (r) => r.stats?.unpaid_days ?? "" },
+                ],
+                rows: (grid?.rows || []).map((r) => ({ ...r, name: r.name })),
+              },
+              {
+                name: "Totals",
+                columns: [
+                  { key: "name", label: "Staff" },
+                  { key: "email", label: "Email" },
+                  { key: "role", label: "Role" },
+                  { key: "present", label: "Present", value: (r) => r.stats?.present ?? "" },
+                  { key: "late", label: "Late", value: (r) => r.stats?.late ?? "" },
+                  { key: "absent", label: "Absent", value: (r) => r.stats?.absent ?? "" },
+                  { key: "leave", label: "Leave", value: (r) => r.stats?.leave ?? "" },
+                  { key: "emergency", label: "Emergency", value: (r) => r.stats?.emergency ?? "" },
+                  { key: "half_day", label: "Half day", value: (r) => r.stats?.half_day ?? "" },
+                  { key: "rate", label: "Present %", value: (r) => r.stats?.attendance_rate ?? "" },
+                  { key: "unpaid", label: "Unpaid days", value: (r) => r.stats?.unpaid_days ?? "" },
+                ],
+                rows: grid?.rows || [],
+              },
+            ]}
+          />
           {readOnly ? (
             <Badge variant="outline">{t("View only")}</Badge>
           ) : (

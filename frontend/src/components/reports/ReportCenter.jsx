@@ -64,7 +64,7 @@ export default function ReportCenter() {
   const assigned = new Set((assignmentsData?.data || []).map((a) => a.class_id));
   const teacherClasses = (classesData?.data || []).filter((c) => assigned.has(c.id));
   const filterClasses = isTeacher ? teacherClasses : (classesData?.data || []);
-  const canFilterClasses = ["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director"].includes(user?.role);
+  const canFilterClasses = ["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "Unit Leader"].includes(user?.role);
   const types = typeData?.data || [];
 
   useEffect(() => {

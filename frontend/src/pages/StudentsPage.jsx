@@ -20,6 +20,7 @@ import { TableSkeleton, CardSkeleton } from "../components/ui/skeleton";
 import { StudentAvatar } from "../components/ui/StudentAvatar";
 import { useI18n } from "../i18n/I18nContext";
 import { Plus, Search, GraduationCap, Users, BookOpen, ExternalLink } from "lucide-react";
+import ExcelButton from "../components/reports/ExcelButton";
 
 export default function StudentsPage() {
   const { t } = useI18n();
@@ -448,6 +449,21 @@ export default function StudentsPage() {
                 <SelectItem value="archived">{t("Archived")}</SelectItem>
               </SelectContent>
             </Select>
+            <ExcelButton
+              filename="students"
+              disabled={!students.length}
+              sheets={[{
+                name: "Students",
+                columns: [
+                  { key: "student_number", label: "Student #" },
+                  { key: "name", label: "Name" },
+                  { key: "email", label: "Email" },
+                  { key: "class_name", label: "Class" },
+                  { key: "status", label: "Status" },
+                ],
+                rows: students.map((s) => ({ ...s, name: fullName(s) })),
+              }]}
+            />
           </div>
         </CardHeader>
         <CardContent>
