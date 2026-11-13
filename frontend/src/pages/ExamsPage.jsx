@@ -138,7 +138,7 @@ export default function ExamsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("Exams & Grades")}</h1>
-          <p className="text-muted-foreground">{t("Create exams, enter marks and send them for approval")}</p>
+          <p className="text-muted-foreground">{isUnitLeader ? t("View exam details and download class reports. You cannot create or edit exams.") : t("Create exams, enter marks and send them for approval")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <ExcelButton
