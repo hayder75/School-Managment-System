@@ -68,7 +68,7 @@ async function addSupportStaff(req, res) {
   } catch (err) {
     if (err.code === 'USER_NOT_FOUND') return res.status(404).json({ success: false, error: { code: err.code, message: 'User not found' } });
     if (err.code === 'CLASS_NOT_FOUND') return res.status(404).json({ success: false, error: { code: err.code, message: 'Class not found' } });
-    if (err.code === 'SUPPORT_MUST_BE_TEACHER') return res.status(400).json({ success: false, error: { code: err.code, message: 'Support staff must be a user with the Teacher role' } });
+    if (err.code === 'SUPPORT_MUST_BE_STAFF') return res.status(400).json({ success: false, error: { code: err.code, message: 'Support staff must be a Teacher or Support account' } });
     if (err.code === 'ALREADY_HOMEROOM') return res.status(400).json({ success: false, error: { code: err.code, message: 'This teacher is already the homeroom teacher' } });
     throw err;
   }

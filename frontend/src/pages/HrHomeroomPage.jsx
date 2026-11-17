@@ -57,6 +57,7 @@ export default function HrHomeroomPage() {
 
   const classes = data?.data?.classes || [];
   const teachers = data?.data?.teachers || [];
+  const supportStaff = data?.data?.support_staff || [];
   const assigned = classes.filter((c) => c.class_teacher_id).length;
 
   async function assign(cls, teacherId) {
@@ -122,7 +123,7 @@ export default function HrHomeroomPage() {
                         </Select>
                       </td>
                       <td className="p-3">
-                        <SupportCell cls={c} teachers={teachers} />
+                        <SupportCell cls={c} teachers={supportStaff} />
                       </td>
                     </tr>
                   ))}

@@ -47,7 +47,7 @@ function aggregateStatus(rows) {
 export default function ExamsPage() {
   const role = useAuthStore((s) => s.user?.role);
   // Teachers now enter marks on the class/subject Mark Sheet page.
-  if (role === "teacher") return <Navigate to="/marks" replace />;
+  if (["teacher", "support"].includes(role)) return <Navigate to="/marks" replace />;
   return <ExamsPageInner />;
 }
 

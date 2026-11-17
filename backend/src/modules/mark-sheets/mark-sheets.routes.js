@@ -13,7 +13,7 @@ const router = Router();
 router.use(auth);
 router.use(tenant);
 
-const STAFF = ['owner', 'admin', 'teacher', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'Unit Leader'];
+const STAFF = ['owner', 'admin', 'teacher', 'support', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'Unit Leader'];
 
 router.get('/overview', requireAccess(STAFF, ['grades.manage', 'reports.view']), validate(overviewQuerySchema), controller.overview);
 router.get('/templates', requireAccess(STAFF, ['grades.manage', 'settings.manage']), controller.listTemplates);

@@ -23,6 +23,13 @@ async function searchTeachers(q) {
   return (r.data || []).map((x) => ({ value: x.id, label: `${fullName(x)}`.trim(), sub: x.job_title || "" }));
 }
 
+async function searchSupportStaff(q) {
+  const r = await api.get("/users", { params: { search: q || undefined, limit: 30 } });
+  return (r.data || [])
+    .filter((x) => ["teacher", "support"].includes(x.role) && x.status === "active")
+    .map((x) => ({ value: x.id, label: `${fullName(x)}`.trim(), sub: x.role === "support" ? "Support" : (x.job_title || "Teacher") }));
+}
+
 function ClassRoster({ cls }) {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -96,7 +103,7 @@ function ClassRoster({ cls }) {
               value={supportId}
               valueLabel={supportLabel}
               onChange={(id, o) => { setSupportId(id); setSupportLabel(o.label); }}
-              fetchOptions={searchTeachers}
+              fetchOptions={searchSupportStaff}
               placeholder={t("Add a support teacher…")}
               searchPlaceholder={t("Type a teacher name…")}
             />

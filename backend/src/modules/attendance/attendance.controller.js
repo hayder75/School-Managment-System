@@ -6,7 +6,7 @@ const HOMEROOM_MSG = 'Attendance is taken by the homeroom teacher of the class o
 
 // Teachers may only touch attendance for a class they are the homeroom teacher of.
 async function teacherCanUseClass(tenantId, user, classId) {
-  if (user.role !== 'teacher') return true;
+  if (!['teacher', 'support'].includes(user.role)) return true;
   return access.isHomeroomTeacherOfClass(tenantId, user.userId, classId);
 }
 
@@ -71,7 +71,7 @@ async function getByClassAndDate(req, res) {
     });
   }
   const { userId, role } = req.user;
-  if (role === 'teacher' && !(await access.isHomeroomTeacherOfClass(req.tenant.id, userId, classId))) {
+  if (['teacher', 'support'].includes(role) && !(await access.isHomeroomTeacherOfClass(req.tenant.id, userId, classId))) {
     return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: HOMEROOM_MSG } });
   }
   if (role === 'parent') {
@@ -126,7 +126,7 @@ async function getSummary(req, res) {
 
 async function getTeacherOverview(req, res) {
   const { from_date, to_date, teacher_id, today } = req.query;
-  const teacherId = req.user.role === 'teacher' ? req.user.userId : (teacher_id || req.user.userId);
+  const teacherId = ['teacher', 'support'].includes(req.user.role) ? req.user.userId : (teacher_id || req.user.userId);
   const data = await attendanceService.getTeacherOverview(req.tenant.id, teacherId, {
     fromDate: from_date,
     toDate: to_date,
@@ -140,7 +140,7 @@ async function getClassStats(req, res) {
   const { classId } = req.params;
   const { period, from_date, to_date, today } = req.query;
 
-  if (req.user.role === 'teacher' && !(await access.isHomeroomTeacherOfClass(req.tenant.id, req.user.userId, classId))) {
+  if (['teacher', 'support'].includes(req.user.role) && !(await access.isHomeroomTeacherOfClass(req.tenant.id, req.user.userId, classId))) {
     return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: HOMEROOM_MSG } });
   }
 

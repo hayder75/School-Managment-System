@@ -38,10 +38,13 @@ async function list(req, res) {
     }
     const result = await studentsService.findAllByUserIds(req.tenant.id, { page, limit, class_id: scopedClassId, status, search, userIds: childrenIds });
     return res.json({ success: true, ...result });
-  } else if (role === 'teacher') {
-    const classes = await access.teacherClassIds(req.tenant.id, userId);
+  } else if (['teacher', 'support'].includes(role)) {
+    let classes = await access.teacherClassIds(req.tenant.id, userId);
+    if (role === 'support') {
+      classes = [...new Set([...classes, ...(await access.supportClassIds(req.tenant.id, userId))])];
+    }
     if (class_id && !classes.includes(class_id)) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view students in classes you teach' } });
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view students in classes you teach or support' } });
     }
     if (!class_id) {
       const result = await studentsService.findAllByClassIds(req.tenant.id, { page, limit, status, search, classIds: classes });
@@ -77,7 +80,7 @@ async function remove(req, res) {
 }
 
 async function listByClass(req, res) {
-  if (req.user.role === 'teacher') {
+  if (['teacher', 'support'].includes(req.user.role)) {
     // A teacher may view a class's students if they teach it OR are its
     // homeroom (class) teacher.
     const assigned = await access.isTeacherAssignedToClass(req.tenant.id, req.user.userId, req.params.classId);

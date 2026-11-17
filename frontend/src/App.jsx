@@ -142,7 +142,7 @@ function AppContent() {
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "cashier", "finance", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator"]} permissions={["students.view", "students.manage", "attendance.manage", "exams.manage", "grades.manage"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "support", "cashier", "finance", "quality_director", "principal", "vice_principal", "general_manager", "shift_coordinator"]} permissions={["students.view", "students.manage", "attendance.manage", "exams.manage", "grades.manage"]} />}>
             <Route path="/students" element={<StudentsPage />} />
             <Route path="/students/:id" element={<StudentDetailPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
@@ -151,7 +151,7 @@ function AppContent() {
             <Route path="/exams/:examId" element={<ExamDetailPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "principal", "vice_principal", "quality_director", "general_manager", "Unit Leader"]} permissions={["grades.manage", "reports.view"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "teacher", "support", "principal", "vice_principal", "quality_director", "general_manager", "Unit Leader"]} permissions={["grades.manage", "reports.view"]} />}>
             <Route path="/marks" element={<MarkSheetsPage />} />
           </Route>
 
@@ -208,7 +208,7 @@ function AppContent() {
             <Route path="/staff/:id" element={<StaffDetailPage />} />
           </Route>
 
-          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr", "teacher", "quality_director", "principal", "vice_principal", "general_manager", "accountant", "shift_coordinator", "security_head", "general_services", "cashier", "student", "parent"]} permissions={["reports.view"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "finance", "hr", "teacher", "support", "quality_director", "principal", "vice_principal", "general_manager", "accountant", "shift_coordinator", "security_head", "general_services", "cashier", "student", "parent"]} permissions={["reports.view"]} />}>
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 
@@ -249,7 +249,7 @@ function AppContent() {
           </Route>
 
           {/* Report Cards */}
-          <Route element={<RoleRoute roles={["admin", "owner", "principal", "vice_principal", "quality_director", "teacher", "general_manager"]} permissions={["reports.view"]} />}>
+          <Route element={<RoleRoute roles={["admin", "owner", "principal", "vice_principal", "quality_director", "teacher", "support", "general_manager"]} permissions={["reports.view"]} />}>
             <Route path="/report-cards" element={<ReportCardsPage />} />
           </Route>
 

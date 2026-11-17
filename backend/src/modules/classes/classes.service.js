@@ -88,8 +88,8 @@ async function addSupportStaff(tenantId, classId, userId, { canMarkAttendance = 
   if (!cls) throw Object.assign(new Error('CLASS_NOT_FOUND'), { code: 'CLASS_NOT_FOUND' });
   const user = await db('users').where({ tenant_id: tenantId, id: userId }).first();
   if (!user) throw Object.assign(new Error('USER_NOT_FOUND'), { code: 'USER_NOT_FOUND' });
-  if (user.role !== 'teacher') {
-    throw Object.assign(new Error('SUPPORT_MUST_BE_TEACHER'), { code: 'SUPPORT_MUST_BE_TEACHER' });
+  if (!['teacher', 'support'].includes(user.role)) {
+    throw Object.assign(new Error('SUPPORT_MUST_BE_STAFF'), { code: 'SUPPORT_MUST_BE_STAFF' });
   }
   if (cls.class_teacher_id === userId) {
     throw Object.assign(new Error('ALREADY_HOMEROOM'), { code: 'ALREADY_HOMEROOM' });

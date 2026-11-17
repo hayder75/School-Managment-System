@@ -19,7 +19,7 @@ router.use(tenant);
 
 router.get('/enrollment-stats', requireAccess(['admin', 'owner'], ['students.manage']), controller.enrollmentStats);
 router.get('/unlinked', requireAccess(['admin', 'owner', 'hr', 'cashier', 'principal', 'vice_principal', 'general_manager', 'quality_director'], ['students.view', 'students.manage']), controller.unlinked);
-router.get('/class/:classId', requireAccess(['admin', 'owner', 'teacher', 'principal', 'vice_principal', 'general_manager', 'quality_director'], ['students.view']), controller.listByClass);
+router.get('/class/:classId', requireAccess(['admin', 'owner', 'teacher', 'support', 'principal', 'vice_principal', 'general_manager', 'quality_director'], ['students.view']), controller.listByClass);
 
 router.post('/enroll', requireAccess(['admin', 'owner', 'cashier'], ['students.manage']), validate(enrollSchema), controller.enroll);
 router.post('/promote', requireAccess(['admin', 'owner'], ['students.manage']), validate(promoteSchema), controller.promote);
@@ -49,7 +49,7 @@ router.post('/:studentId/enrollments', requireAccess(['admin', 'owner'], ['stude
 router.put('/:studentId/enrollments/:enrollmentId', requireAccess(['admin', 'owner'], ['students.manage']), validate(enrollmentSchema), controller.updateEnrollment);
 router.delete('/:studentId/enrollments/:enrollmentId', requireAccess(['admin', 'owner'], ['students.manage']), controller.removeEnrollment);
 
-router.get('/', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'cashier', 'finance', 'librarian', 'principal', 'vice_principal', 'quality_director', 'general_manager'], ['students.view']), controller.list);
+router.get('/', requireAccess(['admin', 'owner', 'teacher', 'support', 'student', 'parent', 'cashier', 'finance', 'librarian', 'principal', 'vice_principal', 'quality_director', 'general_manager'], ['students.view']), controller.list);
 router.get('/:id', requireAccess(['admin', 'owner', 'teacher', 'student', 'parent', 'cashier', 'finance', 'librarian', 'principal', 'vice_principal', 'quality_director', 'general_manager'], ['students.view']), controller.getById);
 router.post('/', requireAccess(['admin', 'owner'], ['students.manage']), validate(createStudentSchema), controller.create);
 router.put('/:id', requireAccess(['admin', 'owner'], ['students.manage']), validate(updateStudentSchema), controller.update);

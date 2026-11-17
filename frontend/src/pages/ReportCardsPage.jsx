@@ -4,6 +4,7 @@ import api from "../lib/api";
 import { useAuthStore } from "../store/auth";
 import { useSettings } from "../hooks/useSettings";
 import { useClasses } from "../hooks/useClasses";
+import { useMyHomeroomClasses } from "../hooks/useAttendance";
 import { classLabel } from "../lib/classLabel";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -31,7 +32,10 @@ export default function ReportCardsPage() {
   const periodWord = periodType === "quarter" ? "Quarter" : "Semester";
 
   const { data: classesData } = useClasses({ limit: 300 });
-  const classes = classesData?.data || [];
+  const { data: homeroomData } = useMyHomeroomClasses(user?.role === "support");
+  const supportIds = new Set((homeroomData?.data?.classes || []).map((c) => c.id));
+  const allClasses = classesData?.data || [];
+  const classes = user?.role === "support" ? allClasses.filter((c) => supportIds.has(c.id)) : allClasses;
   const { data: termsData } = useQuery({ queryKey: ["terms-list"], queryFn: () => api.get("/academics/terms") });
   const terms = termsData?.data || [];
 

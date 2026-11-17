@@ -310,6 +310,11 @@ const navItems = {
   ],
   support: [
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
+    { to: "/attendance", label: "attendance", icon: Users },
+    { to: "/marks", label: "marks", icon: ClipboardList },
+    { to: "/students", label: "students", icon: GraduationCap },
+    { to: "/report-cards", label: "reportCards", icon: Award },
+    { to: "/reports", label: "reports", icon: BarChart3 },
     { to: "/announcements", label: "announcements", icon: Megaphone },
     { to: "/chat", label: "chat", icon: MessageSquare },
   ],
@@ -377,7 +382,7 @@ export default function Sidebar({ onNavigate }) {
   const role = user?.role || "admin";
   // Attendance is only offered to homeroom teachers. Until we know the user's
   // homeroom classes we hide the item rather than show it and remove it.
-  const { data: homeroomData, isFetched: homeroomFetched } = useMyHomeroomClasses(role === "teacher");
+  const { data: homeroomData, isFetched: homeroomFetched } = useMyHomeroomClasses(["teacher", "support"].includes(role));
   const homeroomCount = homeroomData?.data?.classes?.length ?? 0;
 
   const baseItems = navItems[role] || [{ to: "/dashboard", label: "dashboard", icon: LayoutDashboard }];
@@ -391,7 +396,7 @@ export default function Sidebar({ onNavigate }) {
     // Teachers enter marks on /marks; the legacy per-exam page is gone.
     items = items.filter((i) => i.to !== "/exams");
   }
-  if (role === "teacher" && !(homeroomFetched && homeroomCount > 0)) {
+  if (["teacher", "support"].includes(role) && !(homeroomFetched && homeroomCount > 0)) {
     items = items.filter((i) => i.to !== "/attendance");
   }
 

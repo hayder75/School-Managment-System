@@ -111,7 +111,7 @@ export function TeacherAttendanceView({ embedded = false, onBack = null } = {}) 
   const { t } = useI18n();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const isTeacher = user?.role === "teacher";
+  const isTeacher = ["teacher", "support"].includes(user?.role);
   const today = localIso();
   const [classId, setClassId] = useState(() => {
     try { return localStorage.getItem("attendance.class") || ""; } catch { return ""; }
@@ -139,7 +139,7 @@ export function TeacherAttendanceView({ embedded = false, onBack = null } = {}) 
 
   const fromDate = localIso(new Date(Date.now() - rangeWeeks * 7 * 86400000));
   const { data: classesData } = useClasses({ limit: 200 });
-  const { data: homeroomData, isLoading: loadingHomeroom } = useMyHomeroomClasses();
+  const { data: homeroomData, isLoading: loadingHomeroom } = useMyHomeroomClasses(isTeacher);
   const { data: overviewData, isLoading: loadingOverview } = useTeacherAttendanceOverview({
     from_date: fromDate,
     to_date: today,

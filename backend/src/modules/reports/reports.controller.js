@@ -113,10 +113,12 @@ async function getEnrollmentReport(req, res) {
 async function getGradeDistribution(req, res) {
   const { class_id, exam_id } = req.query;
   let scopedClassId = class_id;
-  if (req.user.role === 'teacher') {
-    const classes = await access.teacherClassIds(req.tenant.id, req.user.userId);
+  if (['teacher', 'support'].includes(req.user.role)) {
+    const classes = req.user.role === 'support'
+      ? await access.supportClassIds(req.tenant.id, req.user.userId)
+      : await access.teacherClassIds(req.tenant.id, req.user.userId);
     if (class_id && !classes.includes(class_id)) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view grade distribution for classes you teach' } });
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view grade distribution for your classes' } });
     }
     if (!class_id) scopedClassId = classes;
   }
@@ -192,10 +194,12 @@ async function exportClassResults(req, res) {
   const { subject_id, types, type, term_id, from_date, to_date, exam_id } = req.query;
   let classIds = toArray(req.query.class_id ?? req.query.class_ids);
 
-  if (req.user.role === 'teacher') {
-    const allowed = await access.teacherClassIds(req.tenant.id, req.user.userId);
+  if (['teacher', 'support'].includes(req.user.role)) {
+    const allowed = req.user.role === 'support'
+      ? await access.supportClassIds(req.tenant.id, req.user.userId)
+      : await access.teacherClassIds(req.tenant.id, req.user.userId);
     if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only export results for classes you teach' } });
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only export results for your classes' } });
     }
     if (!classIds.length) classIds = allowed;
   }
@@ -220,7 +224,7 @@ async function getHomeroomAttendance(req, res) {
   const { from_date, to_date } = req.query;
   let classIds = toArray(req.query.class_id ?? req.query.class_ids);
 
-  if (req.user.role === 'teacher') {
+  if (['teacher', 'support'].includes(req.user.role)) {
     const allowed = await access.homeroomClassIds(req.tenant.id, req.user.userId);
     if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view attendance for your homeroom class' } });
@@ -243,7 +247,7 @@ async function exportHomeroomAttendance(req, res) {
   const { from_date, to_date } = req.query;
   let classIds = toArray(req.query.class_id ?? req.query.class_ids);
 
-  if (req.user.role === 'teacher') {
+  if (['teacher', 'support'].includes(req.user.role)) {
     const allowed = await access.homeroomClassIds(req.tenant.id, req.user.userId);
     if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only export attendance for your homeroom class' } });
@@ -263,10 +267,12 @@ async function getClassResults(req, res) {
   const { subject_id, types, type, term_id, from_date, to_date, exam_id } = req.query;
   let classIds = toArray(req.query.class_id ?? req.query.class_ids);
 
-  if (req.user.role === 'teacher') {
-    const allowed = await access.teacherClassIds(req.tenant.id, req.user.userId);
+  if (['teacher', 'support'].includes(req.user.role)) {
+    const allowed = req.user.role === 'support'
+      ? await access.supportClassIds(req.tenant.id, req.user.userId)
+      : await access.teacherClassIds(req.tenant.id, req.user.userId);
     if (classIds.length && classIds.some((c) => !allowed.includes(c))) {
-      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view results for classes you teach' } });
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You can only view results for your classes' } });
     }
     if (!classIds.length) classIds = allowed;
   }

@@ -269,7 +269,7 @@ async function getSheetData(tenantId, { classId, subjectId, termId }, viewer = {
   const role = viewer.role;
   const authoritative = isAuthoritative(role);
   const readOnlyRole = role === 'Unit Leader';
-  const assigned = role === 'teacher'
+  const assigned = ['teacher', 'support'].includes(role)
     ? ((await isSubjectTeacher(tenantId, viewer.userId, classId, subjectId))
       || (await isSupportStaff(tenantId, viewer.userId, classId)))
     : true;
@@ -311,7 +311,7 @@ function examTypeForGroup(group) {
 async function updateConfig(tenantId, sheetId, config, viewer = {}) {
   const sheet = await db('mark_sheets').where({ tenant_id: tenantId, id: sheetId }).first();
   if (!sheet) throw Object.assign(new Error('SHEET_NOT_FOUND'), { code: 'SHEET_NOT_FOUND' });
-  if (viewer.role === 'teacher' && isLocked(sheet.status)) {
+  if (['teacher', 'support'].includes(viewer.role) && isLocked(sheet.status)) {
     throw Object.assign(new Error('SHEET_LOCKED'), { code: 'SHEET_LOCKED' });
   }
   const clean = assessment.normaliseConfig(config);
@@ -505,7 +505,7 @@ async function saveSheet(tenantId, sheetId, viewer, { cells = [], fillBlanks = f
   if (role === 'Unit Leader') {
     throw Object.assign(new Error('READ_ONLY'), { code: 'READ_ONLY' });
   }
-  if (role === 'teacher') {
+  if (['teacher', 'support'].includes(role)) {
     const allowed = (await isSubjectTeacher(tenantId, viewer.userId, sheet.class_id, sheet.subject_id))
       || (await isSupportStaff(tenantId, viewer.userId, sheet.class_id));
     if (!allowed) throw Object.assign(new Error('FORBIDDEN'), { code: 'FORBIDDEN' });
@@ -667,7 +667,7 @@ async function listSubjectsForClass(tenantId, classId, viewer) {
     .where({ 'ts.tenant_id': tenantId, 'ts.class_id': classId })
     .select('s.id', 's.name', 's.has_language_skills', 'ts.teacher_id')
     .distinct();
-  if (viewer.role === 'teacher') {
+  if (['teacher', 'support'].includes(viewer.role)) {
     const support = await isSupportStaff(tenantId, viewer.userId, classId);
     if (support) {
       // Support staff may fill any subject for their class.
@@ -680,7 +680,7 @@ async function listSubjectsForClass(tenantId, classId, viewer) {
 
 async function overview(tenantId, { termId } = {}, viewer = {}) {
   let classQuery = db('classes').where({ tenant_id: tenantId }).select('id', 'name', 'level_group', 'grade_level', 'class_teacher_id');
-  if (viewer.role === 'teacher') {
+  if (['teacher', 'support'].includes(viewer.role)) {
     const assigned = await db('teacher_subjects').where({ tenant_id: tenantId, teacher_id: viewer.userId }).select('class_id');
     const support = await db('class_support_staff').where({ tenant_id: tenantId, user_id: viewer.userId }).select('class_id');
     const ids = [...new Set([...assigned.map((a) => a.class_id), ...support.map((s) => s.class_id)])];
@@ -734,7 +734,7 @@ async function overview(tenantId, { termId } = {}, viewer = {}) {
 
   const sheetByKey = Object.fromEntries(sheets.map((s) => [`${s.class_id}:${s.subject_id}`, s]));
 
-  const supportClassIds = viewer.role === 'teacher'
+  const supportClassIds = ['teacher', 'support'].includes(viewer.role)
     ? new Set((await db('class_support_staff').where({ tenant_id: tenantId, user_id: viewer.userId }).select('class_id')).map((r) => r.class_id))
     : null;
 
@@ -749,7 +749,7 @@ async function overview(tenantId, { termId } = {}, viewer = {}) {
     }
     const list = [...unique.values()]
       .filter((a) => {
-        if (viewer.role !== 'teacher') return true;
+        if (!['teacher', 'support'].includes(viewer.role)) return true;
         if (supportClassIds.has(c.id)) return true;
         return a.teacher_id === viewer.userId;
       })

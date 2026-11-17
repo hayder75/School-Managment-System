@@ -42,12 +42,19 @@ import Chips from "../components/ui/chips";
 function useScopedClasses(limit = 200) {
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "teacher";
+  const isSupport = user?.role === "support";
   const { data: classesData } = useClasses({ limit });
   const { data: assignmentsData } = useTeacherAssignments(isTeacher ? user?.id : null);
+  const { data: homeroomData } = useMyHomeroomClasses(isSupport);
   const all = classesData?.data || [];
   const assigned = new Set((assignmentsData?.data || []).map((a) => a.class_id));
-  const classes = isTeacher ? all.filter((c) => assigned.has(c.id)) : all;
-  return { classes, allClasses: all, isTeacher };
+  const supportIds = new Set((homeroomData?.data?.classes || []).map((c) => c.id));
+  const classes = isTeacher
+    ? all.filter((c) => assigned.has(c.id))
+    : isSupport
+      ? all.filter((c) => supportIds.has(c.id))
+      : all;
+  return { classes, allClasses: all, isTeacher, isSupport };
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -1733,7 +1740,7 @@ export default function ReportsPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const role = user?.role || "admin";
-  const { data: homeroomData } = useMyHomeroomClasses(role === "teacher");
+  const { data: homeroomData } = useMyHomeroomClasses(["teacher", "support"].includes(role));
   const homeroomClasses = homeroomData?.data?.classes || [];
   const hasHomeroom = homeroomClasses.length > 0;
   void role;
@@ -1745,14 +1752,14 @@ export default function ReportsPage() {
       list.push({ value: "admin", label: t.rep.school });
     if (["quality_director", "principal", "vice_principal"].includes(role) && role !== "quality_director")
       list.push({ value: "quality", label: t.rep.quality });
-    if (["owner", "admin", "general_manager", "principal", "vice_principal", "teacher", "Unit Leader"].includes(role))
+    if (["owner", "admin", "general_manager", "principal", "vice_principal", "teacher", "support", "Unit Leader"].includes(role))
       list.push({ value: "semester", label: t.rep.semester });
     if (["teacher"].includes(role)) list.push({ value: "teacher", label: t.rep.myReports });
-    if (["teacher"].includes(role) && hasHomeroom)
+    if (["teacher", "support"].includes(role) && hasHomeroom)
       list.push({ value: "homeroom", label: t("Homeroom Attendance") });
     if (["owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "Unit Leader"].includes(role))
       list.push({ value: "homeroom", label: t("Homeroom Attendance") });
-    if (["teacher", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "Unit Leader"].includes(role))
+    if (["teacher", "support", "owner", "admin", "general_manager", "principal", "vice_principal", "quality_director", "Unit Leader"].includes(role))
       list.push({ value: "results", label: t("Class Results") });
     if (["finance", "accountant", "general_manager", "owner", "admin"].includes(role)) list.push({ value: "finance", label: t.rep.finance });
     if (["cashier"].includes(role)) list.push({ value: "cashier", label: t.rep.collection });

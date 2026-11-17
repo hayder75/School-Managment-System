@@ -897,6 +897,12 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
 
   // Teachers may only see their own classes and their own (class, subject) pairs.
   let pairs = null;
+  if (viewer.role === 'support') {
+    const support = await db('class_support_staff').where({ tenant_id: tenantId, user_id: viewer.userId }).select('class_id');
+    const allowed = [...new Set(support.map((r) => r.class_id))];
+    if (!classIds.length) classIds = allowed;
+    else classIds = classIds.filter((c) => allowed.includes(c));
+  }
   if (viewer.role === 'teacher') {
     pairs = await db('teacher_subjects')
       .where({ tenant_id: tenantId, teacher_id: viewer.userId })
@@ -1286,7 +1292,7 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
 
   let classIds = toArray(filters.class_id ?? filters.class_ids);
 
-  if (viewer.role === 'teacher') {
+  if (['teacher', 'support'].includes(viewer.role)) {
     const homeroom = await access.homeroomClassIds(tenantId, viewer.userId);
     if (!homeroom.length) {
       return { from_date: fromDate, to_date: toDate, classes: [], is_homeroom: false };
@@ -1455,7 +1461,7 @@ async function getHomeroomAttendanceReport(tenantId, filters = {}, viewer = {}) 
   return {
     from_date: fromDate,
     to_date: toDate,
-    is_homeroom: viewer.role === 'teacher',
+    is_homeroom: ['teacher', 'support'].includes(viewer.role),
     classes: result,
   };
 }

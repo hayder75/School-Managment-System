@@ -591,7 +591,12 @@ async function getHomeroom(tenantId) {
     .whereIn('role', ['teacher', 'principal', 'vice_principal', 'quality_director'])
     .select('id', 'first_name', 'last_name')
     .orderBy('first_name');
-  return { classes, teachers };
+  const support_staff = await knex('users')
+    .where({ tenant_id: tenantId, status: 'active' })
+    .whereIn('role', ['teacher', 'support'])
+    .select('id', 'first_name', 'last_name')
+    .orderBy('first_name');
+  return { classes, teachers, support_staff };
 }
 
 async function setHomeroom(tenantId, classId, teacherId) {

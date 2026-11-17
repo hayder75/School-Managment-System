@@ -41,11 +41,11 @@ router.get('/report-overview', rbac('admin', 'owner', 'general_manager', 'princi
   }
 });
 
-router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student', 'parent', 'principal', 'vice_principal', 'quality_director', 'general_manager'), async (req, res) => {
+router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'support', 'student', 'parent', 'principal', 'vice_principal', 'quality_director', 'general_manager'), async (req, res) => {
   try {
     const userId = await resolveStudentUserId(req.tenant.id, req.params.studentId);
     if (!userId) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
-    const isStaff = ['admin', 'owner', 'teacher', 'principal', 'vice_principal', 'quality_director', 'general_manager'].includes(req.user.role);
+    const isStaff = ['admin', 'owner', 'teacher', 'support', 'principal', 'vice_principal', 'quality_director', 'general_manager'].includes(req.user.role);
     if (!isStaff) {
       const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, userId);
       if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });
@@ -74,7 +74,7 @@ router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'student
 
 // Mass download: ZIP containing one PDF per student, named by student.
 // Query: class_id, term_id (optional student_ids=csv to limit to selected).
-router.get('/report-cards/download', rbac('admin', 'owner', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'teacher'), async (req, res, next) => {
+router.get('/report-cards/download', rbac('admin', 'owner', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'teacher', 'support'), async (req, res, next) => {
   try {
     const { class_id, term_id, student_ids } = req.query;
     if (!class_id || !term_id) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'class_id and term_id are required' } });
@@ -109,7 +109,7 @@ router.get('/report-cards/download', rbac('admin', 'owner', 'principal', 'vice_p
 });
 
 // Mass print: one combined PDF with every student's report card, in rank order.
-router.get('/report-cards/print', rbac('admin', 'owner', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'teacher'), async (req, res, next) => {
+router.get('/report-cards/print', rbac('admin', 'owner', 'principal', 'vice_principal', 'quality_director', 'general_manager', 'teacher', 'support'), async (req, res, next) => {
   try {
     const { class_id, term_id } = req.query;
     if (!class_id || !term_id) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'class_id and term_id are required' } });

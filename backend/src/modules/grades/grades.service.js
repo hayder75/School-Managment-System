@@ -224,7 +224,7 @@ async function notifyGradesPosted(tenantId, exam, rows) {
 async function allowedExamClassIds(tenantId, exam, userId, role) {
   const all = examClassIds(exam);
   if (!all.length) return [];
-  if (role === 'teacher') {
+  if (['teacher', 'support'].includes(role)) {
     if (!userId || !exam.subject_id) return [];
     const rows = await db('teacher_subjects')
       .where({ tenant_id: tenantId, teacher_id: userId, subject_id: exam.subject_id })
@@ -272,7 +272,7 @@ async function getByExam(tenantId, examId, { classId, userId, role } = {}) {
   }
 
   let grants = [];
-  if (role === 'teacher' && isLockedStatus(status)) {
+  if (['teacher', 'support'].includes(role) && isLockedStatus(status)) {
     grants = await db('grade_edit_requests')
       .where({
         tenant_id: tenantId,
