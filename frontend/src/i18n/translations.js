@@ -19,6 +19,7 @@ export const en = {
     classes: "Classes",
     subjects: "Subjects",
     attendance: "Attendance",
+    marks: "Mark Sheets",
     exams: "Exams & Grades",
     timetable: "Timetable",
     myTimetable: "My Timetable",

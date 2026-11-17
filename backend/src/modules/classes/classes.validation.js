@@ -29,4 +29,12 @@ const homeroomSchema = z.object({
   body: z.object({ class_teacher_id: z.string().uuid().nullable().optional() }),
 });
 
-module.exports = { createClassSchema, updateClassSchema, homeroomSchema };
+const supportStaffSchema = z.object({
+  body: z.object({
+    user_id: z.string().uuid(),
+    can_mark_attendance: z.boolean().optional(),
+    can_enter_marks: z.boolean().optional(),
+  }),
+});
+
+module.exports = { createClassSchema, updateClassSchema, homeroomSchema, supportStaffSchema };

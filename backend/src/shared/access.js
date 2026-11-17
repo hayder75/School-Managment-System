@@ -76,26 +76,46 @@ async function teacherSubjectIdsForStudent(tenantId, teacherId, studentUserId) {
 }
 
 // ── Homeroom (class teacher) helpers ──
-// Attendance is owned by the homeroom teacher of a class (classes.class_teacher_id),
-// not by every teacher who happens to teach a subject in that class.
+// A class has an official homeroom teacher (classes.class_teacher_id) and any
+// number of support staff (class_support_staff). Support staff act as the
+// homeroom teacher for attendance, roster and class reports while the official
+// teacher is unavailable. The official teacher stays the name on report cards
+// and payroll.
+
+async function supportClassIds(tenantId, userId) {
+  if (!userId) return [];
+  const rows = await db('class_support_staff')
+    .where({ tenant_id: tenantId, user_id: userId })
+    .select('class_id');
+  return [...new Set(rows.map((r) => r.class_id))];
+}
+
+async function classStaffClassIds(tenantId, userId) {
+  if (!userId) return [];
+  const homeroom = await homeroomClassIds(tenantId, userId);
+  const support = await supportClassIds(tenantId, userId);
+  return [...new Set([...homeroom, ...support])];
+}
 
 async function homeroomClassIds(tenantId, teacherId) {
   if (!teacherId) return [];
   const rows = await db('classes')
     .where({ tenant_id: tenantId, class_teacher_id: teacherId })
     .select('id');
-  return rows.map((r) => r.id);
+  const support = await supportClassIds(tenantId, teacherId);
+  return [...new Set([...rows.map((r) => r.id), ...support])];
 }
 
 async function homeroomClasses(tenantId, teacherId) {
   if (!teacherId) return [];
+  const ids = await homeroomClassIds(tenantId, teacherId);
+  if (!ids.length) return [];
   const classes = await db('classes')
-    .where({ tenant_id: tenantId, class_teacher_id: teacherId })
-    .select('id', 'name', 'grade_level', 'section', 'level_group')
+    .where({ tenant_id: tenantId })
+    .whereIn('id', ids)
+    .select('id', 'name', 'grade_level', 'section', 'level_group', 'class_teacher_id')
     .orderBy('grade_level')
     .orderBy('name');
-  if (!classes.length) return [];
-  const ids = classes.map((c) => c.id);
   const counts = await db('students')
     .where({ tenant_id: tenantId, status: 'active' })
     .whereIn('class_id', ids)
@@ -103,15 +123,30 @@ async function homeroomClasses(tenantId, teacherId) {
     .select('class_id')
     .count('id as c');
   const map = Object.fromEntries(counts.map((r) => [r.class_id, Number(r.c)]));
-  return classes.map((c) => ({ ...c, student_count: map[c.id] || 0 }));
+  return classes.map((c) => ({
+    ...c,
+    student_count: map[c.id] || 0,
+    is_support: c.class_teacher_id !== teacherId,
+    role: c.class_teacher_id === teacherId ? 'homeroom' : 'support',
+  }));
 }
 
+// Kept under the old name so every existing permission check (attendance,
+// students, homeroom reports) automatically includes support staff.
 async function isHomeroomTeacherOfClass(tenantId, teacherId, classId) {
   if (!teacherId || !classId) return false;
   const row = await db('classes')
     .where({ tenant_id: tenantId, id: classId, class_teacher_id: teacherId })
     .first();
-  return !!row;
+  if (row) return true;
+  const support = await db('class_support_staff')
+    .where({ tenant_id: tenantId, class_id: classId, user_id: teacherId })
+    .first();
+  return !!support;
+}
+
+async function isClassStaffOfClass(tenantId, teacherId, classId) {
+  return isHomeroomTeacherOfClass(tenantId, teacherId, classId);
 }
 
 module.exports = {
@@ -126,5 +161,8 @@ module.exports = {
   teacherSubjectIdsForStudent,
   homeroomClassIds,
   homeroomClasses,
+  supportClassIds,
+  classStaffClassIds,
   isHomeroomTeacherOfClass,
+  isClassStaffOfClass,
 };

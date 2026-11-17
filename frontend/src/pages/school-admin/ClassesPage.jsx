@@ -2,7 +2,7 @@ import { fullName } from "../../lib/fullName";
 import { useState } from "react";
 import { FieldError } from "../../components/ui/form-error";
 import { extractApiErrors } from "../../lib/form-utils";
-import { useClasses, useCreateClass, useDeleteClass, useSetHomeroom } from "../../hooks/useClasses";
+import { useClasses, useCreateClass, useDeleteClass, useSetHomeroom, useClassSupportStaff, useAddClassSupportStaff, useRemoveClassSupportStaff } from "../../hooks/useClasses";
 import { useStudentsByClass } from "../../hooks/useStudents";
 import { useToast } from "../../store/toast";
 import api from "../../lib/api";
@@ -15,7 +15,7 @@ import { Badge } from "../../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, UserPlus, X } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 
 async function searchTeachers(q) {
@@ -28,9 +28,27 @@ function ClassRoster({ cls }) {
   const { toast } = useToast();
   const { data, isLoading } = useStudentsByClass(cls.id);
   const setHomeroom = useSetHomeroom();
+  const { data: supportData } = useClassSupportStaff(cls.id);
+  const addSupport = useAddClassSupportStaff();
+  const removeSupport = useRemoveClassSupportStaff();
+  const [supportId, setSupportId] = useState("");
+  const [supportLabel, setSupportLabel] = useState("");
   const [teacherId, setTeacherId] = useState(cls.class_teacher_id || "");
   const [teacherLabel, setTeacherLabel] = useState(cls.teacher_first_name ? fullName({ first_name: cls.teacher_first_name, middle_name: cls.teacher_middle_name, last_name: cls.teacher_last_name }) : "");
   const students = data?.data || [];
+  const support = supportData?.data || [];
+
+  async function addSupportStaff() {
+    if (!supportId) return;
+    try {
+      await addSupport.mutateAsync({ classId: cls.id, userId: supportId });
+      setSupportId("");
+      setSupportLabel("");
+      toast(t("Support staff added"), "success");
+    } catch (err) {
+      toast(err?.error?.message || err?.message || t("Failed to save"), "error");
+    }
+  }
 
   async function saveHomeroom() {
     try {
@@ -67,6 +85,39 @@ function ClassRoster({ cls }) {
           <Button onClick={saveHomeroom} disabled={setHomeroom.isPending}>{t("Save")}</Button>
         </div>
       </div>
+      <div className="space-y-2 mb-4">
+        <Label>{t("Support staff")}</Label>
+        <p className="text-[11px] text-muted-foreground">
+          {t("Support staff can take attendance, see the class roster and enter marks when the homeroom teacher is away.")}
+        </p>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <EntitySearch
+              value={supportId}
+              valueLabel={supportLabel}
+              onChange={(id, o) => { setSupportId(id); setSupportLabel(o.label); }}
+              fetchOptions={searchTeachers}
+              placeholder={t("Add a support teacher…")}
+              searchPlaceholder={t("Type a teacher name…")}
+            />
+          </div>
+          <Button variant="outline" onClick={addSupportStaff} disabled={!supportId || addSupport.isPending}>
+            <UserPlus className="h-4 w-4 mr-1" /> {t("Add")}
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {support.map((sp) => (
+            <span key={sp.user_id} className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-1 text-xs">
+              {fullName(sp)}
+              <button type="button" className="text-muted-foreground hover:text-rose-600" onClick={() => removeSupport.mutate({ classId: cls.id, userId: sp.user_id })}>
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          {!support.length && <span className="text-xs text-muted-foreground">{t("No support staff assigned.")}</span>}
+        </div>
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground text-sm py-4 text-center">{t("Loading...")}</p>
       ) : students.length === 0 ? (

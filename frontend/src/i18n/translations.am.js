@@ -20,6 +20,7 @@ export const am = {
     classes: "ክፍሎች",
     subjects: "ትምህርቶች",
     attendance: "መገኘት",
+    marks: "የውጤት ሉሆች",
     exams: "ፈተናዎች እና ውጤቶች",
     timetable: "የጊዜ ሰሌዳ",
     myTimetable: "የእኔ የጊዜ ሰሌዳ",

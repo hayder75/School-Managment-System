@@ -1,6 +1,6 @@
 import { fullName } from "../lib/fullName";
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/auth";
 import { useClasses } from "../hooks/useClasses";
@@ -16,7 +16,7 @@ import { BarChart, DonutChart, LineChart, RadarChart } from "../components/ui/ch
 import AdminAttendancePage from "./AdminAttendancePage";
 import UnitLeaderAttendanceView from "../components/attendance/UnitLeaderAttendanceView";
 import { useI18n } from "../i18n/I18nContext";
-import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search, Sun, Sunset, Pencil } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, CheckCircle, BarChart3, AlertTriangle, TrendingUp, CalendarDays, Search, Sun, Sunset, Pencil, ArrowLeft } from "lucide-react";
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Present", active: "bg-emerald-500 text-white border-emerald-500", idle: "text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
@@ -29,12 +29,17 @@ const ALL_CLASSES = "__all__";
 
 export default function AttendancePage() {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   if (user?.role === "Unit Leader") {
     return <UnitLeaderAttendanceView />;
   }
 
   if (user?.role === "admin" || user?.role === "owner") {
+    if (searchParams.get("fill") === "1") {
+      return <TeacherAttendanceView embedded onBack={() => navigate("/attendance")} />;
+    }
     return <AdminAttendancePage />;
   }
 
@@ -102,7 +107,7 @@ function localIso(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function TeacherAttendanceView() {
+export function TeacherAttendanceView({ embedded = false, onBack = null } = {}) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -155,6 +160,11 @@ function TeacherAttendanceView() {
   // the classes they are the class teacher of.
   const homeroomClasses = homeroomData?.data?.classes || [];
   const classes = isTeacher ? homeroomClasses : allClasses;
+  // In the owner/admin fill view, open the first class straight away so the
+  // register is one click from the overview.
+  useEffect(() => {
+    if (embedded && !classId && classes.length) setClassId(classes[0].id);
+  }, [embedded, classId, classes]);
   const attendanceRecords = attendanceData?.data || [];
   const classStudents = classStudentsData?.data || [];
   const overview = overviewData?.data || {};
@@ -377,10 +387,24 @@ function TeacherAttendanceView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t("Attendance")}</h1>
-        <p className="text-muted-foreground">{t("Mark daily attendance and track your classes at a glance")}</p>
-      </div>
+      {embedded ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {onBack && (
+            <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
+              <ArrowLeft className="h-4 w-4 mr-1" /> {t("Back to overview")}
+            </Button>
+          )}
+          <div>
+            <h2 className="text-xl font-bold">{t("Fill attendance")}</h2>
+            <p className="text-xs text-muted-foreground">{t("Select any class and date, then save the register.")}</p>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <h1 className="text-3xl font-bold">{t("Attendance")}</h1>
+          <p className="text-muted-foreground">{t("Mark daily attendance and track your classes at a glance")}</p>
+        </div>
+      )}
 
       {/* Controls */}
       <Card>

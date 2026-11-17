@@ -600,46 +600,84 @@ async function getSemesterResults(tenantId, { term_id, class_id } = {}) {
   const grading = require('../../shared/grading');
   const { scale, weights } = await grading.getGradingConfig(tenantId);
 
-  let exams = db('exams')
-    .where({ tenant_id: tenantId, term_id })
-    .select('id', 'name', 'class_id', 'subject_id', 'type', 'total_marks', 'pass_marks');
-  if (class_id) exams = exams.where('class_id', class_id);
-  exams = await exams;
-  if (!exams.length) return { scale, weights, subjects: [], students: [] };
-
   const subjectRowsDb = await db('subjects').where('tenant_id', tenantId).select('id', 'name');
   const subjectNames = Object.fromEntries(subjectRowsDb.map((s) => [s.id, s.name]));
-  void subjectNames;
+
+  // Only active students in scope. This is the roster the report card must
+  // show, even if a student has no marks yet.
+  let studentQuery = db('students as s')
+    .join('users as u', 's.user_id', 'u.id')
+    .where({ 's.tenant_id': tenantId, 's.status': 'active' })
+    .select(
+      'u.id as student_id',
+      's.class_id',
+      's.student_number',
+      knex.raw("CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) as student_name")
+    )
+    .orderBy('u.first_name')
+    .orderBy('u.last_name');
+  if (class_id) studentQuery = studentQuery.where('s.class_id', class_id);
+  const students = await studentQuery;
+  if (!students.length) {
+    return { term_id, class_id: class_id || null, scale, weights, students: [] };
+  }
+
+  const studentClass = new Map(students.map((s) => [s.student_id, s.class_id]));
+  const studentIds = students.map((s) => s.student_id);
+
+  // Include multi-class exams (exams.class_ids) as well as the primary class.
+  let examQuery = db('exams')
+    .where({ tenant_id: tenantId, term_id })
+    .whereNull('archived_at')
+    .select('id', 'name', 'class_id', 'class_ids', 'subject_id', 'type', 'total_marks', 'pass_marks');
+  if (class_id) {
+    examQuery = examQuery.where(function () {
+      this.where('class_id', class_id)
+        .orWhereRaw('class_ids @> ?::jsonb', [JSON.stringify([class_id])]);
+    });
+  }
+  const exams = await examQuery;
+  if (!exams.length) {
+    return { term_id, class_id: class_id || null, scale, weights, students: students.map((s) => ({
+      ...s, subjects: [], total: 0, average: 0, letter: null, rank: null,
+    })) };
+  }
 
   const examIds = exams.map((e) => e.id);
-  const gradeRows = await db('grades as g')
-    .join('users as su', 'g.student_id', 'su.id')
-    .join('students as s', 's.user_id', 'su.id')
-    .whereIn('g.exam_id', examIds)
-    .where('g.tenant_id', tenantId)
-    .select(
-      'g.exam_id', 'g.marks_obtained', 'su.id as student_id',
-      knex.raw("CONCAT_WS(' ', su.first_name, su.middle_name, su.last_name) as student_name"),
-      's.student_number'
-    );
+  const gradeRows = await db('grades')
+    .where({ tenant_id: tenantId })
+    .whereIn('exam_id', examIds)
+    .whereIn('student_id', studentIds)
+    .select('exam_id', 'student_id', 'marks_obtained');
 
   const examById = Object.fromEntries(exams.map((e) => [e.id, e]));
 
-  // student → subject → buckets
-  const byStudent = {};
-  for (const row of gradeRows) {
-    const exam = examById[row.exam_id];
-    if (!exam || row.marks_obtained == null) continue;
-    const subjectKey = exam.subject_id || `cls-${exam.class_id}`;
-    const bucket = grading.isFinalExamType(exam.type) ? 'final' : 'ca';
+  // Weighted marks from the class/subject mark sheet (the page teachers use).
+  const marksheets = require('../mark-sheets/mark-sheets.service');
+  const scopeClassIds = [...new Set(students.map((s) => s.class_id).filter(Boolean))];
+  const sheetResults = await marksheets.computeSubjectResults(tenantId, { classIds: scopeClassIds, termId: term_id });
 
-    byStudent[row.student_id] = byStudent[row.student_id] || {
-      student_id: row.student_id,
-      student_name: row.student_name,
-      student_number: row.student_number,
-      class_id: exam.class_id,
+  // student → subject → buckets. Seed every student so blank students still
+  // appear on the report card and in the class ranking.
+  const byStudent = {};
+  for (const st of students) {
+    byStudent[st.student_id] = {
+      student_id: st.student_id,
+      student_name: st.student_name,
+      student_number: st.student_number,
+      class_id: st.class_id,
       subjects: {},
     };
+  }
+
+  for (const row of gradeRows) {
+    const exam = examById[row.exam_id];
+    const actualClass = studentClass.get(row.student_id);
+    if (!exam || row.marks_obtained == null) continue;
+    // A multi-class exam must only count for students in a class it targets.
+    if (!gradeSvc.examClassIds(exam).includes(actualClass)) continue;
+    const subjectKey = exam.subject_id || `cls-${actualClass}`;
+    const bucket = grading.isFinalExamType(exam.type) ? 'final' : 'ca';
     const st = byStudent[row.student_id];
     st.subjects[subjectKey] = st.subjects[subjectKey] || { subject_id: exam.subject_id, ca: [], final: [] };
     st.subjects[subjectKey][bucket].push({
@@ -651,7 +689,6 @@ async function getSemesterResults(tenantId, { term_id, class_id } = {}) {
   // compute weighted semester mark per subject
   const results = [];
   for (const student of Object.values(byStudent)) {
-    if (class_id && student.class_id !== class_id) continue;
     const subjectRows = [];
     let totalMark = 0;
     for (const [, subj] of Object.entries(student.subjects)) {
@@ -661,20 +698,38 @@ async function getSemesterResults(tenantId, { term_id, class_id } = {}) {
       const caPct = avgPct(subj.ca);
       const examPct = avgPct(subj.final);
       let mark;
-      if (caPct != null && examPct != null) {
-        mark = (caPct * weights.ca_pct + examPct * weights.exam_pct) / 100;
+      let caValue = caPct;
+      let examValue = examPct;
+      let letter = null;
+      let weightedRow = null;
+      if (subj.subject_id) {
+        weightedRow = sheetResults.get(`${student.class_id}:${subj.subject_id}:${student.student_id}`) || null;
+      }
+      if (weightedRow && weightedRow.percent != null) {
+        mark = weightedRow.percent;
+        caValue = weightedRow.ca_percent;
+        examValue = weightedRow.final_used ? weightedRow.final_percent : null;
+        letter = weightedRow.letter;
       } else {
-        mark = caPct != null ? caPct : examPct;
+        if (caPct != null && examPct != null) {
+          mark = (caPct * weights.ca_pct + examPct * weights.exam_pct) / 100;
+        } else {
+          mark = caPct != null ? caPct : examPct;
+        }
+        letter = mark == null ? null : grading.letterFor(scale, mark);
       }
       if (mark == null) continue;
       const rounded = Math.round(mark * 10) / 10;
       subjectRows.push({
         subject_id: subj.subject_id,
         name: (subj.subject_id && subjectNames[subj.subject_id]) || 'Subject',
-        ca: caPct != null ? Math.round(caPct * 10) / 10 : null,
-        exam: examPct != null ? Math.round(examPct * 10) / 10 : null,
+        ca: caValue != null ? Math.round(caValue * 10) / 10 : null,
+        exam: examValue != null ? Math.round(examValue * 10) / 10 : null,
         mark: rounded,
-        letter: grading.letterFor(scale, rounded),
+        letter: letter || grading.letterFor(scale, rounded),
+        weighted: !!weightedRow,
+        coverage: weightedRow?.coverage ?? null,
+        complete: weightedRow?.complete ?? null,
       });
       totalMark += rounded;
     }
@@ -687,7 +742,7 @@ async function getSemesterResults(tenantId, { term_id, class_id } = {}) {
       subjects: subjectRows,
       total: Math.round(totalMark * 10) / 10,
       average,
-      letter: grading.letterFor(scale, average),
+      letter: subjectRows.length ? grading.letterFor(scale, average) : null,
     });
   }
 
@@ -937,6 +992,14 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
     marksByStudent.get(g.student_id)[g.exam_id] = g;
   }
 
+  // Weighted subject totals from the mark sheet, when the whole term is shown.
+  const marksheets = require('../mark-sheets/mark-sheets.service');
+  const examTermIds = [...new Set(exams.map((e) => e.term_id).filter(Boolean))];
+  const sheetTermId = termId || (examTermIds.length === 1 ? examTermIds[0] : null);
+  const sheetResults = (sheetTermId && !examId && !types.length && !fromDate && !toDate)
+    ? await marksheets.computeSubjectResults(tenantId, { classIds, termId: sheetTermId })
+    : new Map();
+
   // Build per-subject result tables.
   const subjectMap = new Map();
   for (const e of exams) {
@@ -989,6 +1052,14 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
         finalPercent = Math.round((rawMarks / rawTotal) * 1000) / 10;
       }
 
+      let weightedRow = null;
+      if (subj.subject_id) {
+        weightedRow = sheetResults.get(`${st.class_id}:${subj.subject_id}:${st.student_id}`) || null;
+      }
+      if (weightedRow && weightedRow.percent != null) {
+        finalPercent = weightedRow.percent;
+      }
+
       rows.push({
         student_id: st.student_id,
         first_name: st.first_name,
@@ -1006,6 +1077,9 @@ async function getClassResults(tenantId, filters = {}, viewer = {}) {
         grade_letter: finalPercent == null ? null : grading.letterFor(scale, finalPercent),
         passed: finalPercent == null ? null : finalPercent >= passPct,
         breakdown,
+        weighted: !!weightedRow,
+        coverage: weightedRow?.coverage ?? null,
+        complete: weightedRow?.complete ?? null,
       });
     }
 

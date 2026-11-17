@@ -158,6 +158,12 @@ async function submit(tenantId, examId, classId, userId) {
     .returning('*');
 
   await notifyReviewers(tenantId, row, examId, classId);
+  try {
+    const markSheets = require('../mark-sheets/mark-sheets.service');
+    await markSheets.syncSheetStatusFromExam(tenantId, examId);
+  } catch (err) {
+    logger.error('sheet status sync failed', { error: err.message });
+  }
   return row;
 }
 
@@ -224,6 +230,13 @@ async function review(tenantId, submissionId, userId, { decision, comment }) {
     action: approve ? 'approved' : 'returned',
     comment: comment || null,
   });
+
+  try {
+    const markSheets = require('../mark-sheets/mark-sheets.service');
+    await markSheets.syncSheetStatusFromExam(tenantId, sub.exam_id);
+  } catch (err) {
+    logger.error('sheet status sync failed', { error: err.message });
+  }
 
   try {
     if (row.teacher_id) {

@@ -11,6 +11,7 @@ import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Button } from "../components/ui/button";
 import { UserCheck, AlertTriangle, Clock, CheckCircle, CalendarDays, BarChart3, Users, GraduationCap, TrendingDown, Search, X } from "lucide-react";
 import { useI18n } from "../i18n/I18nContext";
+import { useNavigate } from "react-router-dom";
 import ExcelButton from "../components/reports/ExcelButton";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -83,6 +84,7 @@ function RankBadge({ rank }) {
 
 export default function AdminAttendancePage() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const today = localIso();
   const monthStart = localIso(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [draftFrom, setDraftFrom] = useState(monthStart);
@@ -279,11 +281,16 @@ export default function AdminAttendancePage() {
             ].find(([k]) => k === activePreset) || [])[1] || "")}`}
           </p>
         </div>
-        <ExcelButton
-          filename={`attendance-${fromDate}-to-${toDate}${selectedClass ? "-" + selectedClass.name.replace(/[^a-z0-9]+/gi, "-") : ""}`}
-          sheets={exportSheets}
-          label={t("Download Excel")}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => navigate("/attendance?fill=1")} className="gap-2">
+            <UserCheck className="h-4 w-4" /> {t("Fill attendance")}
+          </Button>
+          <ExcelButton
+            filename={`attendance-${fromDate}-to-${toDate}${selectedClass ? "-" + selectedClass.name.replace(/[^a-z0-9]+/gi, "-") : ""}`}
+            sheets={exportSheets}
+            label={t("Download Excel")}
+          />
+        </div>
       </div>
 
       <Card>
@@ -350,15 +357,30 @@ export default function AdminAttendancePage() {
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 sm:grid-cols-5 gap-4">
-            <StatCard title="Attendance Rate" value={summary.present_rate != null ? `${summary.present_rate}%` : "—"} icon={UserCheck} color="text-green-600" sub={`${summary.present || 0} ${t("Present")}`} />
+            <StatCard title="Present (marked)" value={summary.present_rate != null ? `${summary.present_rate}%` : "—"} icon={UserCheck} color="text-green-600" sub={`${(summary.present || 0).toLocaleString()} ${t("of")} ${(summary.total || 0).toLocaleString()} ${t("saved records")}`} />
             <StatCard title="Absent" value={summary.absent || "—"} icon={AlertTriangle} color="text-red-600" sub={`${summary.absent_rate}% ${t("absent rate")}`} />
             <StatCard title="Late" value={summary.late || "—"} icon={Clock} color="text-yellow-600" sub={`${summary.late_rate}% ${t("late rate")}`} />
             <StatCard title="Excused" value={summary.excused || "—"} icon={CheckCircle} color="text-blue-600" sub={`${summary.excused_rate}% ${t("excused rate")}`} />
+            <StatCard
+              title="Coverage"
+              value={summary.coverage_rate != null ? `${summary.coverage_rate}%` : "—"}
+              icon={CalendarDays}
+              color={Number(summary.coverage_rate) >= 95 ? "text-green-600" : "text-amber-600"}
+              sub={`${(summary.total || 0).toLocaleString()} / ${(summary.expected || 0).toLocaleString()} ${t("expected records")}`}
+            />
+            <StatCard
+              title="Not marked"
+              value={(summary.not_marked || 0).toLocaleString()}
+              icon={AlertTriangle}
+              color={Number(summary.not_marked) > 0 ? "text-amber-600" : "text-green-600"}
+              sub={`${summary.marked_sessions || 0} / ${summary.expected_sessions || 0} ${t("sessions")}`}
+            />
             <StatCard title="Total Records" value={summary.total?.toLocaleString() || "—"} icon={CalendarDays} color="text-neutral-600" sub={`${byClass.length} ${t("classes tracked")}`} />
           </div>
 
           <p className="text-xs text-muted-foreground">
             {byClass.filter((c) => Number(c.total) > 0).length} {t("of")} {byClass.length} {t("classes have attendance in this range.")}
+            {Number(summary.by_source?.backfill) > 0 && ` ${t("Backfilled as Present:")} ${Number(summary.by_source.backfill).toLocaleString()}.`}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -7,6 +7,7 @@ import { EthiopianDateInput } from "../components/ui/EthiopianDateInput";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import AssessmentSetup from "../components/marks/AssessmentSetup";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Save, Languages, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ export default function SettingsPage() {
           <TabsTrigger value="academic">Academic</TabsTrigger>
           <TabsTrigger value="finance">Finance</TabsTrigger>
           <TabsTrigger value="grading">Grading</TabsTrigger>
+          <TabsTrigger value="assessment">Assessment Setup</TabsTrigger>
           <TabsTrigger value="language">Language</TabsTrigger>
         </TabsList>
 
@@ -197,6 +199,9 @@ export default function SettingsPage() {
           <GradingSettings settings={settings} onSave={(kv) => updateSettings.mutateAsync(kv)} saving={updateSettings.isPending} />
           <TermSchemeSettings />
           <ApprovalRulesSettings />
+        </TabsContent>
+        <TabsContent value="assessment" className="space-y-4">
+          <AssessmentSetup />
         </TabsContent>
         <TabsContent value="language" className="space-y-4">
           <Card>

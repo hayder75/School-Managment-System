@@ -46,4 +46,37 @@ async function setHomeroom(req, res) {
   res.json({ success: true, data: cls });
 }
 
-module.exports = { create, list, getById, update, remove, setHomeroom };
+
+async function listSupportStaff(req, res) {
+  const data = await classService.listSupportStaff(req.tenant.id, req.params.id);
+  res.json({ success: true, data });
+}
+
+async function addSupportStaff(req, res) {
+  try {
+    const row = await classService.addSupportStaff(
+      req.tenant.id,
+      req.params.id,
+      req.validated.body.user_id,
+      {
+        canMarkAttendance: req.validated.body.can_mark_attendance,
+        canEnterMarks: req.validated.body.can_enter_marks,
+      },
+      req.user.userId
+    );
+    res.status(201).json({ success: true, data: row });
+  } catch (err) {
+    if (err.code === 'USER_NOT_FOUND') return res.status(404).json({ success: false, error: { code: err.code, message: 'User not found' } });
+    if (err.code === 'CLASS_NOT_FOUND') return res.status(404).json({ success: false, error: { code: err.code, message: 'Class not found' } });
+    if (err.code === 'SUPPORT_MUST_BE_TEACHER') return res.status(400).json({ success: false, error: { code: err.code, message: 'Support staff must be a user with the Teacher role' } });
+    if (err.code === 'ALREADY_HOMEROOM') return res.status(400).json({ success: false, error: { code: err.code, message: 'This teacher is already the homeroom teacher' } });
+    throw err;
+  }
+}
+
+async function removeSupportStaff(req, res) {
+  await classService.removeSupportStaff(req.tenant.id, req.params.id, req.params.userId);
+  res.json({ success: true, data: null });
+}
+
+module.exports = { create, list, getById, update, remove, setHomeroom, listSupportStaff, addSupportStaff, removeSupportStaff };

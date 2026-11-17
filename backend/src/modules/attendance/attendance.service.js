@@ -31,6 +31,7 @@ async function mark(tenantId, classId, teacherId, date, records, session = 'am')
       status: r.status,
       marked_by: teacherId,
       remark: r.remark || null,
+      source: r.source === 'backfill' || r.source === 'import' || r.source === 'face' ? r.source : 'manual',
     }));
 
   if (unique.length > 0 && rows.length === 0) {
@@ -58,6 +59,7 @@ async function mark(tenantId, classId, teacherId, date, records, session = 'am')
             status: row.status,
             marked_by: row.marked_by,
             remark: row.remark,
+            source: row.source,
           });
       } else {
         await trx('attendance').insert(row);
@@ -250,6 +252,44 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
   summary.late_rate = rate((summary.late / total) * 100);
   summary.excused_rate = rate((summary.excused / total) * 100);
 
+  // School-day count (Mon–Fri) so the owner sees how much of the period was
+  // actually marked instead of a rate over saved rows only.
+  function schoolDaysBetween(a, b) {
+    if (!a || !b) return 0;
+    const start = new Date(`${a}T00:00:00Z`);
+    const end = new Date(`${b}T00:00:00Z`);
+    let n = 0;
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const wd = d.getUTCDay();
+      if (wd !== 0 && wd !== 6) n += 1;
+    }
+    return n;
+  }
+  const schoolDays = schoolDaysBetween(fromDate, toDate);
+  const studentTotals = await db('students')
+    .where({ tenant_id: tenantId, status: 'active' })
+    .modify((q) => { if (classId) q.where('class_id', classId); })
+    .select('class_id')
+    .count('* as c')
+    .groupBy('class_id');
+  const studentsByClass = Object.fromEntries(studentTotals.map((r) => [r.class_id, Number(r.c)]));
+  const expectedTotal = Object.values(studentsByClass).reduce((s, n) => s + n * schoolDays * 2, 0);
+  const markedSessionsRow = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId }))
+    .select(db.raw('COUNT(DISTINCT (attendance.class_id, attendance.date, attendance.session))::int as c'))
+    .first();
+  summary.expected = expectedTotal;
+  summary.marked_sessions = Number(markedSessionsRow?.c || 0);
+  summary.expected_sessions = Object.keys(studentsByClass).length * schoolDays * 2;
+  summary.not_marked = Math.max(0, summary.expected - total);
+  summary.coverage_rate = expectedTotal ? rate((total / expectedTotal) * 100) : null;
+  summary.present_of_expected = expectedTotal ? rate((summary.present / expectedTotal) * 100) : null;
+
+  const sourceRows = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId }))
+    .select(db.raw("COALESCE(attendance.source, 'manual') as source"))
+    .count('* as c')
+    .groupBy(db.raw("COALESCE(attendance.source, 'manual')"));
+  summary.by_source = Object.fromEntries(sourceRows.map((r) => [r.source, Number(r.c)]));
+
   const byClass = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId })
     .leftJoin('classes', 'attendance.class_id', 'classes.id'))
     .select(
@@ -268,6 +308,10 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
 
   byClass.forEach((c) => {
     c.absent_rate = rate((c.absent / c.total) * 100);
+    c.students = studentsByClass[c.class_id] || 0;
+    c.expected = c.students * schoolDays * 2;
+    c.marked = c.total;
+    c.coverage_rate = c.expected ? rate((c.total / c.expected) * 100) : null;
   });
 
   // Include classes with no attendance in the range as zero rows, so the
@@ -291,6 +335,10 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
       late: 0,
       excused: 0,
       absent_rate: 0,
+      students: studentsByClass[c.id] || 0,
+      expected: (studentsByClass[c.id] || 0) * schoolDays * 2,
+      marked: 0,
+      coverage_rate: 0,
     });
   }
 
@@ -330,6 +378,8 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
     row.present_rate = rate((row.present / row.total) * 100);
     row.absent_rate = rate((row.absent / row.total) * 100);
     row.late_rate = rate((row.late / row.total) * 100);
+    row.expected = studentsByClass[row.class_id] || 0;
+    row.coverage_rate = row.expected ? rate((row.total / row.expected) * 100) : null;
   });
 
   const topAbsent = await scope(db('attendance').where({ 'attendance.tenant_id': tenantId })
@@ -359,13 +409,9 @@ async function getAdminOverview(tenantId, { fromDate, toDate, classId } = {}) {
 async function getTeacherOverview(tenantId, teacherUserId, { fromDate, toDate, classId, today } = {}) {
   const todayDate = today || new Date().toISOString().split('T')[0];
 
-  // Attendance belongs to homeroom teachers: only classes where this user is
-  // the class teacher (classes.class_teacher_id) are included.
-  const classRows = await db('classes')
-    .where({ tenant_id: tenantId, class_teacher_id: teacherUserId })
-    .distinct('id as class_id')
-    .select('id as class_id');
-  let classIds = classRows.map((r) => r.class_id).filter(Boolean);
+  // Attendance belongs to the homeroom teacher and their support staff.
+  const access = require('../../shared/access');
+  let classIds = await access.homeroomClassIds(tenantId, teacherUserId);
   if (classId) classIds = classIds.filter((id) => id === classId);
 
   if (classIds.length === 0) {

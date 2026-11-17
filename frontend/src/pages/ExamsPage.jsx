@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import {
   useExams, useCreateExam, useUpdateExam, useAssessmentTypes, useGradingScheme, useExamSections,
@@ -45,6 +45,13 @@ function aggregateStatus(rows) {
 }
 
 export default function ExamsPage() {
+  const role = useAuthStore((s) => s.user?.role);
+  // Teachers now enter marks on the class/subject Mark Sheet page.
+  if (role === "teacher") return <Navigate to="/marks" replace />;
+  return <ExamsPageInner />;
+}
+
+function ExamsPageInner() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -285,7 +292,9 @@ export default function ExamsPage() {
                                 title={isUnitLeader ? t("View details") : t("Enter grades")}
                                 onClick={() => {
                                   if (isUnitLeader) navigate(`/exams/${exam.id}`);
-                                  else setSelectedExamId(selectedExam?.id === exam.id ? null : exam.id);
+                                  else if (isAdmin && exam.class_id && exam.subject_id && exam.term_id) {
+                                    navigate(`/marks?class_id=${exam.class_id}&subject_id=${exam.subject_id}&term_id=${exam.term_id}`);
+                                  } else setSelectedExamId(selectedExam?.id === exam.id ? null : exam.id);
                                 }}
                               >
                                 {isUnitLeader ? <Search className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}

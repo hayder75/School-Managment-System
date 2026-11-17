@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "../../store/auth";
 import { useI18n } from "../../i18n/I18nContext";
 import {
@@ -8,12 +9,14 @@ import {
   ShieldAlert, ShieldCheck, BarChart3, Upload, Megaphone, UserPlus,
   Bus, BedDouble, BookOpen as BookIcon, FileText, CalendarClock, ClipboardList,
   Package, CalendarRange, CalendarDays, UserCheck, Award,
-  BadgeCheck, LockKeyhole, HardHat, Calculator, Crown, Gavel, Clock, ScanFace,
+  BadgeCheck, LockKeyhole, HardHat, Calculator, Crown, Gavel, Clock, ScanFace, Search,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { prefetchRoute } from "../../lib/prefetch";
 import { useMyHomeroomClasses } from "../../hooks/useAttendance";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
+import { Input } from "../ui/input";
 
 const navItems = {
   super_admin: [
@@ -30,6 +33,7 @@ const navItems = {
     { to: "/classes", label: "classes", icon: Notebook },
     { to: "/subjects", label: "subjects", icon: BookOpen },
     { to: "/attendance", label: "attendance", icon: Users },
+    { to: "/marks", label: "marks", icon: ClipboardList },
     { to: "/exams", label: "exams", icon: BookOpen },
     { to: "/report-cards", label: "reportCards", icon: Award },
     { to: "/timetable", label: "timetable", icon: Notebook },
@@ -70,6 +74,7 @@ const navItems = {
     { to: "/classes", label: "classes", icon: Notebook },
     { to: "/subjects", label: "subjects", icon: BookPlus },
     { to: "/attendance", label: "attendance", icon: Users },
+    { to: "/marks", label: "marks", icon: ClipboardList },
     { to: "/exams", label: "exams", icon: BookOpen },
     { to: "/report-cards", label: "reportCards", icon: Award },
     { to: "/timetable", label: "timetable", icon: Notebook },
@@ -103,6 +108,7 @@ const navItems = {
     { to: "/teachers", label: "teachers", icon: Users },
     { to: "/students", label: "students", icon: GraduationCap },
     { to: "/attendance", label: "attendance", icon: Users },
+    { to: "/marks", label: "marks", icon: ClipboardList },
     { to: "/exams", label: "exams", icon: BookOpen },
     { to: "/teacher-attendance", label: "teacherAttendance", icon: UserCheck },
     { to: "/reports", label: "reports", icon: BarChart3 },
@@ -113,7 +119,7 @@ const navItems = {
     { to: "/dashboard", label: "dashboard", icon: LayoutDashboard },
     { to: "/teacher/workspace", label: "workspace", icon: BadgeCheck },
     { to: "/attendance", label: "attendance", icon: Users },
-    { to: "/exams", label: "exams", icon: BookOpen },
+    { to: "/marks", label: "marks", icon: ClipboardList },
     { to: "/report-cards", label: "reportCards", icon: Award },
     { to: "/timetable", label: "myTimetable", icon: Notebook },
     { to: "/discipline", label: "discipline", icon: Gavel, permission: "discipline.manage" },
@@ -318,6 +324,7 @@ const permissionGated = [
   { to: "/classes", label: "classes", icon: Notebook, permission: "classes.manage" },
   { to: "/subjects", label: "subjects", icon: BookOpen, permission: "subjects.manage" },
   { to: "/attendance", label: "attendance", icon: Users, permission: "attendance.manage" },
+  { to: "/marks", label: "marks", icon: ClipboardList, permission: "grades.manage" },
   { to: "/exams", label: "exams", icon: BookOpen, permission: "exams.manage" },
   { to: "/timetable", label: "timetable", icon: Notebook, permission: "timetable.view" },
   { to: "/fees", label: "fees", icon: DollarSign, permission: "fees.manage" },
@@ -361,6 +368,11 @@ const permissionGated = [
 export default function Sidebar({ onNavigate }) {
   const { user, logout } = useAuthStore();
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const inputRef = useRef(null);
 
   const role = user?.role || "admin";
   // Attendance is only offered to homeroom teachers. Until we know the user's
@@ -375,18 +387,114 @@ export default function Sidebar({ onNavigate }) {
   // custom roles created in Roles & Permissions get exactly the pages chosen.
   const extra = permissionGated.filter((i) => perms.includes(i.permission) && !seen.has(i.to));
   let items = [...baseItems, ...extra];
+  if (role === "teacher") {
+    // Teachers enter marks on /marks; the legacy per-exam page is gone.
+    items = items.filter((i) => i.to !== "/exams");
+  }
   if (role === "teacher" && !(homeroomFetched && homeroomCount > 0)) {
     items = items.filter((i) => i.to !== "/attendance");
   }
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((i) => {
+      const en = i.label.toLowerCase();
+      const am = String(t.nav[i.label] || "").toLowerCase();
+      const to = i.to.toLowerCase();
+      return en.includes(q) || am.includes(q) || to.includes(q);
+    });
+  }, [items, query, t]);
+
+  useEffect(() => {
+    setActive(0);
+  }, [query, searchOpen]);
+
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen) {
+      setQuery("");
+      setTimeout(() => inputRef.current?.focus(), 30);
+    }
+  }, [searchOpen]);
+
+  function go(item) {
+    if (!item) return;
+    setSearchOpen(false);
+    onNavigate && onNavigate();
+    navigate(item.to);
+  }
+
+  function onSearchKey(e) {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, filtered.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); go(filtered[active]); }
+  }
+
   return (
     <aside className="w-64 border-r bg-card flex flex-col h-full min-h-0">
-      <div className="p-6 border-b shrink-0">
-        <h1 className="text-xl font-bold">SMS</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {`${user?.firstName || ""} ${user?.middleName || ""} ${user?.lastName || ""}`.trim()}
-        </p>
+      <div className="p-6 border-b shrink-0 space-y-3">
+        <div>
+          <h1 className="text-xl font-bold">SMS</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {`${user?.firstName || ""} ${user?.middleName || ""} ${user?.lastName || ""}`.trim()}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="flex w-full items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="flex-1 text-left">{t("Search pages…")}</span>
+          <kbd className="rounded border bg-muted px-1 text-[10px]">⌘K</kbd>
+        </button>
       </div>
+
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="max-w-lg p-0 gap-0">
+          <DialogTitle className="sr-only">{t("Search pages")}</DialogTitle>
+          <div className="border-b p-3">
+            <Input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onSearchKey}
+              placeholder={t("Search pages, e.g. attendance, payments…")}
+              className="border-0 shadow-none focus-visible:ring-0"
+            />
+          </div>
+          <div className="max-h-80 overflow-y-auto p-2">
+            {filtered.length === 0 ? (
+              <p className="p-4 text-center text-sm text-muted-foreground">{t("No pages found")}</p>
+            ) : (
+              filtered.map((item, i) => (
+                <button
+                  key={item.to}
+                  type="button"
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => go(item)}
+                  className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm ${i === active ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 truncate">{t.nav[item.label] || item.label}</span>
+                  <span className={`text-[10px] ${i === active ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{item.to}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <nav className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
         {items.map((item) => (
