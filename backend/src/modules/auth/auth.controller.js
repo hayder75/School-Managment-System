@@ -51,11 +51,6 @@ async function me(req, res) {
   }
 }
 
-async function devUsers(req, res) {
-  const users = await require('./auth.service').getDevUsers();
-  res.json({ success: true, data: users });
-}
-
 async function forgotPassword(req, res) {
   try {
     const { email } = req.validated.body;
@@ -110,4 +105,4 @@ async function setPassword(req, res) {
   }
 }
 
-module.exports = { login, logout, me, devUsers, changePassword, setPassword, forgotPassword, resetPassword };
+module.exports = { login, logout, me, changePassword, setPassword, forgotPassword, resetPassword };

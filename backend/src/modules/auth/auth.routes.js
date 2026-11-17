@@ -8,7 +8,6 @@ const { loginSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchem
 
 const router = Router();
 
-router.get('/dev-users', controller.devUsers);
 router.post('/login', authRateLimiter(), validate(loginSchema), controller.login);
 router.post('/logout', controller.logout);
 router.get('/me', auth, controller.me);

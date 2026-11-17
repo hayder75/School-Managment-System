@@ -159,56 +159,6 @@ async function setPassword(token, password) {
   return { userId: payload.userId };
 }
 
-const ROLE_ORDER = [
-  'owner', 'admin', 'general_manager', 'principal', 'vice_principal', 'quality_director',
-  'hr', 'finance', 'cashier', 'accountant', 'general_services', 'shift_coordinator',
-  'security_head', 'teacher', 'librarian', 'support', 'face_attendance', 'student', 'parent',
-];
-
-async function getDevUsers() {
-  const tenant = await db('tenants').orderBy('created_at').first();
-  if (!tenant) return { users: [], grouped: {} };
-
-  const rows = await db('users')
-    .where({ status: 'active', tenant_id: tenant.id })
-    .whereIn('role', ROLE_ORDER)
-    .select('id', 'username', 'email', 'first_name', 'last_name', 'role', 'created_at');
-
-  const byRole = {};
-  for (const r of rows) {
-    if (!byRole[r.role]) byRole[r.role] = [];
-    byRole[r.role].push(r);
-  }
-
-  const users = [];
-  for (const role of ROLE_ORDER) {
-    const list = byRole[role] || [];
-    if (!list.length) continue;
-    list.sort((a, b) => {
-      const ad = /^demo[._]/i.test(a.username || '') ? 0 : 1;
-      const bd = /^demo[._]/i.test(b.username || '') ? 0 : 1;
-      if (ad !== bd) return ad - bd;
-      return new Date(a.created_at) - new Date(b.created_at);
-    });
-    const u = list[0];
-    users.push({
-      id: u.id,
-      username: u.username,
-      email: u.email,
-      first_name: u.first_name,
-      last_name: u.last_name,
-      role: u.role,
-    });
-  }
-
-  const grouped = {};
-  for (const u of users) {
-    if (!grouped[u.role]) grouped[u.role] = [];
-    grouped[u.role].push(u);
-  }
-  return { users, grouped };
-}
-
 async function changePassword(userId, currentPassword, newPassword) {
   const user = await db('users').where({ id: userId }).first();
   if (!user) throw new Error('USER_NOT_FOUND');
@@ -242,4 +192,4 @@ async function resetPassword(token, password) {
   await db('password_reset_tokens').where({ id: record.id }).update({ used: true });
 }
 
-module.exports = { login, getMe, setPassword, getDevUsers, changePassword, forgotPassword, resetPassword };
+module.exports = { login, getMe, setPassword, changePassword, forgotPassword, resetPassword };

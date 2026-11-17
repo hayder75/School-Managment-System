@@ -1,66 +1,14 @@
-import { fullName } from "../../lib/fullName";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/auth";
 import { useI18n } from "../../i18n/I18nContext";
 import {
-  Eye, EyeOff, ChevronDown, Check, Mail, Lock, ArrowRight,
-  UserRound, Languages, BookOpen,
+  Eye, EyeOff, Mail, Lock, ArrowRight, Languages, BookOpen,
 } from "lucide-react";
-import api from "../../lib/api";
 import { warmRole } from "../../lib/prefetch";
 
 function homeFor(role) {
   return role === "face_attendance" ? "/face-attendance" : "/dashboard";
-}
-
-const ROLE_LABELS = {
-  owner: "School Owner",
-  admin: "Administrator",
-  general_manager: "General Manager",
-  principal: "Principal",
-  vice_principal: "Vice Principal",
-  quality_director: "Quality Director",
-  teacher: "Teacher",
-  finance: "Finance Officer",
-  cashier: "Cashier",
-  hr: "HR Officer",
-  accountant: "Accountant",
-  general_services: "General Services",
-  shift_coordinator: "Shift Coordinator",
-  security_head: "Head of Security",
-  support: "Support Staff",
-  librarian: "Librarian",
-  face_attendance: "Face Attendance",
-  parent: "Parent",
-  student: "Student",
-};
-
-const ROLE_LABELS_AM = {
-  owner: "የትምህርት ቤት ባለቤት",
-  admin: "አስተዳዳሪ",
-  general_manager: "ዋና ሥራ አስኪያጅ",
-  principal: "ዳይሬክተር",
-  vice_principal: "ምክትል ዳይሬክተር",
-  quality_director: "የጥራት ዳይሬክተር",
-  teacher: "መምህር",
-  finance: "ፋይናንስ ኃላፊ",
-  cashier: "ካሸር",
-  hr: "የሰው ሀብት አስተዳደር",
-  accountant: "ሒሳብ ሠራተኛ",
-  general_services: "አጠቃላይ አገልግሎት",
-  shift_coordinator: "የፈርቶች አስተባባሪ",
-  security_head: "የደኅንነት ኃላፊ",
-  support: "የድጋፍ ሠራተኛ",
-  librarian: "ቤተ መጻሕፍት",
-  face_attendance: "የፊት መለያ ኦፕሬተር",
-  parent: "ወላጅ",
-  student: "ተማሪ",
-};
-
-function initials(name) {
-  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
 }
 
 export default function LoginPage() {
@@ -70,12 +18,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const [devHint, setDevHint] = useState("");
   const [loading, setLoading] = useState(false);
-  const [devUsers, setDevUsers] = useState([]);
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [selectedDev, setSelectedDev] = useState(null);
-  const demoRef = useRef(null);
 
   const { login, isAuthenticated, isLoading } = useAuthStore();
   const navigate = useNavigate();
@@ -86,47 +29,7 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isLoading, navigate]);
 
-  useEffect(() => {
-    api.get("/auth/dev-users")
-      .then((res) => setDevUsers(res?.data?.users || []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    function onClick(e) {
-      if (demoRef.current && !demoRef.current.contains(e.target)) setDemoOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
-
-  async function handleDevSelect(user) {
-    const id = user.username || user.email;
-    setSelectedDev(user);
-    setDemoOpen(false);
-    setIdentifier(id);
-    setError("");
-    setDevHint("");
-    // The owner account has its own password — never auto-fill a shared demo one.
-    if (user.role === "owner") {
-      setPassword("");
-      setDevHint(t("Owner account: type its password to sign in."));
-      return;
-    }
-    setPassword("1234");
-    setLoading(true);
-    try {
-      await login(id, "1234");
-      warmRole(useAuthStore.getState().user?.role);
-      navigate(homeFor(useAuthStore.getState().user?.role));
-    } catch (err) {
-      setError(err?.error?.message || err?.message || t.auth.loginFailed);
-      setLoading(false);
-    }
-  }
-
   async function handleSubmit(e) {
-    setDevHint("");
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -142,9 +45,6 @@ export default function LoginPage() {
   }
 
   if (isLoading) return null;
-
-  const roleLabel = (role) =>
-    (lang === "am" ? ROLE_LABELS_AM[role] : ROLE_LABELS[role]) || t.roles[role] || role;
 
   return (
     <div className="relative min-h-screen w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col items-center justify-center p-4 sm:p-6">
@@ -193,70 +93,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo accounts */}
-        <div ref={demoRef} className="relative mb-5">
-          <button
-            type="button"
-            onClick={() => setDemoOpen((v) => !v)}
-            className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50 transition-colors text-left"
-          >
-            {selectedDev ? (
-              <>
-                <span className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-[11px] font-semibold">
-                  {initials(`${fullName(selectedDev)}`)}
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-[13px] font-medium truncate">
-                    {fullName(selectedDev)}
-                  </span>
-                  <span className="block text-[11px] text-neutral-400 font-medium">
-                    {roleLabel(selectedDev.role)}
-                  </span>
-                </span>
-                <span className="text-[11px] text-neutral-400 font-medium">{t.auth.pwLabel}</span>
-              </>
-            ) : (
-              <>
-                <span className="w-8 h-8 rounded-full border border-dashed border-neutral-300 flex items-center justify-center">
-                  <UserRound size={15} className="text-neutral-400" />
-                </span>
-                <span className="flex-1 text-[13px] text-neutral-400 font-medium">{t.auth.demoAccount}</span>
-                <span className="text-[11px] text-neutral-400 font-medium">1234</span>
-              </>
-            )}
-            <ChevronDown
-              size={16}
-              className={`text-neutral-400 transition-transform duration-200 ${demoOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {demoOpen && (
-            <div className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-xl overflow-hidden">
-              <div className="max-h-[32rem] overflow-y-auto py-1.5">
-                {devUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => handleDevSelect(u)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
-                  >
-                    <span className="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700 flex items-center justify-center text-[10px] font-semibold">
-                      {initials(`${fullName(u)}`)}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-[13px] font-medium truncate">
-                        {fullName(u)}
-                      </span>
-                      <span className="block text-[11px] text-neutral-400">{roleLabel(u.role)}</span>
-                    </span>
-                    {selectedDev?.id === u.id && <Check size={15} className="text-neutral-900" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Form */}
         <div className="rounded-2xl border border-neutral-200 bg-white p-6 sm:p-7 shadow-sm">
           <h2 className="text-[17px] font-semibold tracking-tight">{t.auth.welcomeBack}</h2>
@@ -270,12 +106,6 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            {!error && devHint && (
-              <div className="bg-amber-50 border border-amber-100 text-amber-700 text-xs p-2.5 rounded-lg">
-                {devHint}
-              </div>
-            )}
-
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-neutral-600 block">{t.auth.emailOrUsername}</label>
               <div className="relative">
