@@ -53,7 +53,9 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewComment, setReviewComment] = useState("");
+  const [autoSaving, setAutoSaving] = useState(false);
   const tableRef = useRef(null);
+  const autoTimer = useRef(null);
 
   const sheetId = data?.sheet?.id;
   useEffect(() => {
@@ -65,6 +67,9 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
   }, [sheetId, termId, classId, subjectId]);
 
   const columns = data?.columns || [];
+  const canEdit = !!data?.permissions?.can_edit
+    && !["approved", "submitted"].includes(data?.sheet?.status)
+    && !data?.permissions?.read_only;
   const groups = useMemo(() => {
     const configured = data?.sheet?.config?.groups || [];
     const byCode = new Map(configured.map((g) => [g.code, g]));
@@ -162,11 +167,54 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
     [data?.students, edits, groups, columns, totalWeight]
   );
 
+  const columnStats = useMemo(() => {
+    const stats = {};
+    for (const col of columns) {
+      let filled = 0;
+      let missing = 0;
+      for (const row of data?.students || []) {
+        const v = valueOf(row, col);
+        if (v !== "" && v != null) filled += 1;
+        else if (col.input_type !== "text") missing += 1;
+      }
+      stats[col.code] = { filled, missing, used: filled > 0 };
+    }
+    return stats;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.students, columns, edits]);
+
+  function rowHasMissing(row) {
+    return columns.some((c) => (
+      c.input_type !== "text"
+      && columnStats[c.code]?.used
+      && (valueOf(row, c) === "" || valueOf(row, c) == null)
+    ));
+  }
+
   const completeCount = computedRows.filter((x) => x.calc.complete).length;
   const withMarks = computedRows.filter((x) => x.calc.percent != null).length;
   const average = withMarks
     ? Math.round((computedRows.reduce((s, x) => s + (x.calc.percent || 0), 0) / withMarks) * 10) / 10
     : null;
+
+  // Auto-save 1.6s after the last edit. Manual Save still works and the
+  // blank-to-zero confirmation is never skipped silently.
+  useEffect(() => {
+    if (!dirty || !canEdit || blanks || save.isPending || submit.isPending) return undefined;
+    if (autoTimer.current) clearTimeout(autoTimer.current);
+    autoTimer.current = setTimeout(async () => {
+      setAutoSaving(true);
+      try {
+        await doSave({ fillBlanks: false, auto: true });
+      } finally {
+        setAutoSaving(false);
+      }
+    }, 1600);
+    return () => {
+      if (autoTimer.current) clearTimeout(autoTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, edits, canEdit, blanks, save.isPending, submit.isPending]);
 
   function collectCells(fillBlanks) {
     const cells = [];
@@ -210,7 +258,7 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
     return { count, names };
   }
 
-  async function doSave({ fillBlanks = false, thenSubmit = false } = {}) {
+  async function doSave({ fillBlanks = false, thenSubmit = false, auto = false } = {}) {
     setError("");
     setMessage("");
     try {
@@ -221,6 +269,8 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
       const warnings = result?.data?.warnings || [];
       if (warnings.length) {
         setMessage(t("Saved, but {n} value(s) were skipped.", { n: warnings.length }));
+      } else if (auto) {
+        setMessage(t("Auto-saved"));
       } else {
         setMessage(t("Saved {n} mark(s).", { n: result?.data?.saved ?? cells.length }));
       }
@@ -276,7 +326,6 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
     );
   }
 
-  const canEdit = data.permissions?.can_edit && data.sheet.status !== "approved" && data.sheet.status !== "submitted";
   const locked = !canEdit && !data.permissions?.read_only;
   const status = data.sheet.status;
 
@@ -335,7 +384,8 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
         <span>{t("Entered")}: <b>{withMarks}/{data.students.length}</b></span>
         <span>{t("Complete")}: <b>{completeCount}/{data.students.length}</b></span>
         <span>{t("Class average")}: <b>{average == null ? "—" : average}</b></span>
-        {dirty && <span className="text-amber-700 font-medium">{t("Unsaved changes")}</span>}
+        {dirty && !autoSaving && <span className="text-amber-700 font-medium">{t("Unsaved changes")}</span>}
+        {autoSaving && <span className="text-amber-700 font-medium">{t("Auto-saving...")}</span>}
         {savedAt && !dirty && <span className="text-emerald-700">{t("Saved")} {savedAt.toLocaleTimeString()}</span>}
         {Math.abs(totalWeight - 100) > 0.1 && (
           <span className="flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {t("Weights must total 100")}</span>
@@ -392,22 +442,28 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
                     {c.input_type === "number" && c.max_marks != null && (
                       <div className="text-[10px] font-normal text-muted-foreground">/{c.max_marks}</div>
                     )}
+                    {columnStats[c.code]?.used && columnStats[c.code].missing > 0 && (
+                      <div className="text-[10px] font-medium text-amber-700">{columnStats[c.code].missing} {t("missing")}</div>
+                    )}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {computedRows.map(({ row, calc: c }, ri) => (
-                <tr key={row.student_id} className={ri % 2 ? "bg-muted/10" : ""}>
-                  <td className="sticky left-0 z-10 bg-background px-2 py-0.5 text-center border-b border-r">{ri + 1}</td>
-                  <td className="sticky left-[34px] z-10 bg-background px-2 py-0.5 border-b border-r">
+              {computedRows.map(({ row, calc: c }, ri) => {
+                const rowMissing = rowHasMissing(row);
+                return (
+                <tr key={row.student_id} className={rowMissing ? "bg-amber-50/60" : (ri % 2 ? "bg-muted/10" : "")}>
+                  <td className={`sticky left-0 z-10 px-2 py-0.5 text-center border-b border-r ${rowMissing ? "bg-amber-100/80 text-amber-900 font-semibold" : "bg-background"}`}>{ri + 1}</td>
+                  <td className={`sticky left-[34px] z-10 px-2 py-0.5 border-b border-r ${rowMissing ? "bg-amber-100/80" : "bg-background"}`}>
                     <div className="font-medium truncate max-w-[180px]" title={row.name}>{row.name}</div>
                     <div className="text-[10px] text-muted-foreground">{row.student_number || ""}</div>
                   </td>
                   {columns.map((col, ci) => {
                     const val = valueOf(row, col);
+                    const miss = col.input_type !== "text" && columnStats[col.code]?.used && (val === "" || val == null);
                     return (
-                      <td key={col.code} className="border-b border-l p-0.5">
+                      <td key={col.code} className={`border-b border-l p-0.5 ${miss ? "bg-amber-100" : ""}`}>
                         <input
                           data-r={ri}
                           data-c={ci}
@@ -418,9 +474,11 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
                           max={col.max_marks ?? undefined}
                           value={val}
                           disabled={!canEdit}
+                          placeholder={miss ? t("missing") : ""}
+                          title={miss ? t("This student has no mark, but other students do.") : undefined}
                           onChange={(e) => setValue(row, col, e.target.value)}
                           onKeyDown={(e) => onKeyDown(e, ri, ci)}
-                          className={`w-full min-w-[54px] rounded border-0 bg-transparent px-1 py-0.5 text-center text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-70 ${col.input_type === "text" ? "min-w-[120px] text-left" : ""}`}
+                          className={`w-full min-w-[54px] rounded border-0 bg-transparent px-1 py-0.5 text-center text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-70 ${miss ? "placeholder:text-amber-700" : ""} ${col.input_type === "text" ? "min-w-[120px] text-left" : ""}`}
                         />
                       </td>
                     );
@@ -431,7 +489,8 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
                   </td>
                   <td className="border-b border-l px-2 py-0.5 text-center font-semibold">{c.letter || "—"}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -439,6 +498,8 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
 
       <p className="text-[11px] text-muted-foreground">
         {t("Tip: use the arrow keys or Enter to move between cells. You can paste a block copied from Excel.")}
+        {" "}
+        <span className="text-amber-700">{t("Amber cells are missing marks in a column that other students already have.")}</span>
       </p>
 
       <Dialog open={!!blanks} onOpenChange={(o) => !o && setBlanks(null)}>
