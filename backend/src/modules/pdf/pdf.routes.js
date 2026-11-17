@@ -45,7 +45,7 @@ router.get('/report-card/:studentId', rbac('admin', 'owner', 'teacher', 'support
   try {
     const userId = await resolveStudentUserId(req.tenant.id, req.params.studentId);
     if (!userId) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Student not found' } });
-    const isStaff = ['admin', 'owner', 'teacher', 'support', 'principal', 'vice_principal', 'quality_director', 'general_manager'].includes(req.user.role);
+    const isStaff = ['admin', 'owner', 'teacher', 'principal', 'vice_principal', 'quality_director', 'general_manager'].includes(req.user.role);
     if (!isStaff) {
       const canView = await access.canViewStudentByUserId(req.tenant.id, req.user.userId, req.user.role, userId);
       if (!canView) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this student' } });

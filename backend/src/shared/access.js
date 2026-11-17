@@ -57,6 +57,11 @@ async function canViewStudentByUserId(tenantId, userId, role, studentUserId) {
     if (!student || !student.class_id) return false;
     return isTeacherAssignedToClass(tenantId, userId, student.class_id);
   }
+  if (role === 'support') {
+    const student = await db('students').where({ tenant_id: tenantId, user_id: studentUserId }).first();
+    if (!student || !student.class_id) return false;
+    return isHomeroomTeacherOfClass(tenantId, userId, student.class_id);
+  }
   return false;
 }
 

@@ -399,6 +399,11 @@ export default function Sidebar({ onNavigate }) {
   if (["teacher", "support"].includes(role) && !(homeroomFetched && homeroomCount > 0)) {
     items = items.filter((i) => i.to !== "/attendance");
   }
+  if (role === "support" && homeroomFetched && homeroomCount === 0) {
+    // A support account that is not assigned to a class only needs the basics.
+    const basics = new Set(["/dashboard", "/announcements", "/chat"]);
+    items = items.filter((i) => basics.has(i.to));
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
