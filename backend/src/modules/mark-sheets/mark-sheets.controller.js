@@ -124,6 +124,21 @@ async function saveTemplate(req, res) {
   }
 }
 
+async function applyTemplate(req, res) {
+  try {
+    const data = await service.applyTemplateToSheets(req.tenant.id, req.params.id, {
+      updateWeights: !!req.validated.body?.update_weights,
+      dryRun: !!req.validated.body?.dry_run,
+    });
+    if (!req.validated.body?.dry_run) {
+      await audit.record(req, 'update', 'assessment_template', req.params.id, null, data);
+    }
+    res.json({ success: true, data });
+  } catch (err) {
+    handle(res, err);
+  }
+}
+
 async function deleteTemplate(req, res) {
   await service.deleteTemplate(req.tenant.id, req.params.id);
   res.json({ success: true, data: null });
@@ -139,5 +154,6 @@ module.exports = {
   exportSheet,
   listTemplates,
   saveTemplate,
+  applyTemplate,
   deleteTemplate,
 };

@@ -88,3 +88,19 @@ export function useDeleteAssessmentTemplate() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["assessment-templates"] }),
   });
 }
+
+export function useApplyAssessmentTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, updateWeights = false, dryRun = false }) =>
+      api.post(`/mark-sheets/templates/${id}/apply`, {
+        update_weights: updateWeights,
+        dry_run: dryRun,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assessment-templates"] });
+      qc.invalidateQueries({ queryKey: ["mark-sheets"] });
+      qc.invalidateQueries({ queryKey: ["mark-sheet"] });
+    },
+  });
+}

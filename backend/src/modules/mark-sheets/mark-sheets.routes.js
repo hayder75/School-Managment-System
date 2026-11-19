@@ -6,7 +6,7 @@ const requireAccess = require('../../middleware/access');
 const validate = require('../../middleware/validate');
 const { blockReadOnlyWrites } = require('../../middleware/readOnly');
 const {
-  sheetQuerySchema, overviewQuerySchema, saveSchema, reviewSchema, configSchema, templateSchema,
+  sheetQuerySchema, overviewQuerySchema, saveSchema, reviewSchema, configSchema, templateSchema, applyTemplateSchema,
 } = require('./mark-sheets.validation');
 
 const router = Router();
@@ -19,6 +19,7 @@ router.get('/overview', requireAccess(STAFF, ['grades.manage', 'reports.view']),
 router.get('/templates', requireAccess(STAFF, ['grades.manage', 'settings.manage']), controller.listTemplates);
 router.post('/templates', blockReadOnlyWrites, requireAccess(['owner', 'admin'], ['settings.manage']), validate(templateSchema), controller.saveTemplate);
 router.put('/templates/:id', blockReadOnlyWrites, requireAccess(['owner', 'admin'], ['settings.manage']), validate(templateSchema), controller.saveTemplate);
+router.post('/templates/:id/apply', blockReadOnlyWrites, requireAccess(['owner', 'admin'], ['settings.manage']), validate(applyTemplateSchema), controller.applyTemplate);
 router.delete('/templates/:id', blockReadOnlyWrites, requireAccess(['owner', 'admin'], ['settings.manage']), controller.deleteTemplate);
 
 router.get('/', requireAccess(STAFF, ['grades.manage']), validate(sheetQuerySchema), controller.getSheet);

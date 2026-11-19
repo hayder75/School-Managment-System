@@ -5,11 +5,11 @@ import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Plus, Trash2, Settings2 } from "lucide-react";
+import { Plus, Trash2, Settings2, RefreshCw } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 import { useSubjects } from "../../hooks/useSubjects";
 import {
-  useAssessmentTemplates, useSaveAssessmentTemplate, useDeleteAssessmentTemplate,
+  useAssessmentTemplates, useSaveAssessmentTemplate, useDeleteAssessmentTemplate, useApplyAssessmentTemplate,
 } from "../../hooks/useMarkSheets";
 import { presetFor, primaryPreset, languagePreset } from "../../lib/assessmentPresets";
 import MarkSheetConfigDialog from "./MarkSheetConfigDialog";
@@ -39,6 +39,7 @@ export default function AssessmentSetup() {
   });
   const save = useSaveAssessmentTemplate();
   const remove = useDeleteAssessmentTemplate();
+  const apply = useApplyAssessmentTemplate();
   const templates = templatesData?.data || [];
 
   const subjectById = useMemo(
@@ -50,6 +51,10 @@ export default function AssessmentSetup() {
   const [form, setForm] = useState({ name: "", level_group: "primary", subject_id: "", preset: "primary" });
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
+  const [applyTarget, setApplyTarget] = useState(null);
+  const [applyWeights, setApplyWeights] = useState(false);
+  const [applyPreview, setApplyPreview] = useState(null);
+  const [applyMessage, setApplyMessage] = useState("");
 
   async function create() {
     setError("");
@@ -90,6 +95,34 @@ export default function AssessmentSetup() {
       setEditing(null);
     } catch (err) {
       setError(err?.error?.message || err?.response?.data?.error?.message || t("Could not save the plan."));
+    }
+  }
+
+  async function openApply(tpl) {
+    setError("");
+    setApplyMessage("");
+    setApplyWeights(false);
+    setApplyPreview(null);
+    setApplyTarget(tpl);
+    try {
+      const res = await apply.mutateAsync({ id: tpl.id, dryRun: true });
+      setApplyPreview(res?.data || { sheets: 0 });
+    } catch (err) {
+      setError(err?.error?.message || err?.response?.data?.error?.message || t("Could not check the sheets."));
+    }
+  }
+
+  async function runApply() {
+    if (!applyTarget) return;
+    try {
+      const res = await apply.mutateAsync({ id: applyTarget.id, updateWeights: applyWeights, dryRun: false });
+      setApplyMessage(
+        `${t("Updated")} ${res?.data?.sheets || 0} ${t("sheets")} · ${res?.data?.columns_added || 0} ${t("columns added")}`
+      );
+      setApplyTarget(null);
+      setApplyPreview(null);
+    } catch (err) {
+      setError(err?.error?.message || err?.response?.data?.error?.message || t("Could not apply the plan."));
     }
   }
 
@@ -143,6 +176,9 @@ export default function AssessmentSetup() {
                       <Button size="sm" variant="outline" onClick={() => setEditing(tpl)}>
                         <Settings2 className="h-4 w-4 mr-1" /> {t("Columns & weights")}
                       </Button>
+                      <Button size="sm" variant="outline" onClick={() => openApply(tpl)} disabled={apply.isPending}>
+                        <RefreshCw className="h-4 w-4 mr-1" /> {t("Apply to existing sheets")}
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -159,6 +195,7 @@ export default function AssessmentSetup() {
               })}
             </div>
           )}
+          {applyMessage && <p className="text-sm text-emerald-700">{applyMessage}</p>}
           {error && <p className="text-sm text-rose-600">{error}</p>}
         </CardContent>
       </Card>
@@ -210,6 +247,39 @@ export default function AssessmentSetup() {
         saving={save.isPending}
         onSave={saveConfig}
       />
+
+      <Dialog open={!!applyTarget} onOpenChange={(o) => { if (!o) { setApplyTarget(null); setApplyPreview(null); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("Apply this plan to existing sheets")}</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              {t("This adds the columns and groups from this plan to the sheets that already exist. Existing marks are never changed. Nothing is deleted.")}
+            </p>
+            <div className="rounded-md border bg-muted/40 p-3">
+              {applyPreview == null ? (
+                <p className="text-muted-foreground">{t("Checking sheets...")}</p>
+              ) : (
+                <p><b>{applyPreview.sheets}</b> {t("class + subject sheets will be updated.")}</p>
+              )}
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1" checked={applyWeights} onChange={(e) => setApplyWeights(e.target.checked)} />
+              <span>
+                {t("Also update the group weights to match this plan.")}
+                <span className="block text-xs text-muted-foreground">
+                  {t("Leave this off to only add the missing columns and keep each sheet's current weights.")}
+                </span>
+              </span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => { setApplyTarget(null); setApplyPreview(null); }}>{t("Cancel")}</Button>
+              <Button onClick={runApply} disabled={apply.isPending || applyPreview == null}>
+                {apply.isPending ? t("Applying...") : t("Apply")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

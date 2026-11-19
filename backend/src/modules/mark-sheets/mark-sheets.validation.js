@@ -72,7 +72,15 @@ const templateSchema = z.object({
   }),
 });
 
+const applyTemplateSchema = z.object({
+  body: z.object({
+    update_weights: z.boolean().optional(),
+    dry_run: z.boolean().optional(),
+  }).optional(),
+});
+
 module.exports = {
+  applyTemplateSchema,
   sheetQuerySchema,
   overviewQuerySchema,
   saveSchema,

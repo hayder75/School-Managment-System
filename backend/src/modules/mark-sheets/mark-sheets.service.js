@@ -862,7 +862,9 @@ async function exportWorkbook(tenantId, sheetId, viewer) {
 
 async function listTemplates(tenantId, { level_group, subject_id } = {}) {
   let q = db('assessment_templates').where({ tenant_id: tenantId });
-  if (level_group) q = q.where(function () { this.whereNull('level_group').orWhere('level_group', level_group); });
+  // When a specific level is selected, show that level's plan only. The global
+  // fallback is visible under "All levels".
+  if (level_group) q = q.where('level_group', level_group);
   if (subject_id) q = q.where(function () { this.whereNull('subject_id').orWhere('subject_id', subject_id); });
   const rows = await q.orderBy('name');
   return rows.map((r) => {
@@ -971,6 +973,91 @@ async function syncSheetStatusFromExam(tenantId, examId) {
   });
 }
 
+
+/**
+ * Push a template's columns/weights onto existing sheets in its scope.
+ * Marks are never touched. Existing columns are kept; only missing groups and
+ * columns are added. Weights are re-balanced back to 100.
+ */
+async function applyTemplateToSheets(tenantId, templateId, { updateWeights = false, dryRun = false } = {}) {
+  const template = await db('assessment_templates').where({ tenant_id: tenantId, id: templateId }).first();
+  if (!template) throw Object.assign(new Error('TEMPLATE_NOT_FOUND'), { code: 'TEMPLATE_NOT_FOUND' });
+  let tplConfig = template.config;
+  if (typeof tplConfig === 'string') { try { tplConfig = JSON.parse(tplConfig); } catch { tplConfig = { groups: [] }; } }
+  tplConfig = assessment.normaliseConfig(tplConfig);
+
+  let q = db('mark_sheets as ms')
+    .join('classes as c', 'ms.class_id', 'c.id')
+    .where({ 'ms.tenant_id': tenantId })
+    .select('ms.*', 'c.level_group');
+  if (template.level_group) q = q.where('c.level_group', template.level_group);
+  if (template.subject_id) q = q.where('ms.subject_id', template.subject_id);
+  if (template.term_id) q = q.where('ms.term_id', template.term_id);
+  const sheets = await q;
+  if (dryRun) return { sheets: sheets.length, columns_added: 0, groups_added: 0 };
+
+  let totalColumns = 0;
+  let totalGroups = 0;
+  for (const sheet of sheets) {
+    let base = sheet.config;
+    if (typeof base === 'string') { try { base = JSON.parse(base); } catch { base = { groups: [] }; } }
+    base = assessment.normaliseConfig(base);
+    const next = JSON.parse(JSON.stringify(base));
+    const existingCodes = new Set(next.groups.flatMap((g) => (g.components || []).map((c) => c.code)));
+    let columnsAdded = 0;
+    let groupsAdded = 0;
+
+    for (const tg of tplConfig.groups) {
+      let group = next.groups.find((g) => g.code === tg.code);
+      if (!group) {
+        group = {
+          code: tg.code,
+          name: tg.name,
+          weight_pct: Number(tg.weight_pct || 0),
+          is_final: !!tg.is_final,
+          components: [],
+        };
+        next.groups.push(group);
+        groupsAdded += 1;
+      } else if (updateWeights) {
+        group.weight_pct = Number(tg.weight_pct || 0);
+        if (tg.name) group.name = tg.name;
+        group.is_final = !!tg.is_final;
+      }
+      for (const tc of tg.components || []) {
+        if (existingCodes.has(tc.code)) continue;
+        group.components = group.components || [];
+        group.components.push({ ...tc });
+        existingCodes.add(tc.code);
+        columnsAdded += 1;
+      }
+    }
+
+    if (!columnsAdded && !groupsAdded) continue;
+
+    // Keep the plan at 100 after adding/updating groups.
+    let total = next.groups.reduce((sum, g) => sum + Number(g.weight_pct || 0), 0);
+    if (next.groups.length && Math.abs(total - 100) > 0.1) {
+      if (total > 0) {
+        next.groups.forEach((g) => {
+          g.weight_pct = Math.round((Number(g.weight_pct || 0) * 100 / total) * 10) / 10;
+        });
+      }
+      total = next.groups.reduce((sum, g) => sum + Number(g.weight_pct || 0), 0);
+      next.groups[next.groups.length - 1].weight_pct = Math.round((next.groups[next.groups.length - 1].weight_pct + (100 - total)) * 10) / 10;
+    }
+
+    await db('mark_sheets').where({ id: sheet.id }).update({
+      config: JSON.stringify(next),
+      updated_at: db.fn.now(),
+    });
+    totalColumns += columnsAdded;
+    totalGroups += groupsAdded;
+  }
+
+  return { sheets: sheets.length, columns_added: totalColumns, groups_added: totalGroups };
+}
+
 module.exports = {
   getOrCreateSheet,
   getSheetData,
@@ -984,6 +1071,7 @@ module.exports = {
   computeSubjectResults,
   syncSheetStatusFromExam,
   listTemplates,
+  applyTemplateToSheets,
   saveTemplate,
   deleteTemplate,
   isSupportStaff,
