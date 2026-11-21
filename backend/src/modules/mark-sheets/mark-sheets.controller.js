@@ -23,6 +23,7 @@ function handle(res, err) {
     WEIGHTS_MUST_TOTAL_100: [400, `Weights must total 100. They currently total ${err.total ?? '?'}.`],
     DUPLICATE_COMPONENT: [400, `Duplicate column code: ${err.code_value || ''}`],
     COMPONENT_HAS_MARKS: [409, 'That column already has marks. Clear the marks before removing it.'],
+    MAX_BELOW_MARKS: [400, 'Some students already have marks above the new maximum. Lower those marks before changing the maximum.', { blocked: err.blocked }],
     INCOMPLETE_SHEET: [400, 'Some students still have blank marks. Save them as 0 before submitting.', { incomplete: err.incomplete, students: err.students }],
   };
   const [status, message, extra] = map[code] || [500, err?.message || 'Something went wrong', {}];

@@ -221,28 +221,58 @@ async function getTeacherClassSummary(tenantId, teacherId) {
 }
 
 async function getTeacherAttendanceReport(tenantId, teacherId, { from_date, to_date, class_id } = {}) {
+  // Count people, not session rows. A student absent in both Morning and
+  // Afternoon is one absent student, not two.
   let query = db('attendance')
     .where({ 'attendance.tenant_id': tenantId, 'attendance.marked_by': teacherId })
-    .leftJoin('classes', 'attendance.class_id', 'classes.id')
-    .select(
-      'classes.id as class_id',
-      'classes.name as class_name',
-      'attendance.date',
-      db.raw("COUNT(*)::int as total"),
-      db.raw("SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END)::int as present"),
-      db.raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END)::int as absent"),
-      db.raw("SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END)::int as late"),
-      db.raw("SUM(CASE WHEN status = 'excused' THEN 1 ELSE 0 END)::int as excused")
-    )
-    .groupBy('classes.id', 'classes.name', 'attendance.date')
-    .orderBy('attendance.date', 'desc');
-
+    .select('attendance.class_id', 'attendance.date', 'attendance.student_id', 'attendance.status');
   if (from_date) query = query.where('attendance.date', '>=', from_date);
   if (to_date) query = query.where('attendance.date', '<=', to_date);
   const wanted = Array.isArray(class_id) ? class_id : (class_id ? [class_id] : []);
   if (wanted.length) query = query.whereIn('attendance.class_id', wanted);
+  const rows = await query;
 
-  return { records: await query };
+  // student + class + date -> which statuses occurred that day
+  const perStudent = new Map();
+  for (const r of rows) {
+    const day = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
+    const key = `${r.class_id}|${day}|${r.student_id}`;
+    const cur = perStudent.get(key) || {
+      class_id: r.class_id, date: day, student_id: r.student_id,
+      present: false, late: false, excused: false, absent: false,
+    };
+    if (r.status === 'present') cur.present = true;
+    else if (r.status === 'late') cur.late = true;
+    else if (r.status === 'excused') cur.excused = true;
+    else if (r.status === 'absent') cur.absent = true;
+    perStudent.set(key, cur);
+  }
+
+  const byDay = new Map();
+  for (const p of perStudent.values()) {
+    const key = `${p.class_id}|${p.date}`;
+    const day = byDay.get(key) || {
+      class_id: p.class_id, date: p.date, total: 0, present: 0, absent: 0, late: 0, excused: 0,
+    };
+    day.total += 1;
+    // One person gets one day status: present > late > excused > absent.
+    if (p.present) day.present += 1;
+    else if (p.late) day.late += 1;
+    else if (p.excused) day.excused += 1;
+    else if (p.absent) day.absent += 1;
+    byDay.set(key, day);
+  }
+
+  const classIds = [...new Set([...byDay.values()].map((r) => r.class_id))];
+  const classes = classIds.length
+    ? await db('classes').where({ tenant_id: tenantId }).whereIn('id', classIds).select('id', 'name')
+    : [];
+  const nameById = Object.fromEntries(classes.map((c) => [c.id, c.name]));
+
+  const records = [...byDay.values()]
+    .map((r) => ({ ...r, class_name: nameById[r.class_id] || 'Class' }))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(a.class_name).localeCompare(String(b.class_name)));
+  return { records };
 }
 
 async function getTeacherGradeReport(tenantId, teacherId, { exam_id, class_id, type } = {}) {

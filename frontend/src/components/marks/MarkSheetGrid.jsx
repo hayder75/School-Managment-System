@@ -588,7 +588,12 @@ export default function MarkSheetGrid({ classId, subjectId, termId, onBack }) {
             setConfigOpen(false);
             setMessage(t("Columns saved."));
           } catch (err) {
-            setError(err?.error?.message || err?.response?.data?.error?.message || t("Could not save columns."));
+            const e = err?.error || err?.response?.data?.error || {};
+            const blocked = e.blocked || [];
+            const detail = blocked.length
+              ? ` (${blocked.map((b) => `${b.exam_name}: ${b.max_mark} → ${b.new_max}`).join(", ")})`
+              : "";
+            setError((e.message || t("Could not save columns.")) + detail);
           }
         }}
       />

@@ -308,6 +308,84 @@ function examTypeForGroup(group) {
   return group || 'exam';
 }
 
+
+/**
+ * Make existing exam totals follow the configured column max. If a student
+ * already has a mark above the new max, leave that exam alone and report it.
+ */
+async function syncExamTotals(tenantId, sheet, config, { strict = false, trx = null } = {}) {
+  const dbx = trx || db;
+  const exams = await dbx('exams')
+    .where({ tenant_id: tenantId, subject_id: sheet.subject_id, term_id: sheet.term_id })
+    .whereNull('archived_at')
+    .where(function () {
+      this.where('class_id', sheet.class_id)
+        .orWhereRaw('class_ids @> ?::jsonb', [JSON.stringify([sheet.class_id])]);
+    });
+  const clean = assessment.normaliseConfig(config);
+  const flat = [];
+  for (const g of clean.groups) {
+    for (const c of g.components || []) flat.push({ ...c, group: g.code });
+  }
+  const { scale } = await grading.getGradingConfig(tenantId);
+  const blocked = [];
+  let updated = 0;
+
+  for (const exam of exams) {
+    const comp = flat.find((c) => c.code === exam.component_code);
+    if (!comp || comp.input_type === 'text') continue;
+    const newMax = Number(comp.max_marks);
+    if (!Number.isFinite(newMax) || newMax < 0) continue;
+    if (Number(exam.total_marks) === newMax) continue;
+
+    const maxRow = await dbx('grades')
+      .where({ tenant_id: tenantId, exam_id: exam.id })
+      .max('marks_obtained as m')
+      .first();
+    const maxMark = maxRow?.m == null ? null : Number(maxRow.m);
+    if (maxMark != null && maxMark > newMax) {
+      blocked.push({
+        exam_id: exam.id,
+        exam_name: exam.name,
+        class_id: sheet.class_id,
+        subject_id: sheet.subject_id,
+        max_mark: maxMark,
+        new_max: newMax,
+      });
+      continue;
+    }
+
+    const oldTotal = Number(exam.total_marks) || 0;
+    const newPass = exam.pass_marks != null
+      ? (oldTotal > 0
+        ? Math.round(newMax * (Number(exam.pass_marks) / oldTotal) * 100) / 100
+        : Math.round(newMax * 0.5 * 100) / 100)
+      : null;
+    await dbx('exams').where({ id: exam.id }).update({
+      total_marks: newMax,
+      pass_marks: newPass,
+      updated_at: db.fn.now(),
+    });
+
+    if (newMax > 0) {
+      const grades = await dbx('grades')
+        .where({ tenant_id: tenantId, exam_id: exam.id })
+        .whereNotNull('marks_obtained')
+        .select('id', 'marks_obtained');
+      for (const g of grades) {
+        const letter = grading.letterFor(scale, (Number(g.marks_obtained) / newMax) * 100);
+        await dbx('grades').where({ id: g.id }).update({ grade_letter: letter });
+      }
+    }
+    updated += 1;
+  }
+
+  if (strict && blocked.length) {
+    throw Object.assign(new Error('MAX_BELOW_MARKS'), { code: 'MAX_BELOW_MARKS', blocked });
+  }
+  return { updated, blocked };
+}
+
 async function updateConfig(tenantId, sheetId, config, viewer = {}) {
   const sheet = await db('mark_sheets').where({ tenant_id: tenantId, id: sheetId }).first();
   if (!sheet) throw Object.assign(new Error('SHEET_NOT_FOUND'), { code: 'SHEET_NOT_FOUND' });
@@ -352,10 +430,14 @@ async function updateConfig(tenantId, sheetId, config, viewer = {}) {
     }
   }
 
-  const [row] = await db('mark_sheets')
-    .where({ id: sheet.id })
-    .update({ config: JSON.stringify(clean), updated_at: db.fn.now() })
-    .returning('*');
+  let row;
+  await db.transaction(async (trx) => {
+    await syncExamTotals(tenantId, sheet, clean, { strict: true, trx });
+    [row] = await trx('mark_sheets')
+      .where({ id: sheet.id })
+      .update({ config: JSON.stringify(clean), updated_at: db.fn.now() })
+      .returning('*');
+  });
   return row;
 }
 
@@ -865,7 +947,7 @@ async function listTemplates(tenantId, { level_group, subject_id } = {}) {
   // When a specific level is selected, show that level's plan only. The global
   // fallback is visible under "All levels".
   if (level_group) q = q.where('level_group', level_group);
-  if (subject_id) q = q.where(function () { this.whereNull('subject_id').orWhere('subject_id', subject_id); });
+  if (subject_id) q = q.where('subject_id', subject_id);
   const rows = await q.orderBy('name');
   return rows.map((r) => {
     let config = r.config;
@@ -998,6 +1080,7 @@ async function applyTemplateToSheets(tenantId, templateId, { updateWeights = fal
 
   let totalColumns = 0;
   let totalGroups = 0;
+  const blocked = [];
   for (const sheet of sheets) {
     let base = sheet.config;
     if (typeof base === 'string') { try { base = JSON.parse(base); } catch { base = { groups: [] }; } }
@@ -1025,6 +1108,14 @@ async function applyTemplateToSheets(tenantId, templateId, { updateWeights = fal
         group.is_final = !!tg.is_final;
       }
       for (const tc of tg.components || []) {
+        // A column that already exists takes the plan's max marks/name/type.
+        const existingComp = (group.components || []).find((c) => c.code === tc.code);
+        if (existingComp) {
+          existingComp.max_marks = tc.max_marks;
+          existingComp.input_type = tc.input_type;
+          if (tc.name) existingComp.name = tc.name;
+          continue;
+        }
         if (existingCodes.has(tc.code)) continue;
         group.components = group.components || [];
         group.components.push({ ...tc });
@@ -1051,11 +1142,13 @@ async function applyTemplateToSheets(tenantId, templateId, { updateWeights = fal
       config: JSON.stringify(next),
       updated_at: db.fn.now(),
     });
+    const sync = await syncExamTotals(tenantId, sheet, next, { strict: false });
+    if (sync.blocked.length) blocked.push(...sync.blocked);
     totalColumns += columnsAdded;
     totalGroups += groupsAdded;
   }
 
-  return { sheets: sheets.length, columns_added: totalColumns, groups_added: totalGroups };
+  return { sheets: sheets.length, columns_added: totalColumns, groups_added: totalGroups, max_blocked: blocked };
 }
 
 module.exports = {
@@ -1072,6 +1165,7 @@ module.exports = {
   syncSheetStatusFromExam,
   listTemplates,
   applyTemplateToSheets,
+  syncExamTotals,
   saveTemplate,
   deleteTemplate,
   isSupportStaff,

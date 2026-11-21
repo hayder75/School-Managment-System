@@ -73,9 +73,11 @@ function StatCard({ title, value, sub, color }) {
 
 // ── Admin/Owner Tab ──
 
-function EnrollmentReport() {
+function EnrollmentReport({ classIds: outerClassIds, setClassIds: outerSetClassIds }) {
   const { classes } = useScopedClasses(200);
-  const [classIds, setClassIds] = useState([]);
+  const [localClassIds, setLocalClassIds] = useState([]);
+  const classIds = outerClassIds ?? localClassIds;
+  const setClassIds = outerSetClassIds ?? setLocalClassIds;
   const { data, isLoading } = useEnrollmentReport({ class_id: classIds.length ? classIds.join(",") : undefined });
   const report = data?.data;
   return (
@@ -368,6 +370,7 @@ function TeacherWorkloadReport() {
 function AdminReports() {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [enrollmentClassIds, setEnrollmentClassIds] = useState([]);
   const exports = [
     { kind: "enrollment", label: "Raw enrollment data" },
     { kind: "teacher-load", label: "Teacher workload" },
@@ -387,7 +390,13 @@ function AdminReports() {
                 <button
                   key={e.kind}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                  onClick={() => { window.open(`/api/reports/export-data/${e.kind}`, "_blank"); setMenuOpen(false); }}
+                  onClick={() => {
+                    const qs = e.kind === "enrollment" && enrollmentClassIds.length
+                      ? `?class_id=${encodeURIComponent(enrollmentClassIds.join(","))}`
+                      : "";
+                    window.open(`/api/reports/export-data/${e.kind}${qs}`, "_blank");
+                    setMenuOpen(false);
+                  }}
                 >
                   {t(e.label)}
                 </button>
@@ -396,7 +405,7 @@ function AdminReports() {
           )}
         </div>
       </div>
-      <EnrollmentReport />
+      <EnrollmentReport classIds={enrollmentClassIds} setClassIds={setEnrollmentClassIds} />
       <GradeDistributionReport />
       <ClassPerformanceReport />
       <AttendanceOverviewReport />

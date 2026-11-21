@@ -116,8 +116,10 @@ export default function AssessmentSetup() {
     if (!applyTarget) return;
     try {
       const res = await apply.mutateAsync({ id: applyTarget.id, updateWeights: applyWeights, dryRun: false });
+      const blocked = res?.data?.max_blocked?.length || 0;
       setApplyMessage(
         `${t("Updated")} ${res?.data?.sheets || 0} ${t("sheets")} · ${res?.data?.columns_added || 0} ${t("columns added")}`
+        + (blocked ? ` · ${blocked} ${t("columns kept their old max because some marks are higher")}` : "")
       );
       setApplyTarget(null);
       setApplyPreview(null);
@@ -253,7 +255,7 @@ export default function AssessmentSetup() {
           <DialogHeader><DialogTitle>{t("Apply this plan to existing sheets")}</DialogTitle></DialogHeader>
           <div className="space-y-3 text-sm">
             <p className="text-muted-foreground">
-              {t("This adds the columns and groups from this plan to the sheets that already exist. Existing marks are never changed. Nothing is deleted.")}
+              {t("This adds the columns and groups from this plan to the sheets that already exist. Existing columns take the max marks from this plan. If a student already has a mark above a new maximum, that column is left unchanged and reported after applying. Marks are never changed and nothing is deleted.")}
             </p>
             <div className="rounded-md border bg-muted/40 p-3">
               {applyPreview == null ? (
