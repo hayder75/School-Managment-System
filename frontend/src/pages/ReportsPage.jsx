@@ -387,7 +387,7 @@ function AdminReports() {
       <div className="flex justify-end">
         <div className="relative">
           <Button variant="outline" onClick={() => setMenuOpen((o) => !o)}>
-            <FileSpreadsheet className="h-4 w-4 mr-1" /> {t("Download Excel")} <ChevronDown className="h-3.5 w-3.5 ml-1" />
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> {t("Raw data exports")} <ChevronDown className="h-3.5 w-3.5 ml-1" />
           </Button>
           {menuOpen && (
             <div className="absolute right-0 z-20 mt-1 w-64 rounded-md border bg-card shadow-lg py-1" onMouseLeave={() => setMenuOpen(false)}>

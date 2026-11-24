@@ -128,7 +128,7 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); setDevHint(""); }}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="Enter your password"
                   className="w-full bg-white border border-neutral-200 rounded-lg pl-9 pr-10 py-2.5 text-[13px] focus:outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 transition-all placeholder:text-neutral-300"
