@@ -273,13 +273,16 @@ async function studentsRosterSheet(tenantId, f = {}) {
 
 // Full student master — matches the school's "Student_info_report" layout, clean
 // (deduped) and enriched with grade/section split + payment settlement.
-async function studentsMasterSheet(tenantId) {
+async function studentsMasterSheet(tenantId, f = {}) {
+  const classIds = classIdsFrom(f);
   const hasMiddle = await db.schema.hasColumn('users', 'middle_name').catch(() => false);
-  const rows = await db('students as st').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
+  let query = db('students as st').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
     .where('st.tenant_id', tenantId)
     .select('st.id', 'st.student_number', 'st.enrollment_date', 'st.mother_phone', 'st.father_phone', 'u.first_name', 'u.last_name', 'u.gender', 'u.phone', 'st.status', 'c.name as class', 'c.grade_level', 'c.section', 'c.level_group')
     .select(hasMiddle ? 'u.middle_name' : db.raw('null as middle_name'))
     .orderBy('c.grade_level').orderBy('c.section').orderBy('u.first_name');
+  if (classIds.length) query = query.whereIn('st.class_id', classIds);
+  const rows = await query;
 
   const list = rows;
   const ids = list.map((r) => r.id);
@@ -317,8 +320,12 @@ async function studentsMasterSheet(tenantId) {
   return [{ name: 'Students', columns, rows: data }];
 }
 
+function classIdsFrom(f = {}) {
+  return String(f.class_id || f.class_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
+}
+
 async function enrollmentSheet(tenantId, f = {}) {
-  const classIds = String(f.class_id || f.class_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
+  const classIds = classIdsFrom(f);
   let query = db('classes as c').where('c.tenant_id', tenantId);
   if (classIds.length) query = query.whereIn('c.id', classIds);
   const rows = await query
@@ -335,11 +342,14 @@ async function enrollmentSheet(tenantId, f = {}) {
   }];
 }
 
-async function teacherLoadSheet(tenantId) {
-  const rows = await db('teacher_subjects as ts').join('users as t', 'ts.teacher_id', 't.id').join('classes as c', 'ts.class_id', 'c.id').join('subjects as s', 'ts.subject_id', 's.id')
+async function teacherLoadSheet(tenantId, f = {}) {
+  const classIds = classIdsFrom(f);
+  let query = db('teacher_subjects as ts').join('users as t', 'ts.teacher_id', 't.id').join('classes as c', 'ts.class_id', 'c.id').join('subjects as s', 'ts.subject_id', 's.id')
     .where('ts.tenant_id', tenantId)
     .select(db.raw("t.first_name || ' ' || t.last_name as teacher"), 's.name as subject', 'c.name as class')
     .orderBy('teacher').orderBy('class');
+  if (classIds.length) query = query.whereIn('ts.class_id', classIds);
+  const rows = await query;
   const teachers = await db('users').where({ tenant_id: tenantId, role: 'teacher' }).whereNot('status', 'inactive')
     .select(db.raw("first_name || ' ' || last_name as teacher")).orderBy('first_name');
   const map = new Map();
@@ -366,11 +376,14 @@ function safeSheetName(name, used) {
   return final;
 }
 
-async function studentsByClassSheets(tenantId) {
-  const rows = await db('students as st').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
+async function studentsByClassSheets(tenantId, f = {}) {
+  const classIds = classIdsFrom(f);
+  let query = db('students as st').join('users as u', 'st.user_id', 'u.id').leftJoin('classes as c', 'st.class_id', 'c.id')
     .where('st.tenant_id', tenantId).where(function () { this.whereNull('st.status').orWhereNot('st.status', 'archived'); })
     .select('st.id', 'st.student_number', 'st.enrollment_date', 'u.first_name', 'u.last_name', 'u.gender', 'u.phone', 'st.status', 'c.name as class', 'c.grade_level', 'c.section')
     .orderBy('c.grade_level').orderBy('c.section').orderBy('u.first_name');
+  if (classIds.length) query = query.whereIn('st.class_id', classIds);
+  const rows = await query;
 
   const byClass = new Map();
   for (const r of rows) {

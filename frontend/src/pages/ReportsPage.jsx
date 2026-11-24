@@ -82,17 +82,9 @@ function EnrollmentReport({ classIds: outerClassIds, setClassIds: outerSetClassI
   const report = data?.data;
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Student Enrollment</h3>
-      <div className="space-y-1">
-        <p className="text-xs text-muted-foreground">Classes (empty = all classes)</p>
-        <Chips
-          options={classes.map((c) => ({ value: c.id, label: c.name }))}
-          value={classIds}
-          onChange={setClassIds}
-          emptyLabel="No classes"
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold">Student Enrollment</h3>
+        <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -118,6 +110,19 @@ function EnrollmentReport({ classIds: outerClassIds, setClassIds: outerSetClassI
         >
           CSV
         </Button>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">Classes (empty = all classes)</p>
+        <Chips
+          options={classes.map((c) => ({ value: c.id, label: c.name }))}
+          value={classIds}
+          onChange={setClassIds}
+          emptyLabel="No classes"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Excel and CSV export the classes selected above.
+        </p>
       </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : report && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
@@ -385,15 +390,18 @@ function AdminReports() {
             <FileSpreadsheet className="h-4 w-4 mr-1" /> {t("Download Excel")} <ChevronDown className="h-3.5 w-3.5 ml-1" />
           </Button>
           {menuOpen && (
-            <div className="absolute right-0 z-20 mt-1 w-60 rounded-md border bg-card shadow-lg py-1" onMouseLeave={() => setMenuOpen(false)}>
+            <div className="absolute right-0 z-20 mt-1 w-64 rounded-md border bg-card shadow-lg py-1" onMouseLeave={() => setMenuOpen(false)}>
+              <div className="px-3 pb-1 pt-1.5 text-[10px] leading-snug text-muted-foreground">
+                {enrollmentClassIds.length
+                  ? `${enrollmentClassIds.length} class${enrollmentClassIds.length > 1 ? "es" : ""} selected in Student Enrollment`
+                  : "No classes selected — full school"}
+              </div>
               {exports.map((e) => (
                 <button
                   key={e.kind}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
                   onClick={() => {
-                    const qs = e.kind === "enrollment" && enrollmentClassIds.length
-                      ? `?class_id=${encodeURIComponent(enrollmentClassIds.join(","))}`
-                      : "";
+                    const qs = enrollmentClassIds.length ? `?class_id=${enrollmentClassIds.join(",")}` : "";
                     window.open(`/api/reports/export-data/${e.kind}${qs}`, "_blank");
                     setMenuOpen(false);
                   }}
